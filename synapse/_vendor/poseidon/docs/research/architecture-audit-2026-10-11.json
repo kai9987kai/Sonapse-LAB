@@ -1,0 +1,193 @@
+{
+  "audit_date": "2026-10-11",
+  "git_head": "97eebc637865a815b458c50fb7ef8200ef1c61df",
+  "core_checkpoint": "C:\\Users\\kai99\\Desktop\\Poseidon\\runs\\tidal_dagger\\core.pt",
+  "core_sha256": "a053104ae63dc7f86baa15b4b34e46730e1ccb92117f221801fb21f90d2d6c27",
+  "runtime_oracle": {
+    "class": "<class 'poseidon.oracle.OracleEnsemble'>",
+    "is_calibrated": false,
+    "head_count": 3
+  },
+  "memory_probe": {
+    "intact": {
+      "actions": [
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reward": 0.9568093581466558,
+      "reported_final_health": 1.0,
+      "terminal_next_health": 1.0,
+      "oracle_calibrated": false
+    },
+    "erased": {
+      "actions": [
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reward": 0.9568093581466558,
+      "reported_final_health": 1.0,
+      "terminal_next_health": 1.0,
+      "oracle_calibrated": false
+    },
+    "shifted": {
+      "actions": [
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reward": 0.9568093581466558,
+      "reported_final_health": 1.0,
+      "terminal_next_health": 1.0,
+      "oracle_calibrated": false
+    },
+    "random_retrieval": {
+      "actions": [
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reward": 0.9568093581466558,
+      "reported_final_health": 1.0,
+      "terminal_next_health": 1.0,
+      "oracle_calibrated": false
+    },
+    "memory_free": {
+      "actions": [
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reward": 0.9568093581466558,
+      "reported_final_health": 1.0,
+      "terminal_next_health": 1.0,
+      "oracle_calibrated": false
+    }
+  },
+  "probe_notes": [
+    "One short seed is a wiring diagnostic, not a memory performance assay.",
+    "Equal actions alone do not establish inert memory; dependency tracing is separately recorded in the audit."
+  ],
+  "empty_forged_cognitive_receipt_accepted": true,
+  "fit_replay": {
+    "valid": true,
+    "replayed_data": true,
+    "artifact_sha256": "73cd9a991b7f64ed8745c760edf7d0cf94d8a5e5f8f4b6ad1e9715b55357c39b",
+    "model_sha256": "504d2ddcd34bc73e7aea3cb1d6be3b48ac5582d6ccd6f87e1e8dd053c36c61bc",
+    "episode_splits": [
+      "train",
+      "selection",
+      "calibration"
+    ]
+  },
+  "resealed_fit_coverage_accepted": {
+    "valid": true,
+    "replayed_data": true,
+    "artifact_sha256": "73cd9a991b7f64ed8745c760edf7d0cf94d8a5e5f8f4b6ad1e9715b55357c39b",
+    "model_sha256": "504d2ddcd34bc73e7aea3cb1d6be3b48ac5582d6ccd6f87e1e8dd053c36c61bc",
+    "episode_splits": [
+      "train",
+      "selection",
+      "calibration"
+    ]
+  },
+  "evaluation_replay": {
+    "valid": true,
+    "replayed": true,
+    "artifact_sha256": "73cd9a991b7f64ed8745c760edf7d0cf94d8a5e5f8f4b6ad1e9715b55357c39b",
+    "model_sha256": "504d2ddcd34bc73e7aea3cb1d6be3b48ac5582d6ccd6f87e1e8dd053c36c61bc",
+    "conditions": [
+      "id_test",
+      "ood_scarcity_test"
+    ]
+  },
+  "pilot_metrics": {
+    "id_test": {
+      "episodes": 32,
+      "metrics": {
+        "candidate_state_delta_mse": 0.016961348621407524,
+        "persistence_state_delta_mse": 0.022242215200094506,
+        "paired_state_mse_gain_over_persistence": 0.005280866578686982,
+        "paired_state_mse_gain_95pct_bootstrap_interval": [
+          0.0050150741008110344,
+          0.005555309326155111
+        ],
+        "candidate_reward_mae": 0.01255809486610815,
+        "action_mean_reward_mae": 0.007017567957518622,
+        "paired_reward_mae_gain_over_action_mean": -0.005540526908589527,
+        "paired_reward_mae_gain_95pct_bootstrap_interval": [
+          -0.005784049746580422,
+          -0.005279932425764855
+        ],
+        "candidate_death_brier": 0.0010178724478464574,
+        "training_prior_death_brier": 1.0582598974906432e-07,
+        "paired_death_brier_gain_over_prior": -0.0010177666218567083,
+        "paired_death_brier_gain_95pct_bootstrap_interval": [
+          -0.0010946425601048304,
+          -0.000942953921452272
+        ],
+        "state_episode_interval_coverage": 0.96875,
+        "reward_episode_interval_coverage": 0.9375,
+        "mean_state_interval_half_width": 1.2302505671977997,
+        "mean_reward_interval_half_width": 0.6717051640152931
+      }
+    },
+    "ood_scarcity_test": {
+      "episodes": 32,
+      "metrics": {
+        "candidate_state_delta_mse": 0.01840738527243957,
+        "persistence_state_delta_mse": 0.023564675822854042,
+        "paired_state_mse_gain_over_persistence": 0.005157290550414473,
+        "paired_state_mse_gain_95pct_bootstrap_interval": [
+          0.004900486615952104,
+          0.005397861415985972
+        ],
+        "candidate_reward_mae": 0.0144184150849469,
+        "action_mean_reward_mae": 0.007941954507259652,
+        "paired_reward_mae_gain_over_action_mean": -0.006476460577687249,
+        "paired_reward_mae_gain_95pct_bootstrap_interval": [
+          -0.006781139396480285,
+          -0.006169621003209613
+        ],
+        "candidate_death_brier": 0.0016393742298532743,
+        "training_prior_death_brier": 1.0582598974906432e-07,
+        "paired_death_brier_gain_over_prior": -0.0016392684038635252,
+        "paired_death_brier_gain_95pct_bootstrap_interval": [
+          -0.001726276371385893,
+          -0.0015557965481036717
+        ],
+        "state_episode_interval_coverage": 0.96875,
+        "reward_episode_interval_coverage": 0.9375,
+        "mean_state_interval_half_width": 1.4410659447312355,
+        "mean_reward_interval_half_width": 0.8273408301174641
+      }
+    }
+  },
+  "git_head_after": "97eebc637865a815b458c50fb7ef8200ef1c61df"
+}

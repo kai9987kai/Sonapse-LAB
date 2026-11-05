@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.tmp
+.DS_Store
+*.swp
+*.bak
+state/*.pt.[0-9]*
+state/*.pt
+state/*_journal.jsonl
+*.log
+/.pytest_cache/
+/runs/live-*/
+/runs/*viewer-check*/
+/runs/graft_credit_probe_20261104_task4/
+data/

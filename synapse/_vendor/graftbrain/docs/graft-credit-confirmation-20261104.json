@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "status": "frozen_before_confirmation",
+  "scope": "Continuation of the approved finite supervised graft probe; no neural or teacher algorithm change.",
+  "exploratory_seeds": [
+    0,
+    1,
+    2
+  ],
+  "confirmation_seeds": [
+    1000003,
+    1000004,
+    1000005,
+    1000006,
+    1000007,
+    1000008,
+    1000009,
+    1000010,
+    1000011,
+    1000012,
+    1000013,
+    1000014,
+    1000015,
+    1000016,
+    1000017,
+    1000018,
+    1000019
+  ],
+  "draft_revision_before_freeze": "The initial draft used seeds3..19. Independent review identified short unit probes at3,4,5 (not the declared80+80 run), so the final namespace is offset by1000000 before any confirmation execution to avoid that overlap. No outcome-based seed selection was performed.",
+  "train_steps": 80,
+  "recovery_steps": 80,
+  "primary_metric": {
+    "name": "normalized_recovery_auc_difference",
+    "definition": "Trapezoidal current-MSE integral over recovery updates0..80, divided by80; fixed-support minus adaptive, paired within seed.",
+    "direction": "positive favors adaptive recovery on this fixed synthetic teacher fixture"
+  },
+  "secondary_metrics": [
+    "last10 recovery-update mean MSE difference, fixed minus adaptive",
+    "final-update MSE difference, fixed minus adaptive",
+    "isolated error change immediately across structural events",
+    "old-target error as a descriptive same-input relabeling tradeoff"
+  ],
+  "analysis": {
+    "retain_every_declared_seed": true,
+    "no_outcome_based_stopping_or_exclusion": true,
+    "summaries": [
+      "every paired seed result",
+      "paired mean",
+      "paired median",
+      "win/tie/loss counts"
+    ],
+    "uncertainty": "95 percent percentile bootstrap for mean paired AUC difference, resampling independent confirmation seeds only; conditional on this one fixed teacher fixture",
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20261104,
+    "inferential_p_values": false
+  },
+  "descriptive_rl_run": {
+    "tasks": [
+      "forage",
+      "go_nogo"
+    ],
+    "training_seeds": [
+      0
+    ],
+    "evaluation_anchors": [
+      1000
+    ],
+    "train_steps_per_arm_task": 640,
+    "max_neurons_per_proxy": 400,
+    "microsteps": 1,
+    "arms": "unchanged seven matched growth/age controls",
+    "inference": "descriptive only; one independent training seed; distance/action changes are not success or general usefulness"
+  },
+  "preservation": "Do not pause, restart or send controls to process4272/port8770 or write its live checkpoint.",
+  "source_sha256": {
+    "graftbrain/__init__.py": "5ee3a04201ca2b6d4744fed6aae0be2e2c528a5431ad23d42f556eb651648955",
+    "graftbrain/__main__.py": "541080c747ecd1db6e55240c866f80c1b90068dbe0c8870190d653da15f467a3",
+    "graftbrain/brain.py": "ce5e973e93fae26906770e3c6fac66d993cc96af1c4239c5b1ec34a0dc37fa75",
+    "graftbrain/connectomes.py": "329af282fafd26b0d0444291f4e53beae198d6f28f2bdfeb8eea6a62e73de3c1",
+    "graftbrain/credit_experiments.py": "115ad1a45a1c457f7b42ef1daca93b2fd1c6d7840454cef223b8871cc7624dc3",
+    "graftbrain/experiments.py": "d26492305d44a6347b768e3109f6d5d0ee732126ffe69a119e81ba163eaa6345",
+    "graftbrain/graft.py": "8663492e63645cd88669503c1c7a1ec051be2d736fe416c8f9d7128617e5df85",
+    "graftbrain/graft_probe.py": "987dfd4f49c356b4431481efea7210fd6bf72f87cdb905df36da3030580b6512",
+    "graftbrain/neuro_modules.py": "d1237a929a9710ade3f7b7afd235bcea48d443a89f27c28617d89ad971466fb6",
+    "graftbrain/plasticity.py": "c26184bd8d38670aa7ef1011289a4e9c3f4309cc8f7e8670ec6ae9307c006167",
+    "graftbrain/runtime.py": "a3164a7ca79068a05474c11e324fd962297f644cf859a2adf398e50a2a009ba2",
+    "graftbrain/senses.py": "f9e7fe65b41e5dda9f30f036f647b82f913c42ce5c87c52c315a2dd6291e6221",
+    "graftbrain/server.py": "c706166d831ad0f12c35b5cd57b2c45fb984df14cf16f04129ad9cb4c0776dca",
+    "graftbrain/world.py": "720a6a026e593adf37c280d1a3dffafa185899119f3eaf0f2a41cd478e833bf3"
+  },
+  "limitations": [
+    "The confirmation varies initialization, minibatches and support randomness within the same hand-declared teacher/candidate graph.",
+    "It does not establish RL task advantage, biological fidelity, retention, robustness on other shifts, or superiority over other growth policies.",
+    "The teacher switch reassigns different targets to the same inputs, so old/new target errors express a necessary tradeoff, not a general catastrophic-forgetting test."
+  ],
+  "frozen_at_utc": "2026-11-04T20:46:16.138679+00:00"
+}

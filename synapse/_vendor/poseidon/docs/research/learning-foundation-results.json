@@ -1,0 +1,737 @@
+{
+  "artifact_sha256": "44a2400caa4a1008c045a0421ee5ab8d59b35165e2680082674ade339b3c0867",
+  "control": {
+    "clean_1p25": {
+      "arms": {
+        "erased": {
+          "episodes": 16,
+          "mean_override_rate": 0.8188,
+          "mean_reward": -1.5566,
+          "mean_steps": 39.88,
+          "std_reward": 0.9536,
+          "survival_rate": 0.0,
+          "total_overrides": 504
+        },
+        "frozen_tidal": {
+          "episodes": 16,
+          "mean_override_rate": 0.0,
+          "mean_reward": 6.4454,
+          "mean_steps": 64.0,
+          "std_reward": 0.0961,
+          "survival_rate": 1.0,
+          "total_overrides": 0
+        },
+        "intact": {
+          "episodes": 16,
+          "mean_override_rate": 0.8188,
+          "mean_reward": -1.5566,
+          "mean_steps": 39.88,
+          "std_reward": 0.9536,
+          "survival_rate": 0.0,
+          "total_overrides": 504
+        },
+        "memory_free": {
+          "episodes": 16,
+          "mean_override_rate": 0.8188,
+          "mean_reward": -1.5566,
+          "mean_steps": 39.88,
+          "std_reward": 0.9536,
+          "survival_rate": 0.0,
+          "total_overrides": 504
+        },
+        "random_retrieval": {
+          "episodes": 16,
+          "mean_override_rate": 0.8188,
+          "mean_reward": -1.5566,
+          "mean_steps": 39.88,
+          "std_reward": 0.9536,
+          "survival_rate": 0.0,
+          "total_overrides": 504
+        },
+        "shifted": {
+          "episodes": 16,
+          "mean_override_rate": 0.8188,
+          "mean_reward": -1.5566,
+          "mean_steps": 39.88,
+          "std_reward": 0.9536,
+          "survival_rate": 0.0,
+          "total_overrides": 504
+        }
+      },
+      "mean_reward_difference": -8.00198996412215,
+      "member_forward_calls": 38280,
+      "memory_comparisons": {
+        "intact_vs_erased": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_memory_free": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_random_retrieval": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_shifted": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        }
+      },
+      "paired_reward_95pct_bootstrap_interval": [
+        -8.474892086066305,
+        -7.505783718487228
+      ],
+      "paired_survival_difference": -1.0,
+      "planning_enabled_fraction": 1.0,
+      "receipt": "clean_1p25.json",
+      "receipt_sha256": "87e211cb83cb861ffa609265f9583024f7c512d769fa36c04a22d9bd8613d1ec",
+      "replay_verified": true,
+      "reward_differences": [
+        -7.813919919640018,
+        -8.164067016381807,
+        -6.74626365997315,
+        -8.453368045010501,
+        -8.822214926000614,
+        -8.412435813824041,
+        -9.755091786002506,
+        -6.0982906708214495,
+        -7.888091943030345,
+        -9.322948604712884,
+        -8.886337717959101,
+        -6.509660177914197,
+        -7.560365667416318,
+        -7.735508336253589,
+        -7.541929613526779,
+        -8.321345527487079
+      ],
+      "seeds": [
+        637000000,
+        637000001,
+        637000002,
+        637000003,
+        637000004,
+        637000005,
+        637000006,
+        637000007,
+        637000008,
+        637000009,
+        637000010,
+        637000011,
+        637000012,
+        637000013,
+        637000014,
+        637000015
+      ]
+    },
+    "noisy_scarcity_2p5": {
+      "arms": {
+        "erased": {
+          "episodes": 16,
+          "mean_override_rate": 0.7942,
+          "mean_reward": -2.0384,
+          "mean_steps": 36.56,
+          "std_reward": 0.5361,
+          "survival_rate": 0.0,
+          "total_overrides": 454
+        },
+        "frozen_tidal": {
+          "episodes": 16,
+          "mean_override_rate": 0.0,
+          "mean_reward": 6.4811,
+          "mean_steps": 64.0,
+          "std_reward": 0.0708,
+          "survival_rate": 1.0,
+          "total_overrides": 0
+        },
+        "intact": {
+          "episodes": 16,
+          "mean_override_rate": 0.7942,
+          "mean_reward": -2.0384,
+          "mean_steps": 36.56,
+          "std_reward": 0.5361,
+          "survival_rate": 0.0,
+          "total_overrides": 454
+        },
+        "memory_free": {
+          "episodes": 16,
+          "mean_override_rate": 0.7942,
+          "mean_reward": -2.0384,
+          "mean_steps": 36.56,
+          "std_reward": 0.5361,
+          "survival_rate": 0.0,
+          "total_overrides": 454
+        },
+        "random_retrieval": {
+          "episodes": 16,
+          "mean_override_rate": 0.7942,
+          "mean_reward": -2.0384,
+          "mean_steps": 36.56,
+          "std_reward": 0.5361,
+          "survival_rate": 0.0,
+          "total_overrides": 454
+        },
+        "shifted": {
+          "episodes": 16,
+          "mean_override_rate": 0.7942,
+          "mean_reward": -2.0384,
+          "mean_steps": 36.56,
+          "std_reward": 0.5361,
+          "survival_rate": 0.0,
+          "total_overrides": 454
+        }
+      },
+      "mean_reward_difference": -8.519472561579846,
+      "member_forward_calls": 35100,
+      "memory_comparisons": {
+        "intact_vs_erased": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_memory_free": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_random_retrieval": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_shifted": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        }
+      },
+      "paired_reward_95pct_bootstrap_interval": [
+        -8.81045125628186,
+        -8.26239820418274
+      ],
+      "paired_survival_difference": -1.0,
+      "planning_enabled_fraction": 1.0,
+      "receipt": "noisy_scarcity_2p5.json",
+      "receipt_sha256": "7bf5956adab6a1d0b4cc2a714f199ca81e5be9d06006714e0523ec80a80a0122",
+      "replay_verified": true,
+      "reward_differences": [
+        -8.883227649463425,
+        -7.8314218594703044,
+        -9.053158003475229,
+        -7.7433201386413035,
+        -8.755000391691159,
+        -8.897464790463559,
+        -8.799730849661469,
+        -8.19008281817333,
+        -8.364906873759375,
+        -8.10955056783159,
+        -8.337363251446689,
+        -8.260023207712234,
+        -8.056167569897708,
+        -8.015221815192678,
+        -9.88133848646516,
+        -9.133582711932315
+      ],
+      "seeds": [
+        639000000,
+        639000001,
+        639000002,
+        639000003,
+        639000004,
+        639000005,
+        639000006,
+        639000007,
+        639000008,
+        639000009,
+        639000010,
+        639000011,
+        639000012,
+        639000013,
+        639000014,
+        639000015
+      ]
+    },
+    "scarcity_2p5": {
+      "arms": {
+        "erased": {
+          "episodes": 16,
+          "mean_override_rate": 0.8446,
+          "mean_reward": -2.2182,
+          "mean_steps": 32.69,
+          "std_reward": 0.56,
+          "survival_rate": 0.0,
+          "total_overrides": 434
+        },
+        "frozen_tidal": {
+          "episodes": 16,
+          "mean_override_rate": 0.0,
+          "mean_reward": 6.5047,
+          "mean_steps": 64.0,
+          "std_reward": 0.0571,
+          "survival_rate": 1.0,
+          "total_overrides": 0
+        },
+        "intact": {
+          "episodes": 16,
+          "mean_override_rate": 0.8446,
+          "mean_reward": -2.2182,
+          "mean_steps": 32.69,
+          "std_reward": 0.56,
+          "survival_rate": 0.0,
+          "total_overrides": 434
+        },
+        "memory_free": {
+          "episodes": 16,
+          "mean_override_rate": 0.8446,
+          "mean_reward": -2.2182,
+          "mean_steps": 32.69,
+          "std_reward": 0.56,
+          "survival_rate": 0.0,
+          "total_overrides": 434
+        },
+        "random_retrieval": {
+          "episodes": 16,
+          "mean_override_rate": 0.8446,
+          "mean_reward": -2.2182,
+          "mean_steps": 32.69,
+          "std_reward": 0.56,
+          "survival_rate": 0.0,
+          "total_overrides": 434
+        },
+        "shifted": {
+          "episodes": 16,
+          "mean_override_rate": 0.8446,
+          "mean_reward": -2.2182,
+          "mean_steps": 32.69,
+          "std_reward": 0.56,
+          "survival_rate": 0.0,
+          "total_overrides": 434
+        }
+      },
+      "mean_reward_difference": -8.722837917852605,
+      "member_forward_calls": 31380,
+      "memory_comparisons": {
+        "intact_vs_erased": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_memory_free": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_random_retrieval": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        },
+        "intact_vs_shifted": {
+          "deltas": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "losses": 0,
+          "mean_reward_advantage": 0.0,
+          "ties": 16,
+          "wins": 0
+        }
+      },
+      "paired_reward_95pct_bootstrap_interval": [
+        -8.994137267092201,
+        -8.451322442597265
+      ],
+      "paired_survival_difference": -1.0,
+      "planning_enabled_fraction": 1.0,
+      "receipt": "scarcity_2p5.json",
+      "receipt_sha256": "7780bf7c6155dd801f791b0870760470b18f1b51c80c10946cae4e7c7f00346f",
+      "replay_verified": true,
+      "reward_differences": [
+        -9.392098234171977,
+        -9.096047260297654,
+        -9.139563337093243,
+        -8.282832893982992,
+        -9.092007021725628,
+        -8.130284750634791,
+        -7.979021648704144,
+        -8.450422155655811,
+        -9.135304211013274,
+        -9.890968289222597,
+        -8.712028245238974,
+        -7.767731531931064,
+        -8.311071394168861,
+        -8.420816134152865,
+        -8.752251056504596,
+        -9.0129585211432
+      ],
+      "seeds": [
+        638000000,
+        638000001,
+        638000002,
+        638000003,
+        638000004,
+        638000005,
+        638000006,
+        638000007,
+        638000008,
+        638000009,
+        638000010,
+        638000011,
+        638000012,
+        638000013,
+        638000014,
+        638000015
+      ]
+    }
+  },
+  "control_summary_sha256": "0c225755c601d1dc60ff22a514efdd1be2f74bf95af190b83f460f0be3ecee56",
+  "date": "2026-10-12",
+  "fit_receipt_sha256": "c5bd8d2af69cec3a6321544c54e96ff87dec3102beec19148035f62072f9c3ff",
+  "model_sha256": "6fdb20180cc5fdefa88bd2f5512f40086ac39943bd0f189b8505c2c920f8d017",
+  "prediction": {
+    "id_test": {
+      "deaths": 10,
+      "episodes": 64,
+      "metrics": {
+        "action_mean_reward_mae": 0.04928753089916427,
+        "candidate_death_brier": 0.007965859402247588,
+        "candidate_reward_mae": 0.043718324552173726,
+        "candidate_state_delta_mse": 0.012495503364334581,
+        "linear_action_delta_mse": 0.005136050015284731,
+        "mean_reward_interval_half_width": 0.910764335654676,
+        "mean_state_interval_half_width": 0.7703504813835025,
+        "paired_death_brier_gain_95pct_bootstrap_interval": [
+          -0.003952808018766518,
+          -0.0021489303778707836
+        ],
+        "paired_death_brier_gain_over_prior": -0.0030402288628010865,
+        "paired_reward_mae_gain_95pct_bootstrap_interval": [
+          0.0030485067545669153,
+          0.008588072669226676
+        ],
+        "paired_reward_mae_gain_over_action_mean": 0.005569206346990541,
+        "paired_state_mse_gain_95pct_bootstrap_interval": [
+          0.008936533213272924,
+          0.010818146951351082
+        ],
+        "paired_state_mse_gain_over_linear": -0.007359453349049851,
+        "paired_state_mse_gain_over_linear_95pct_bootstrap_interval": [
+          -0.008584419452028855,
+          -0.006269378087006288
+        ],
+        "paired_state_mse_gain_over_persistence": 0.009906141694955295,
+        "persistence_state_delta_mse": 0.022401645059289876,
+        "reward_episode_interval_coverage": 0.96875,
+        "state_episode_interval_coverage": 0.9375,
+        "training_prior_death_brier": 0.004925630539446502
+      },
+      "transitions": 5635
+    },
+    "ood_scarcity_test": {
+      "deaths": 15,
+      "episodes": 64,
+      "metrics": {
+        "action_mean_reward_mae": 0.06484697019914165,
+        "candidate_death_brier": 0.012402994718286209,
+        "candidate_reward_mae": 0.05600513990793843,
+        "candidate_state_delta_mse": 0.012569273816552595,
+        "linear_action_delta_mse": 0.005156546869164267,
+        "mean_reward_interval_half_width": 1.0986813986673951,
+        "mean_state_interval_half_width": 0.9049219843000174,
+        "paired_death_brier_gain_95pct_bootstrap_interval": [
+          -0.005135110597507264,
+          -0.0027688291098684203
+        ],
+        "paired_death_brier_gain_over_prior": -0.003937951090506431,
+        "paired_reward_mae_gain_95pct_bootstrap_interval": [
+          0.005694724779459648,
+          0.012109822782804258
+        ],
+        "paired_reward_mae_gain_over_action_mean": 0.008841830291203223,
+        "paired_state_mse_gain_95pct_bootstrap_interval": [
+          0.008612774439825444,
+          0.01066771780824638
+        ],
+        "paired_state_mse_gain_over_linear": -0.007412726947388328,
+        "paired_state_mse_gain_over_linear_95pct_bootstrap_interval": [
+          -0.008646960159324011,
+          -0.006149941887920705
+        ],
+        "paired_state_mse_gain_over_persistence": 0.009623604057196644,
+        "persistence_state_delta_mse": 0.02219287787374924,
+        "reward_episode_interval_coverage": 0.953125,
+        "state_episode_interval_coverage": 0.984375,
+        "training_prior_death_brier": 0.008465043627779778
+      },
+      "transitions": 5233
+    }
+  },
+  "prediction_receipt_sha256": "a935ae62d524f9d794027c9ed0ebf17ecb1d8be9d6b500fd00112e9d5c0be719",
+  "promoted": false,
+  "promotion_decision": "rejected_control_regression",
+  "runtime_source_zip_sha256": "13a3c7aed87ff5a7f098634f18c5f7b3fe7353c9fc3719754a60bacf9fbbf761",
+  "schema": "poseidon-learning-foundation-results-v1",
+  "training_action_counts": [
+    6744,
+    1113,
+    1356,
+    525,
+    582,
+    751
+  ],
+  "training_death_labels": 21,
+  "validation": {
+    "both_cli_paths_verified": true,
+    "compileall": true,
+    "full_suite": {
+      "log": "outputs/learning-foundation-full-tests-final.log",
+      "passed": 637,
+      "seconds": 700.97
+    },
+    "no_artifact_search_smoke": {
+      "baseline_copied": false,
+      "proposals": 0,
+      "status": "inactive"
+    },
+    "package_python_files_exact": 124,
+    "search_final_focused_suite": {
+      "fixtures": "outputs/test-auto-improver-oracle-final",
+      "passed": 20,
+      "scope": "Final search-only integration after the 637-test full run",
+      "seconds": 68.74
+    }
+  },
+  "wheel_parity": {
+    "exact_source_bytes_match": true,
+    "python_files": 124,
+    "wheel": "supermix_poseidon-2.0.0-py3-none-any.whl",
+    "wheel_sha256": "55a849013e01df5c605d2a8f791ac0b17576a76d41ca43c3b89a51ee2c69a642"
+  }
+}

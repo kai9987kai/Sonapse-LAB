@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synapse-connectome-lab"
+version = "0.1.0"
+description = "Integrated connectome, weight-programming and bounded RSI research workbench"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.4", "numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+synapse-lab = "synapse.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["synapse*"]
+
+[tool.setuptools.package-data]
+synapse = ["web/*", "source_manifest.json", "_vendor/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

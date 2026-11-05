@@ -1,0 +1,8 @@
+* text=auto
+# Source fingerprints are recorded over LF Python files on every platform.
+*.py text eol=lf
+# Preserve the exact bytes of this locally frozen, SHA-256-checked protocol.
+docs/graft-credit-confirmation-20261104.json -text whitespace=cr-at-eol
+# Matplotlib SVG paths include generated trailing spaces; keep the evidence intact.
+runs/graft-credit-confirmation-20261104/confirmation.svg -whitespace
+runs/graft-credit-probe-20261104/recovery.svg -whitespace

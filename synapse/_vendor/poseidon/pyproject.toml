@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supermix-poseidon"
+dynamic = ["version"]
+description = "A local experimental language, scene and survival research system"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.6", "transformers>=4.46,<6", "peft>=0.13", "safetensors>=0.4", "numpy>=1.26", "scipy>=1.11", "Pillow>=10", "huggingface-hub>=0.26", "pyarrow>=15"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "setuptools>=68"]
+video = ["imageio>=2.34", "imageio-ffmpeg>=0.5"]
+
+[project.scripts]
+poseidon = "poseidon.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "poseidon.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["poseidon*"]
+
+[tool.setuptools.package-data]
+poseidon = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tools"]

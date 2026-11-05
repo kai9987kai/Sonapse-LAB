@@ -1,0 +1,17 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+.venv/
+models/
+data/
+outputs/
+logs/
+runs/**/*.pt
+runs/**/*.bin
+runs/**/*.safetensors
+runs/**/*.jsonl
+runs/**/*.tmp
+*.tmp
+build/
+runs/search_oracle/

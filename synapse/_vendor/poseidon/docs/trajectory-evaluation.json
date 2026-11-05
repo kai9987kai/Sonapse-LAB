@@ -1,0 +1,1435 @@
+{
+  "schema": "poseidon-trajectory-evaluation-v1",
+  "version": "0.5.1",
+  "date": "2026-10-09",
+  "status": "completed-evaluation",
+  "promoted": false,
+  "tests_passed": 243,
+  "suites": [
+    {
+      "name": "moderate",
+      "parent_experiment_id": "3ed044592794f58c9a1ede93fb2edabf45a13d49fae05633cb646b474c24e342",
+      "parent_path": "outputs/odyssey_experiments/3ed044592794f58c-29888499b43a.json",
+      "parent_file_sha256": "2c6e234104b6a1bc121322dc002806d7f0b4147ea89c3cac1232eb4e050183af",
+      "audit_path": "outputs/trajectory_audits/8491880ca77a2dba-c7284642c7ab.json",
+      "audit_experiment_id": "8491880ca77a2dba136a17a76e4321dbbf77d224d4c2da9925cef1eb2ee637be",
+      "audit_file_sha256": "c2778a0a5b3d47529973524d5da29dd560d189013cb06ba1c53fbc1d534729f1",
+      "source_sha256": {
+        "__init__.py": "de86d41bca9793b217ea369cc54ad41ca567bbc53c7973b40a37f10af0b2adad",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "adaptation.py": "cc781aa4a3e17e844db1597cd714bcc05814af1a1e24836d422d4ffcb0a0bd7d",
+        "atlas.py": "9612bfe9125edbb5f7d89133ef8070ea1bf5240ba91978298d7b0f7d27f326c8",
+        "beyond_benchmark.py": "8984ff052f0149d4f16edb43910c56f165e7a0483075f0e10709b9d3b88a1c90",
+        "calibrate.py": "cbf88fec081dc815bcfb9a5f4985b73e280dbaac4c64cf48888f1c14dcac3e25",
+        "cli.py": "f2ae415936cc9ba8b75a6ad5adb8b6aea5a7c6e34143e2ed13c7520c3538f4d7",
+        "connectome.py": "83852fd3292012d1a58c5fb0346b6cbd27261be1cd0953637607befdb59bcb8e",
+        "contrast.py": "2efa124de20f04e476d6daea7a78079578fa1e9faa817d5506dfb772f0701eba",
+        "contrast_experiments.py": "2bf752cd541c3f64417cc22611e4272ce2ea00571486a641f778268052a19b3f",
+        "core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "ensemble.py": "990aff85f3748586a0348aeb9b5bb8905fe8efcaf5b5bd748a58b619e43291ca",
+        "evaluate.py": "5d35b5e6c61fab254512d0e2e38a31f7ed3ddf5c1ecc1b06c5e81a436068ebfa",
+        "experiments.py": "c2af18daba6b44b944f2808062028fd642dae413f96dde4eda0944932b05ab74",
+        "horizon.py": "c541cf11a812436e64b870020f4e170dec20d90fa6f1af3169dbb4a12c443127",
+        "horizon_experiments.py": "83fd004b87fda06e39c5229915bdc717052d4ab45c0aaa52de3512d33463241d",
+        "language.py": "1f0df8628a07aacf8a5ea0299160863166b0425a2e1e10f3f2d3174b9c630935",
+        "media.py": "d22539e40aaa22f7651e3e97b961f5f9c89d260fc32c4f4339d9b94d7d83c13e",
+        "memory.py": "fa173db880d504036e2cf3a889099a821d9e488a32ff9aa0e6eb5167168de2e5",
+        "odyssey.py": "06a0f776f8d49efc489f22af6f139c1d8b071a833db2c338f7cbecd01c2257c2",
+        "odyssey_experiments.py": "25e117e0d9f23b9e8ce4cb49f58701e6fab045e3b7c29401f85b697b6d61cc88",
+        "persistent_memory.py": "75f949827cc43ef29897418bad5a1e32cbd16c65ed309f2215252d55d9b8759c",
+        "planning.py": "45a81b508de15b65bfa62ca940d3d27d1d2d823841fc6270ce88780361097718",
+        "prepare_language.py": "05ff01f4710749527029ade6efdf371be12712a881cdc11c5bec3e11b04bcbe3",
+        "provenance.py": "893a87df9ed48722fb9a0758b6c9191851a7a6564e0314bb0c94d91ed7e99009",
+        "reasoning.py": "e46714a061149881d1386f8eb4707adc32e097603a16270b9b6d1b42aff07c89",
+        "runtime.py": "eb12a53e8835be5d1ac2dc852395114b4948ee28350d9a0d8ca95f1648d7df84",
+        "scene_graph.py": "5432c1dc661b61bf70d6c139b5e085f3be48814b918b589760f13788bf722d98",
+        "server.py": "b36f6a9f877edce7ffc1fe4557401473266cbc8f620a672fca07362f24f140cb",
+        "sparse_moe.py": "41b45b8adaeec90482bb1d569e1eb9edd478916e9ba9127afd26f43b1ba10f90",
+        "train_adaptation.py": "ab795bb4b3dcdf7f7b6e8b4d7fed58fad5167f41c6b303bff8b7723de7ace6ee",
+        "train_core.py": "2475204c6993ad51eab3febcf5d82a7a47ad2007458b319b752f74b60e6c283a",
+        "train_dagger.py": "ca1d337f79ca219a10648a61a12bf12a39913e2ce52883cca0f0793477f0b2b2",
+        "train_language.py": "81198e6dad683be51ad18bdea0647565117c0f7605fc69588d281c12ad90b434",
+        "trajectory_audit.py": "2da6fd1384b4ecb52f77f70604a286507f449fab196694cfcbb46ca2ca630bc5",
+        "unity_bridge.py": "9af9dfbed81b1ad068d3b11c74077c8814c3e5a675f65844641c91d7fddaf463",
+        "world.py": "f64b06b9434827b8ad6ce84212d8a7c62648abefa70661283de8b281c0acdbee",
+        "world_controls.py": "d534a2ed11b811050c29ec8bf8501394cc679c8bd03f4600dca89c793af9a5f7"
+      },
+      "parent_summary": {
+        "policy": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.502799119196618,
+          "mean_decision_ms": 119.23032500999398,
+          "mean_audit_ms": 857.0460750124766,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.0044764719220902385,
+          "mean_one_step_regret": 0.09556591437308337,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "neural_mpc": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.535407921903155,
+          "mean_decision_ms": 590.7830000105605,
+          "mean_audit_ms": 734.0388250522665,
+          "mean_overrides": 1.25,
+          "mean_prediction_mse": 0.0046534046240399585,
+          "mean_one_step_regret": 0.09115216196567041,
+          "ranking_accuracy": 0.5078125,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "atlas_v2": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.502799119196618,
+          "mean_decision_ms": 553.1969999865396,
+          "mean_audit_ms": 732.4395500145329,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.00486652283018856,
+          "mean_one_step_regret": 0.09556591437308337,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "contrast": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.5290491191966185,
+          "mean_decision_ms": 618.5034499721951,
+          "mean_audit_ms": 775.375500023074,
+          "mean_overrides": 0.75,
+          "mean_prediction_mse": 0.004478214434689501,
+          "mean_one_step_regret": 0.09337344633472418,
+          "ranking_accuracy": 0.46875,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "horizon": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.502799119196618,
+          "mean_decision_ms": 197.11625001218636,
+          "mean_audit_ms": 852.2259000092163,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.0044764719220902385,
+          "mean_one_step_regret": 0.09556591437308337,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "odyssey": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.502799119196618,
+          "mean_decision_ms": 206.7437000478094,
+          "mean_audit_ms": 862.8978250490036,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.0044764719220902385,
+          "mean_one_step_regret": 0.09556591437308337,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 119,
+          "mean_discovered_patches": 7.75,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 2
+        },
+        "odyssey_no_memory": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.502799119196618,
+          "mean_decision_ms": 199.1623999820149,
+          "mean_audit_ms": 861.790074955934,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.0044764719220902385,
+          "mean_one_step_regret": 0.09556591437308337,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 51,
+          "mean_discovered_patches": 7.75,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 2
+        },
+        "odyssey_ungated": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.505129658521293,
+          "mean_decision_ms": 208.47427499029436,
+          "mean_audit_ms": 867.5852000233135,
+          "mean_overrides": 1.0,
+          "mean_prediction_mse": 0.004564459222410178,
+          "mean_one_step_regret": 0.09244204512946873,
+          "ranking_accuracy": 0.5,
+          "total_adverse_overrides": 4,
+          "total_paired_margin_exceedances": 172,
+          "mean_discovered_patches": 8.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 2
+        },
+        "heuristic": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.550395229725713,
+          "mean_decision_ms": 0.9198249936162028,
+          "mean_audit_ms": 896.3164999804576,
+          "mean_overrides": 3.75,
+          "mean_prediction_mse": 0.004390626859834136,
+          "mean_one_step_regret": 0.10807333608523595,
+          "ranking_accuracy": 0.4296875,
+          "total_adverse_overrides": 8,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "random": {
+          "episodes": 4,
+          "survival_rate": 0.75,
+          "mean_steps": 54.25,
+          "mean_reward": 2.579639354407692,
+          "mean_decision_ms": 0.53794997438672,
+          "mean_audit_ms": 759.3048750059097,
+          "mean_overrides": 45.75,
+          "mean_prediction_mse": 0.009771344378465564,
+          "mean_one_step_regret": 0.43549895736732286,
+          "ranking_accuracy": 0.14890625,
+          "total_adverse_overrides": 153,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        }
+      },
+      "parent_paired": {
+        "neural_mpc_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.032608802706536544,
+          "mean_regret_diff": -0.0044137524074129575,
+          "ranking_accuracy_diff": 0.03125,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.025435210826146637
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.10500000000000043
+            }
+          ]
+        },
+        "atlas_v2_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "contrast_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.026250000000000107,
+          "mean_regret_diff": -0.002192468038359194,
+          "ranking_accuracy_diff": -0.0078125,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.10500000000000043
+            }
+          ]
+        },
+        "horizon_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_no_memory_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_ungated_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.002330539324674419,
+          "mean_regret_diff": -0.0031238692436146437,
+          "ranking_accuracy_diff": 0.0234375,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.009322157298699452
+            }
+          ]
+        },
+        "heuristic_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.04759611052909474,
+          "mean_regret_diff": 0.012507421712152578,
+          "ranking_accuracy_diff": -0.046875,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -0.05587322295450292
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.03147426912950824
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.04164687402567324
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.1731365219157004
+            }
+          ]
+        },
+        "random_vs_policy": {
+          "survival_rate_diff": -0.25,
+          "mean_steps_diff": -9.75,
+          "mean_reward_diff": -3.9231597647889265,
+          "mean_regret_diff": 0.3399330429942395,
+          "ranking_accuracy_diff": -0.32765625,
+          "per_seed": [
+            {
+              "seed": 113000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -2.167986436734086
+            },
+            {
+              "seed": 113000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -1.6310581087929759
+            },
+            {
+              "seed": 113000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -2.8238064707711863
+            },
+            {
+              "seed": 113000004,
+              "survival_diff": -1,
+              "steps_diff": -39,
+              "reward_diff": -9.069788042857457
+            }
+          ]
+        }
+      },
+      "parent_verification": {
+        "verified": true,
+        "experiment_id": "3ed044592794f58c9a1ede93fb2edabf45a13d49fae05633cb646b474c24e342",
+        "episodes_replayed": 40,
+        "transitions_replayed": 2521,
+        "cognitive_map_transitions_replayed": 768,
+        "partitions": {
+          "atlas_v2": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              82000001,
+              82000002,
+              82000003,
+              82000004,
+              82000005,
+              82000006
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              81000001,
+              81000002,
+              81000003,
+              81000004,
+              81000005,
+              81000006,
+              81000007,
+              81000008,
+              81000009,
+              81000010,
+              81000011,
+              81000012
+            ]
+          },
+          "contrast": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              103000001,
+              103000002,
+              103000003,
+              103000004,
+              103000005,
+              103000006,
+              103000007,
+              103000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "selection_seeds": [
+              102000001,
+              102000002,
+              102000003,
+              102000004,
+              102000005,
+              102000006,
+              102000007,
+              102000008
+            ],
+            "train_seeds": [
+              101000001,
+              101000002,
+              101000003,
+              101000004,
+              101000005,
+              101000006,
+              101000007,
+              101000008,
+              101000009,
+              101000010,
+              101000011,
+              101000012
+            ]
+          },
+          "horizon": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              108000001,
+              108000002,
+              108000003,
+              108000004,
+              108000005,
+              108000006,
+              108000007,
+              108000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              107000001,
+              107000002,
+              107000003,
+              107000004,
+              107000005,
+              107000006,
+              107000007,
+              107000008,
+              107000009,
+              107000010,
+              107000011,
+              107000012
+            ]
+          },
+          "odyssey": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              110000001,
+              110000002,
+              110000003,
+              110000004,
+              110000005,
+              110000006,
+              110000007,
+              110000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              109000001,
+              109000002,
+              109000003,
+              109000004,
+              109000005,
+              109000006,
+              109000007,
+              109000008,
+              109000009,
+              109000010,
+              109000011,
+              109000012
+            ]
+          }
+        },
+        "legacy_branch_audit_horizon": 1,
+        "map_scarcity_mismatch_episodes": 0,
+        "scope": "simulator, paired structure, fitting partitions, forecast arithmetic and observation-derived map; not neural authorship"
+      },
+      "trajectory_summary": {
+        "horizon": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey_no_memory": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey_ungated": {
+          "anchors": 12,
+          "overrides_audited": 4,
+          "mean_return_advantage_at_overrides": 0.011907429995228702,
+          "adverse_return_overrides": 2
+        },
+        "policy": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        }
+      },
+      "trajectory_verification": {
+        "verified": true,
+        "anchors_replayed": 44,
+        "branches_replayed": 264,
+        "branch_transitions_replayed": 4224,
+        "horizon": 16,
+        "scope": "actual H-step reward execution under recorded continuation actions; not neural authorship"
+      }
+    },
+    {
+      "name": "stress",
+      "parent_experiment_id": "50ce54c9e486ce8f7cda433edd94c5c59b8cc6a8cd67593bb6cb2c647d49144f",
+      "parent_path": "outputs/odyssey_experiments/50ce54c9e486ce8f-0fb6374e203a.json",
+      "parent_file_sha256": "2ef4e14775d22444f46109d4f3b3d0e9f662ee4707ed13325fd3c14ce663ab7a",
+      "audit_path": "outputs/trajectory_audits/8b0e6f16a03ed340-a22ce43a85ac.json",
+      "audit_experiment_id": "8b0e6f16a03ed340c30ba3641a2b319eb078f0a147d6f4ea7047ceeabeba609c",
+      "audit_file_sha256": "20a78183693fbde6c22f047132cf5c783eecb831cf096b7adf2c784cfc65e6fc",
+      "source_sha256": {
+        "__init__.py": "de86d41bca9793b217ea369cc54ad41ca567bbc53c7973b40a37f10af0b2adad",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "adaptation.py": "cc781aa4a3e17e844db1597cd714bcc05814af1a1e24836d422d4ffcb0a0bd7d",
+        "atlas.py": "9612bfe9125edbb5f7d89133ef8070ea1bf5240ba91978298d7b0f7d27f326c8",
+        "beyond_benchmark.py": "8984ff052f0149d4f16edb43910c56f165e7a0483075f0e10709b9d3b88a1c90",
+        "calibrate.py": "cbf88fec081dc815bcfb9a5f4985b73e280dbaac4c64cf48888f1c14dcac3e25",
+        "cli.py": "f2ae415936cc9ba8b75a6ad5adb8b6aea5a7c6e34143e2ed13c7520c3538f4d7",
+        "connectome.py": "83852fd3292012d1a58c5fb0346b6cbd27261be1cd0953637607befdb59bcb8e",
+        "contrast.py": "2efa124de20f04e476d6daea7a78079578fa1e9faa817d5506dfb772f0701eba",
+        "contrast_experiments.py": "2bf752cd541c3f64417cc22611e4272ce2ea00571486a641f778268052a19b3f",
+        "core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "ensemble.py": "990aff85f3748586a0348aeb9b5bb8905fe8efcaf5b5bd748a58b619e43291ca",
+        "evaluate.py": "5d35b5e6c61fab254512d0e2e38a31f7ed3ddf5c1ecc1b06c5e81a436068ebfa",
+        "experiments.py": "c2af18daba6b44b944f2808062028fd642dae413f96dde4eda0944932b05ab74",
+        "horizon.py": "c541cf11a812436e64b870020f4e170dec20d90fa6f1af3169dbb4a12c443127",
+        "horizon_experiments.py": "83fd004b87fda06e39c5229915bdc717052d4ab45c0aaa52de3512d33463241d",
+        "language.py": "1f0df8628a07aacf8a5ea0299160863166b0425a2e1e10f3f2d3174b9c630935",
+        "media.py": "d22539e40aaa22f7651e3e97b961f5f9c89d260fc32c4f4339d9b94d7d83c13e",
+        "memory.py": "fa173db880d504036e2cf3a889099a821d9e488a32ff9aa0e6eb5167168de2e5",
+        "odyssey.py": "06a0f776f8d49efc489f22af6f139c1d8b071a833db2c338f7cbecd01c2257c2",
+        "odyssey_experiments.py": "25e117e0d9f23b9e8ce4cb49f58701e6fab045e3b7c29401f85b697b6d61cc88",
+        "persistent_memory.py": "75f949827cc43ef29897418bad5a1e32cbd16c65ed309f2215252d55d9b8759c",
+        "planning.py": "45a81b508de15b65bfa62ca940d3d27d1d2d823841fc6270ce88780361097718",
+        "prepare_language.py": "05ff01f4710749527029ade6efdf371be12712a881cdc11c5bec3e11b04bcbe3",
+        "provenance.py": "893a87df9ed48722fb9a0758b6c9191851a7a6564e0314bb0c94d91ed7e99009",
+        "reasoning.py": "e46714a061149881d1386f8eb4707adc32e097603a16270b9b6d1b42aff07c89",
+        "runtime.py": "eb12a53e8835be5d1ac2dc852395114b4948ee28350d9a0d8ca95f1648d7df84",
+        "scene_graph.py": "5432c1dc661b61bf70d6c139b5e085f3be48814b918b589760f13788bf722d98",
+        "server.py": "b36f6a9f877edce7ffc1fe4557401473266cbc8f620a672fca07362f24f140cb",
+        "sparse_moe.py": "41b45b8adaeec90482bb1d569e1eb9edd478916e9ba9127afd26f43b1ba10f90",
+        "train_adaptation.py": "ab795bb4b3dcdf7f7b6e8b4d7fed58fad5167f41c6b303bff8b7723de7ace6ee",
+        "train_core.py": "2475204c6993ad51eab3febcf5d82a7a47ad2007458b319b752f74b60e6c283a",
+        "train_dagger.py": "ca1d337f79ca219a10648a61a12bf12a39913e2ce52883cca0f0793477f0b2b2",
+        "train_language.py": "81198e6dad683be51ad18bdea0647565117c0f7605fc69588d281c12ad90b434",
+        "trajectory_audit.py": "2da6fd1384b4ecb52f77f70604a286507f449fab196694cfcbb46ca2ca630bc5",
+        "unity_bridge.py": "9af9dfbed81b1ad068d3b11c74077c8814c3e5a675f65844641c91d7fddaf463",
+        "world.py": "f64b06b9434827b8ad6ce84212d8a7c62648abefa70661283de8b281c0acdbee",
+        "world_controls.py": "d534a2ed11b811050c29ec8bf8501394cc679c8bd03f4600dca89c793af9a5f7"
+      },
+      "parent_summary": {
+        "policy": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.308263772960458,
+          "mean_decision_ms": 113.52260002240655,
+          "mean_audit_ms": 847.4415000200679,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.005103850307115857,
+          "mean_one_step_regret": 0.12701045574636774,
+          "ranking_accuracy": 0.41015625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "neural_mpc": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.3102732383415665,
+          "mean_decision_ms": 608.5711750056362,
+          "mean_audit_ms": 731.4502499793889,
+          "mean_overrides": 1.25,
+          "mean_prediction_mse": 0.005083635385573097,
+          "mean_one_step_regret": 0.12617125155601655,
+          "ranking_accuracy": 0.40234375,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "atlas_v2": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.308263772960458,
+          "mean_decision_ms": 554.2800999683095,
+          "mean_audit_ms": 733.5007249785122,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.005607034341790394,
+          "mean_one_step_regret": 0.12701045574636774,
+          "ranking_accuracy": 0.41015625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "contrast": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.347990422448596,
+          "mean_decision_ms": 619.4982249908207,
+          "mean_audit_ms": 765.8283999735431,
+          "mean_overrides": 1.25,
+          "mean_prediction_mse": 0.004939496025585525,
+          "mean_one_step_regret": 0.09289380467952175,
+          "ranking_accuracy": 0.4765625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "horizon": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.308263772960458,
+          "mean_decision_ms": 201.01319999594125,
+          "mean_audit_ms": 849.1608249678393,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.005103850307115857,
+          "mean_one_step_regret": 0.12701045574636774,
+          "ranking_accuracy": 0.41015625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "odyssey": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.308263772960458,
+          "mean_decision_ms": 206.6468499979237,
+          "mean_audit_ms": 868.5722499940312,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.005103850307115857,
+          "mean_one_step_regret": 0.12701045574636774,
+          "ranking_accuracy": 0.41015625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 110,
+          "mean_discovered_patches": 11.25,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "odyssey_no_memory": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.308263772960458,
+          "mean_decision_ms": 204.37852502072928,
+          "mean_audit_ms": 855.0024749856675,
+          "mean_overrides": 0.0,
+          "mean_prediction_mse": 0.005103850307115857,
+          "mean_one_step_regret": 0.12701045574636774,
+          "ranking_accuracy": 0.41015625,
+          "total_adverse_overrides": 0,
+          "total_paired_margin_exceedances": 25,
+          "mean_discovered_patches": 11.25,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "odyssey_ungated": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.350090365113563,
+          "mean_decision_ms": 209.34874996601138,
+          "mean_audit_ms": 858.9679749857169,
+          "mean_overrides": 1.75,
+          "mean_prediction_mse": 0.00437708778669498,
+          "mean_one_step_regret": 0.1144757355198048,
+          "ranking_accuracy": 0.390625,
+          "total_adverse_overrides": 7,
+          "total_paired_margin_exceedances": 145,
+          "mean_discovered_patches": 12.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "heuristic": {
+          "episodes": 4,
+          "survival_rate": 1.0,
+          "mean_steps": 64.0,
+          "mean_reward": 6.3587983836708775,
+          "mean_decision_ms": 0.9339000316685997,
+          "mean_audit_ms": 880.0062250084011,
+          "mean_overrides": 6.75,
+          "mean_prediction_mse": 0.005337873388956965,
+          "mean_one_step_regret": 0.10306839391217404,
+          "ranking_accuracy": 0.4453125,
+          "total_adverse_overrides": 6,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        },
+        "random": {
+          "episodes": 4,
+          "survival_rate": 0.25,
+          "mean_steps": 50.25,
+          "mean_reward": 0.22295791548119004,
+          "mean_decision_ms": 0.508524968608981,
+          "mean_audit_ms": 708.4540500763978,
+          "mean_overrides": 39.25,
+          "mean_prediction_mse": 0.012200975895362736,
+          "mean_one_step_regret": 0.33481084289265606,
+          "ranking_accuracy": 0.1931631019606563,
+          "total_adverse_overrides": 128,
+          "total_paired_margin_exceedances": 0,
+          "mean_discovered_patches": 0.0,
+          "total_pretransit_rests": 0,
+          "total_waypoints_evaluated": 0
+        }
+      },
+      "parent_paired": {
+        "neural_mpc_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0020094653811089103,
+          "mean_regret_diff": -0.0008392041903511893,
+          "ranking_accuracy_diff": -0.0078125,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.00803786152443653
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -8.881784197001252e-16
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "atlas_v2_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "contrast_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.039726649488138754,
+          "mean_regret_diff": -0.034116651066845985,
+          "ranking_accuracy_diff": 0.06640625,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.15890659795255768
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "horizon_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_no_memory_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.0,
+          "mean_regret_diff": 0.0,
+          "ranking_accuracy_diff": 0.0,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "odyssey_ungated_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.04182659215310558,
+          "mean_regret_diff": -0.012534720226562934,
+          "ranking_accuracy_diff": -0.01953125,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -0.01607122375299852
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.19573776942739496
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -0.012360177061972344
+            }
+          ]
+        },
+        "heuristic_vs_policy": {
+          "survival_rate_diff": 0.0,
+          "mean_steps_diff": 0.0,
+          "mean_reward_diff": 0.05053461071041987,
+          "mean_regret_diff": -0.0239420618341937,
+          "ranking_accuracy_diff": 0.03515625,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.008037861524438306
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.30526832987899777
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -0.11116774856175571
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": 0.0
+            }
+          ]
+        },
+        "random_vs_policy": {
+          "survival_rate_diff": -0.75,
+          "mean_steps_diff": -13.75,
+          "mean_reward_diff": -6.085305857479268,
+          "mean_regret_diff": 0.20780038714628832,
+          "ranking_accuracy_diff": -0.2169931480393437,
+          "per_seed": [
+            {
+              "seed": 114000001,
+              "survival_diff": -1,
+              "steps_diff": -27,
+              "reward_diff": -8.877061273945767
+            },
+            {
+              "seed": 114000002,
+              "survival_diff": 0,
+              "steps_diff": 0,
+              "reward_diff": -0.820479678193883
+            },
+            {
+              "seed": 114000003,
+              "survival_diff": -1,
+              "steps_diff": -18,
+              "reward_diff": -7.7768065402211795
+            },
+            {
+              "seed": 114000004,
+              "survival_diff": -1,
+              "steps_diff": -10,
+              "reward_diff": -6.866875937556241
+            }
+          ]
+        }
+      },
+      "parent_verification": {
+        "verified": true,
+        "experiment_id": "50ce54c9e486ce8f7cda433edd94c5c59b8cc6a8cd67593bb6cb2c647d49144f",
+        "episodes_replayed": 40,
+        "transitions_replayed": 2505,
+        "cognitive_map_transitions_replayed": 768,
+        "partitions": {
+          "atlas_v2": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              82000001,
+              82000002,
+              82000003,
+              82000004,
+              82000005,
+              82000006
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              81000001,
+              81000002,
+              81000003,
+              81000004,
+              81000005,
+              81000006,
+              81000007,
+              81000008,
+              81000009,
+              81000010,
+              81000011,
+              81000012
+            ]
+          },
+          "contrast": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              103000001,
+              103000002,
+              103000003,
+              103000004,
+              103000005,
+              103000006,
+              103000007,
+              103000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "selection_seeds": [
+              102000001,
+              102000002,
+              102000003,
+              102000004,
+              102000005,
+              102000006,
+              102000007,
+              102000008
+            ],
+            "train_seeds": [
+              101000001,
+              101000002,
+              101000003,
+              101000004,
+              101000005,
+              101000006,
+              101000007,
+              101000008,
+              101000009,
+              101000010,
+              101000011,
+              101000012
+            ]
+          },
+          "horizon": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              108000001,
+              108000002,
+              108000003,
+              108000004,
+              108000005,
+              108000006,
+              108000007,
+              108000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              107000001,
+              107000002,
+              107000003,
+              107000004,
+              107000005,
+              107000006,
+              107000007,
+              107000008,
+              107000009,
+              107000010,
+              107000011,
+              107000012
+            ]
+          },
+          "odyssey": {
+            "anchors_per_episode": 24,
+            "calibration_seeds": [
+              110000001,
+              110000002,
+              110000003,
+              110000004,
+              110000005,
+              110000006,
+              110000007,
+              110000008
+            ],
+            "max_steps": 128,
+            "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1",
+            "train_seeds": [
+              109000001,
+              109000002,
+              109000003,
+              109000004,
+              109000005,
+              109000006,
+              109000007,
+              109000008,
+              109000009,
+              109000010,
+              109000011,
+              109000012
+            ]
+          }
+        },
+        "legacy_branch_audit_horizon": 1,
+        "map_scarcity_mismatch_episodes": 0,
+        "scope": "simulator, paired structure, fitting partitions, forecast arithmetic and observation-derived map; not neural authorship"
+      },
+      "trajectory_summary": {
+        "horizon": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey_no_memory": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        },
+        "odyssey_ungated": {
+          "anchors": 15,
+          "overrides_audited": 7,
+          "mean_return_advantage_at_overrides": 0.000255143295459551,
+          "adverse_return_overrides": 4
+        },
+        "policy": {
+          "anchors": 8,
+          "overrides_audited": 0,
+          "mean_return_advantage_at_overrides": null,
+          "adverse_return_overrides": 0
+        }
+      },
+      "trajectory_verification": {
+        "verified": true,
+        "anchors_replayed": 47,
+        "branches_replayed": 282,
+        "branch_transitions_replayed": 4488,
+        "horizon": 16,
+        "scope": "actual H-step reward execution under recorded continuation actions; not neural authorship"
+      }
+    }
+  ],
+  "browser": {
+    "passed": true,
+    "version": "0.5.1",
+    "source_current": true,
+    "desktop": [
+      1440,
+      1000
+    ],
+    "mobile": [
+      390,
+      844
+    ],
+    "page_errors": [],
+    "comparison": "fixture from the actual corrected four-seed scarcity-4 experiment; no new controller experiment",
+    "world": {
+      "real_api": true,
+      "scarcity": 4,
+      "max_steps": 32,
+      "steps": 32,
+      "map_scarcity_matches": true
+    },
+    "checks": [
+      "ten controller rows",
+      "nine paired differences",
+      "paired reward fields",
+      "per-decision timing conversion",
+      "mapped-patch column",
+      "six return candidates",
+      "return-specific headings",
+      "actual world and map settings",
+      "mobile overflow"
+    ]
+  }
+}

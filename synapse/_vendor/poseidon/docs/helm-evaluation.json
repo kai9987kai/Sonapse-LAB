@@ -1,0 +1,709 @@
+{
+  "candidate_controller": "helm",
+  "critic_sha256": "a4b7dcdb3579d2931350073e4195a1e5879b2e802f81e5b69af7152138066f5c",
+  "date": "2026-10-09",
+  "default_controller": "policy",
+  "limits": [
+    "Synthetic sampled TidePool development evidence; no safety or general superiority guarantee.",
+    "H4/H16 branch returns are undiscounted rewards under recorded frozen-core continuation actions.",
+    "Replay checks action execution, arithmetic and artifact bindings without weights, not neural authorship.",
+    "Forecast errors and empirical margin/risk diagnostics do not guarantee future coverage.",
+    "Risk thresholds are predeclared diagnostics; evaluation does not select deployment settings.",
+    "Regular and override anchor groups overlap when an override occurs on the regular schedule.",
+    "Each controller visits its own states; branch advantages do not establish full adaptive-policy causal gains.",
+    "Controller and auditing compute are reported separately and are not matched wall-clock budgets.",
+    "Leave-one-seed-out ranges are influence checks, not confidence intervals or independent replication.",
+    "No checkpoint, default controller or deployment setting is changed or promoted by an experiment."
+  ],
+  "promoted": false,
+  "receipts": [
+    "349465c522f435a5-2101a2f756ec.json",
+    "69be786b564e4850-f99e4055ab80.json"
+  ],
+  "schema": "poseidon-helm-evaluation-v1",
+  "status": "completed-evaluation",
+  "suites": [
+    {
+      "name": "moderate",
+      "paired": {
+        "no_innovation": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 123000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "observation": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 123000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "selected": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 123000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "ungated": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": -7.539300788930281,
+            "means": [
+              -7.905528568860561,
+              -7.904756295249958,
+              -8.004000912454801,
+              -7.539300788930281
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": -8.004000912454801
+          },
+          "losses": 4,
+          "mean_reward_delta": -7.8383966413739,
+          "per_seed": [
+            {
+              "reward_delta": -7.637000858913919,
+              "seed": 123000001,
+              "survival_delta": -1
+            },
+            {
+              "reward_delta": -7.639317679745728,
+              "seed": 123000002,
+              "survival_delta": -1
+            },
+            {
+              "reward_delta": -7.341583828131197,
+              "seed": 123000003,
+              "survival_delta": -1
+            },
+            {
+              "reward_delta": -8.735684198704757,
+              "seed": 123000004,
+              "survival_delta": -1
+            }
+          ],
+          "ties": 0,
+          "wins": 0
+        },
+        "yoked": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 123000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 123000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        }
+      },
+      "receipt": "349465c522f435a5-2101a2f756ec.json",
+      "receipt_sha256": "2101a2f756ecff0d250027680c9e4096b0b6be472b95ca21b8220c46e01890a1",
+      "scarcity": 2.5,
+      "summary": {
+        "no_innovation": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 111.43014765644921,
+          "mean_decision_ms": 304.496876952669,
+          "mean_reward": 6.528832567097781,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "observation": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 108.04421406237452,
+          "mean_decision_ms": 299.56904453115385,
+          "mean_reward": 6.528832567097781,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "policy": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 101.52591953084311,
+          "mean_decision_ms": 3.2988175778996265,
+          "mean_reward": 6.528832567097781,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "selected": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 105.491212890513,
+          "mean_decision_ms": 297.68379687527613,
+          "mean_reward": 6.528832567097781,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "ungated": {
+          "adverse_overrides": {
+            "16": 51,
+            "4": 63
+          },
+          "anchors": 106,
+          "conditional_adverse_override_rate": {
+            "16": 0.49514563106796117,
+            "4": 0.6116504854368932
+          },
+          "episodes": 4,
+          "mean_audit_ms": 1091.0729130176544,
+          "mean_decision_ms": 316.8190467460171,
+          "mean_reward": -1.3095640742761196,
+          "mean_steps": 42.25,
+          "override_rate": 0.6094674556213018,
+          "overrides": 103,
+          "regular_anchors": 12,
+          "survival_rate": 0.0
+        },
+        "yoked": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 113.4360730472963,
+          "mean_decision_ms": 327.2668765625326,
+          "mean_reward": 6.528832567097781,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        }
+      }
+    },
+    {
+      "name": "stress",
+      "paired": {
+        "no_innovation": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 124000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "observation": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 124000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "selected": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 124000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        },
+        "ungated": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": -4.808503230982745,
+            "means": [
+              -7.8192318769410845,
+              -5.0806206877796205,
+              -4.808503230982745,
+              -5.779085484235708
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": -7.8192318769410845
+          },
+          "losses": 4,
+          "mean_reward_delta": -5.871860319984789,
+          "per_seed": [
+            {
+              "reward_delta": -0.029745649115906048,
+              "seed": 124000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": -8.245579216600294,
+              "seed": 124000002,
+              "survival_delta": -1
+            },
+            {
+              "reward_delta": -9.061931586990921,
+              "seed": 124000003,
+              "survival_delta": -1
+            },
+            {
+              "reward_delta": -6.150184827232035,
+              "seed": 124000004,
+              "survival_delta": -1
+            }
+          ],
+          "ties": 0,
+          "wins": 0
+        },
+        "yoked": {
+          "baseline": "policy",
+          "leave_one_seed_out": {
+            "count": 4,
+            "direction_reversals": 0,
+            "maximum": 0.0,
+            "means": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "method": "leave-one-seed-out-mean-range-v1",
+            "minimum": 0.0
+          },
+          "losses": 0,
+          "mean_reward_delta": 0.0,
+          "per_seed": [
+            {
+              "reward_delta": 0.0,
+              "seed": 124000001,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000002,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000003,
+              "survival_delta": 0
+            },
+            {
+              "reward_delta": 0.0,
+              "seed": 124000004,
+              "survival_delta": 0
+            }
+          ],
+          "ties": 4,
+          "wins": 0
+        }
+      },
+      "receipt": "69be786b564e4850-f99e4055ab80.json",
+      "receipt_sha256": "f99e4055ab80527c0c07084f3f7b86960571b77cbba5338ed162212d91c78e5f",
+      "scarcity": 4.0,
+      "summary": {
+        "no_innovation": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 86.53573359333677,
+          "mean_decision_ms": 250.10823789045844,
+          "mean_reward": 6.323348326935894,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "observation": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 88.34592421976595,
+          "mean_decision_ms": 261.7240832032621,
+          "mean_reward": 6.323348326935894,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "policy": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 90.8842230467144,
+          "mean_decision_ms": 3.0950257808513015,
+          "mean_reward": 6.323348326935894,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "selected": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 90.23112148412338,
+          "mean_decision_ms": 266.4547535155748,
+          "mean_reward": 6.323348326935894,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        },
+        "ungated": {
+          "adverse_overrides": {
+            "16": 41,
+            "4": 51
+          },
+          "anchors": 119,
+          "conditional_adverse_override_rate": {
+            "16": 0.35964912280701755,
+            "4": 0.4473684210526316
+          },
+          "episodes": 4,
+          "mean_audit_ms": 849.3207435484135,
+          "mean_decision_ms": 253.19789301033535,
+          "mean_reward": 0.4514880069511043,
+          "mean_steps": 46.5,
+          "override_rate": 0.6129032258064516,
+          "overrides": 114,
+          "regular_anchors": 13,
+          "survival_rate": 0.25
+        },
+        "yoked": {
+          "adverse_overrides": {
+            "16": 0,
+            "4": 0
+          },
+          "anchors": 16,
+          "conditional_adverse_override_rate": {
+            "16": null,
+            "4": null
+          },
+          "episodes": 4,
+          "mean_audit_ms": 86.21969218734193,
+          "mean_decision_ms": 250.70748906284734,
+          "mean_reward": 6.323348326935894,
+          "mean_steps": 64.0,
+          "override_rate": 0.0,
+          "overrides": 0,
+          "regular_anchors": 16,
+          "survival_rate": 1.0
+        }
+      }
+    }
+  ],
+  "tests_passed": 303,
+  "version": "0.6.0"
+}

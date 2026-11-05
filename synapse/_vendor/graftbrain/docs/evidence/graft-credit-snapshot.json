@@ -1,0 +1,450 @@
+{
+  "world": {
+    "task": "peg_insert",
+    "t": 78,
+    "episode": 4,
+    "cue": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "walls": [
+      [
+        -5.0,
+        -5.0,
+        5.0,
+        -5.0
+      ],
+      [
+        5.0,
+        -5.0,
+        5.0,
+        5.0
+      ],
+      [
+        5.0,
+        5.0,
+        -5.0,
+        5.0
+      ],
+      [
+        -5.0,
+        5.0,
+        -5.0,
+        -5.0
+      ]
+    ],
+    "objects": [
+      {
+        "id": 0,
+        "kind": "peg",
+        "x": 0.8076957803687765,
+        "y": -0.8142571201668161,
+        "z": 0.0,
+        "r": 0.08,
+        "color": [
+          0.2,
+          0.9,
+          1.0
+        ],
+        "shape": "cylinder",
+        "visible": true,
+        "pressed": false,
+        "held": false
+      },
+      {
+        "id": 1,
+        "kind": "hole",
+        "x": 3.480469550524477,
+        "y": 3.3658473714336106,
+        "z": 0.0,
+        "r": 0.14,
+        "color": [
+          0.55,
+          0.55,
+          0.6
+        ],
+        "shape": "hole",
+        "visible": true,
+        "pressed": false,
+        "held": false
+      }
+    ],
+    "agent": {
+      "x": 0.23183964017071887,
+      "y": -4.654278186071041,
+      "th": 1.6598859327521662,
+      "reach": 0.3197228632122279,
+      "height": 0.015201788917183871,
+      "grip": 0.3,
+      "tip": [
+        0.20339332068491683,
+        -4.3358232973217286,
+        0.015201788917183871
+      ]
+    },
+    "rays": [
+      [
+        5.0,
+        -1.303
+      ],
+      [
+        5.0,
+        -0.269
+      ],
+      [
+        5.0,
+        1.049
+      ],
+      [
+        5.0,
+        2.86
+      ],
+      [
+        4.021,
+        3.509
+      ],
+      [
+        2.923,
+        3.934
+      ],
+      [
+        1.779,
+        4.212
+      ],
+      [
+        0.608,
+        4.338
+      ],
+      [
+        -0.569,
+        4.31
+      ],
+      [
+        -1.732,
+        4.129
+      ],
+      [
+        -2.862,
+        3.797
+      ],
+      [
+        -3.938,
+        3.321
+      ],
+      [
+        -4.944,
+        2.709
+      ],
+      [
+        -5.0,
+        1.034
+      ],
+      [
+        -5.0,
+        -0.28
+      ],
+      [
+        -5.0,
+        -1.335
+      ],
+      [
+        -5.0,
+        -2.226
+      ]
+    ],
+    "success": {
+      "forage": 0.0,
+      "maze": 0.0,
+      "push": 0.0,
+      "grasp_place": 0.0,
+      "peg_insert": null,
+      "delayed_match": null,
+      "go_nogo": null,
+      "button_sequence": null,
+      "webcam_chase": null
+    },
+    "ep_return": -2.4116007526138814
+  },
+  "brain": [
+    {
+      "name": "flywire",
+      "mean": 0.07063661515712738,
+      "img": "JSQjIiEhIB8eHRwbGhkYFxcWFRQTEhEQDw4NDQ0MDAsLCwoKCQkICAgHBwYGBgUFBAQEAwMDBQYHCQoLDA4PEBITFBUXGBkbHB0fICEiJCQjISAfHRwaGRcWFRMSEA8ODAsJCAYFBAIBAAEBAgMEBQYHCAkKCwwNDg4PEBESExQVFhcYFxYVFBMSEhEQDw4NDAsKCQgHBgUFBAMCAQAAAQIDBAYHCAkKCwwNDg8QERITFRYXGBkaGxsaGRgXFhUUExIQDw4NDAsKCQgHBgUEAwEAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAQEBAQICAgICAgICAgMDAwMDAwMDAwMEBAQEBAQEBAQEBAMDAwMDAwMDAwICAgICAgICAQEBAQECAwQFBgcICQoKCwwNDg8QERITExQVFhcYGBgXFhUUExIREA8ODQwLCgkIBwcGBQQDAgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQECAgMDBAUFBgYHCAgJCQoKCwwMDQ0ODg8REhMUFRYYGRobHB4fICEiIyUmJygpKiwtLSwrKikoJyYlJCMiISAfHh4dHBsaGRgXFhUUExIRERAPDg4NDAsLCgkJCAcGBgUEAwMCAQACBAYHCQsNDxESFBYYGhwdHyEjJScpKiwuMDAuLCopJyUjIiAeHBsZFxUUEhAODQsJBwYEAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwQFBgYHCAgJCgoLDA0NDg8PEBEREhMTFBUUFBMSEhEREA8PDg0NDAsLCgkJCAgHBgYFBAUHCAkLDA4PERITFRYYGRscHh8gIiMlJigpKSkoJyYlJCMjIiEgHx4eHRwbGhkYGBcWFRQTExIRERAPDw4NDAwLCgoJCAgHBgYFBAMDAgEDBAYHCQoMDg8REhQVFxgaGx0eICEjJCYnKSgnJiQjIiEfHh0cGhkYFxUUExIQDw4NCwoJCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5va2diXlpVUU1IREA7NzMvKiYiHRkVEAwIAwAAAAEBAgICAwMEBAQFBQUGBgcHBwgICQkJCgoJCQkICAgHBwcGBgYFBQUEBAQDAwMCAgIBAQEBAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAgQGCAkLDQ8REhQWGBocHR8hIyUnKCosLi8tKyooJiQiIR8dGxkXFhQSEA4MCwkHBQMBAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQEBAwUHCQsNDxETFRcZGx0fISMlJykrLS8xMzU1MzEvLSspJyUjIR8dGxkXFRMRDw0LCQcFAwECBAUGBwkKCwwNDxAREhQVFhcYGhscHR8gIQ=="
+    },
+    {
+      "name": "manc",
+      "mean": 0.05569189786911011,
+      "img": "AAABAQECAgMDAwQEBAUFBgYGBwcICAgJCQoKCgoKCQkJCQgICAgIBwcHBwYGBgYGBQUFBQQEBAQEAwMDAwMDAgICAgIBAQEBAQEAAAAAAAAAAAEBAQECAgIDAwMEBAQFBQUFBgYGBwcHCAcHBwYGBgUFBQUEBAQDAwMCAgIBAQEAAAAAAAAAAAABAQEBAQICAgICAwMDAwMDBAQEBAQEBAQEBAMDAwMDAgICAgICAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAgICAgICAwMDAwMDBAQEAwMDAwMDAgICAgICAgEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQECAgICAgICAgMDAwMCAgICAgICAgIBAQEBAQEBAQEBAAAAAAABAQIDBAQFBgcHCAkKCgsMDA0ODw8QERISExMSEhEQDw8ODQwLCwoJCAgHBgUFBAMCAgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAgICAgMDAwQEBAQFBQUGBgYGBwcHCAkLDA4PERITFRYYGRscHh8gIiMlJigpKywtKyooJyUjIiAfHRwaGBcVFBIQDw0MCggHBQQEBAUFBQUGBgYHBwcICAgJCQkKCgoKCwsLDAwLCwoKCQkICAgHBwYGBQUFBAQDAwICAQEBAAEBAQEBAQECAgICAgICAgMDAwMDAwMEBAQEBQUGBwcICAkKCgsMDA0NDg8PEBEREhITFBQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKissLS4uLi4uLi4uLi4vLy8vLy8vLy8vMDAwMDAwLy4tLCsqKSgmJSQjIiEgHx0cGxoZGBcWFBMSExMTExMTExMTExMTExMTExMTExMTExMTExQWGBodHyEjJigqLS8xMzY4Oj0/QUNGSEpNT01KR0RBPjs4NTIwLSonJCEeGxgVEg8NCgcEAwUGBwgKCwwNDxAREhMVFhcYGhscHR8gISIjISAfHh0cGhkYFxYVExIREA8ODAsKCQgHBgUEBAQEBAQDAwMDAwMDAgICAgICAgEBAQEBAQMFBwkLDQ8RFBYYGhweICIlJykrLS8xNDY4ODg3NzY2NTQ0MzMyMjExMDAvLy4uLS0sLCsqKSclJCIgHx0bGhgWFRMREA4MCwkHBgQCAQACBAYJCw0PERMVGBocHiAiJCcpKy0vMTM1OA=="
+    }
+  ],
+  "sites": [
+    {
+      "id": 0,
+      "kind": "interface",
+      "from": "flywire",
+      "to": "manc",
+      "edges": 12,
+      "detail": "descending -> premotor/motor (neck connective)",
+      "candidates": 12,
+      "active": 7,
+      "gate": 0.9936787486076355,
+      "swaps": 0,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20,
+      "protected_active": 0,
+      "mature_active": 7,
+      "gradient_updates": 76,
+      "gradient_evidence": 12,
+      "gradient_coverage": 1.0,
+      "dormant_gradient_evidence": 5,
+      "dormant_gradient_coverage": 1.0,
+      "gradient_mean": 3.0216514176117926e-05,
+      "newborn_gradient_mean": 0.0,
+      "incumbent_gradient_mean": 8.074346949017905e-06,
+      "newborn_gradient_count": 0,
+      "incumbent_gradient_count": 7,
+      "gradient_nonfinite": 0,
+      "interventions": 0,
+      "intervention_swaps": 0,
+      "w": 0.06488790363073349,
+      "flow": 0.0010634050704538822
+    },
+    {
+      "id": 1,
+      "kind": "homolog",
+      "from": "flywire",
+      "to": "manc",
+      "edges": 17,
+      "detail": "7 shared cell types",
+      "candidates": 17,
+      "active": 10,
+      "gate": 0.9903863668441772,
+      "swaps": 38,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20,
+      "protected_active": 10,
+      "mature_active": 0,
+      "gradient_updates": 76,
+      "gradient_evidence": 17,
+      "gradient_coverage": 1.0,
+      "dormant_gradient_evidence": 7,
+      "dormant_gradient_coverage": 1.0,
+      "gradient_mean": 6.496675671726692e-05,
+      "newborn_gradient_mean": 0.00011872600721289928,
+      "incumbent_gradient_mean": 0.0,
+      "newborn_gradient_count": 10,
+      "incumbent_gradient_count": 0,
+      "gradient_nonfinite": 0,
+      "interventions": 0,
+      "intervention_swaps": 0,
+      "w": 0.00024130729434546083,
+      "flow": 3.709828888531774e-05
+    },
+    {
+      "id": 2,
+      "kind": "interface",
+      "from": "manc",
+      "to": "flywire",
+      "edges": 24,
+      "detail": "ascending -> central brain",
+      "candidates": 24,
+      "active": 14,
+      "gate": 1.0016990900039673,
+      "swaps": 38,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20,
+      "protected_active": 10,
+      "mature_active": 4,
+      "gradient_updates": 76,
+      "gradient_evidence": 24,
+      "gradient_coverage": 1.0,
+      "dormant_gradient_evidence": 10,
+      "dormant_gradient_coverage": 1.0,
+      "gradient_mean": 8.482549748123347e-05,
+      "newborn_gradient_mean": 0.0003585209273296641,
+      "incumbent_gradient_mean": 0.00022180703797403112,
+      "newborn_gradient_count": 10,
+      "incumbent_gradient_count": 4,
+      "gradient_nonfinite": 0,
+      "interventions": 0,
+      "intervention_swaps": 0,
+      "w": 0.01075776293873787,
+      "flow": 0.0009747761650942266
+    },
+    {
+      "id": 3,
+      "kind": "homolog",
+      "from": "manc",
+      "to": "flywire",
+      "edges": 17,
+      "detail": "7 shared cell types",
+      "candidates": 17,
+      "active": 10,
+      "gate": 1.0077314376831055,
+      "swaps": 38,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20,
+      "protected_active": 10,
+      "mature_active": 0,
+      "gradient_updates": 76,
+      "gradient_evidence": 17,
+      "gradient_coverage": 1.0,
+      "dormant_gradient_evidence": 7,
+      "dormant_gradient_coverage": 1.0,
+      "gradient_mean": 3.2893443851796346e-05,
+      "newborn_gradient_mean": 5.394486206569127e-05,
+      "incumbent_gradient_mean": 0.0,
+      "newborn_gradient_count": 10,
+      "incumbent_gradient_count": 0,
+      "gradient_nonfinite": 0,
+      "interventions": 0,
+      "intervention_swaps": 0,
+      "w": 0.00013765250332653522,
+      "flow": 3.3748597161320504e-06
+    }
+  ],
+  "plasticity": {
+    "mode": "adaptive",
+    "config": {
+      "mode": "adaptive",
+      "density": 0.6,
+      "interval": 2,
+      "warmup": 0,
+      "turnover": 0.1,
+      "router_lr": 0.0001,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20
+    },
+    "density": 0.6,
+    "candidates": 70,
+    "active": 41,
+    "dormant": 29,
+    "updates": 76,
+    "last_rewire_update": 76,
+    "rewires": 38,
+    "swaps": 114,
+    "last_event": {
+      "update": 76,
+      "pruned": [
+        16,
+        31,
+        54
+      ],
+      "grown": [
+        23,
+        38,
+        59
+      ],
+      "swaps": 3,
+      "growth_rule": "gradient",
+      "growth_init": "zero",
+      "min_age": 20,
+      "protected_active": 27,
+      "eligible_active": 14,
+      "selection_score_mean": 5.1325854125631544e-05
+    },
+    "gate_mean": 0.9983738660812378,
+    "gate_min": 0.9903863668441772,
+    "gate_max": 1.0077314376831055,
+    "gate_spread": 0.017345070838928223,
+    "growth_rule": "gradient",
+    "growth_init": "zero",
+    "min_age": 20,
+    "protected_active": 30,
+    "mature_active": 11,
+    "gradient_updates": 76,
+    "gradient_evidence": 70,
+    "gradient_coverage": 1.0,
+    "dormant_gradient_evidence": 29,
+    "dormant_gradient_coverage": 1.0,
+    "gradient_mean": 5.8029050276244196e-05,
+    "newborn_gradient_mean": 0.00017706393220275155,
+    "incumbent_gradient_mean": 8.579532550356817e-05,
+    "newborn_gradient_count": 30,
+    "incumbent_gradient_count": 11,
+    "gradient_nonfinite": 0,
+    "interventions": 0,
+    "intervention_swaps": 0
+  },
+  "compass": {
+    "bump": -0.17208863171123445,
+    "wedges": [
+      1.218938144864623e-10,
+      2.6396948626938865e-08,
+      2.6692653136706213e-06,
+      0.00012603614595718682,
+      0.0027788481675088406,
+      0.02860882319509983,
+      0.1375311315059662,
+      0.3087223172187805,
+      0.32359421253204346,
+      0.1583796590566635,
+      0.03619624301791191,
+      0.003862731857225299,
+      0.00019248206808697432,
+      4.478695700527169e-06,
+      4.866072700338009e-08,
+      2.4687138444612344e-10
+    ]
+  },
+  "mb": {
+    "kc_sparsity": 0.0,
+    "mbon": [
+      0.0,
+      0.0
+    ]
+  },
+  "stats": {
+    "updates": 76,
+    "loss": -0.06945335119962692,
+    "td": -0.018743078313858283,
+    "curiosity": 0.0005884230079612455,
+    "graft_w_abs": 0.04199132323265076,
+    "compass_bump": -0.17208863171123445,
+    "kc_sparsity": 0.0,
+    "transitions": 2314,
+    "value": -0.0199272558093071,
+    "steps": 2328,
+    "paused": false,
+    "hz": 30.0,
+    "neurons": 80,
+    "conn_edges": 541,
+    "graft_edges": 70,
+    "since_save": 58.50379157066345,
+    "webcam_live": false
+  },
+  "recent": [
+    {
+      "outcome": "timeout",
+      "task": "forage",
+      "ret": -7.378796497296163,
+      "steps": 450
+    },
+    {
+      "outcome": "timeout",
+      "task": "maze",
+      "ret": -7.171133686256232,
+      "steps": 900
+    },
+    {
+      "outcome": "timeout",
+      "task": "push",
+      "ret": -4.836615056057178,
+      "steps": 450
+    },
+    {
+      "outcome": "timeout",
+      "task": "grasp_place",
+      "ret": -6.322369701509838,
+      "steps": 450
+    }
+  ],
+  "cam": ""
+}

@@ -1,0 +1,1947 @@
+{
+  "schema": "poseidon-contrast-evaluation-summary-v1",
+  "date": "2026-10-09",
+  "status": "local-experimental-development",
+  "default_planner": "policy",
+  "promoted": false,
+  "checkpoint_sha256": "a053104ae63dc7f86baa15b4b34e46730e1ccb92117f221801fb21f90d2d6c27",
+  "model_sha256": "98fb4a606286b03af5a995fcadfbb94229a99443fd50bd55650caace9c5fb3e6",
+  "contrast_sha256": "7ddbb687b5638c52b1f9cfa27fcace6ce801a549ba5227515f87bfa5b4f45002",
+  "fit": {
+    "partition": {
+      "train_seeds": [
+        101000001,
+        101000002,
+        101000003,
+        101000004,
+        101000005,
+        101000006,
+        101000007,
+        101000008,
+        101000009,
+        101000010,
+        101000011,
+        101000012
+      ],
+      "selection_seeds": [
+        102000001,
+        102000002,
+        102000003,
+        102000004,
+        102000005,
+        102000006,
+        102000007,
+        102000008
+      ],
+      "calibration_seeds": [
+        103000001,
+        103000002,
+        103000003,
+        103000004,
+        103000005,
+        103000006,
+        103000007,
+        103000008
+      ],
+      "anchors_per_episode": 24,
+      "max_steps": 128,
+      "path_policy": "local-rng:teacher-0.7/core-0.2/random-0.1"
+    },
+    "selection": {
+      "metric": "episode-balanced-per-channel-MSE",
+      "episode_count": 8,
+      "sample_count": 1152,
+      "alphas": [
+        1.0,
+        1.0,
+        0.75,
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        1.0,
+        0.25,
+        0.0,
+        0.0,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "base_mse": [
+        0.0003269314938713297,
+        0.0008439380828940945,
+        0.0006817815779466286,
+        0.0011182139529018686,
+        0.0005856635119995356,
+        0.0183845866967431,
+        0.007649924875993362,
+        0.0076813921566500085,
+        0.01613113451937035,
+        0.0008430685430958638,
+        0.0010534616290005044,
+        0.0013275284306660765,
+        0.03451037858464851,
+        0.0020879057054206266,
+        0.0010940466831456342,
+        0.00016530107768502995
+      ],
+      "admitted_mse": [
+        7.035964102383117e-05,
+        0.0005479965590333663,
+        0.0004674825385532826,
+        0.0008406718224835474,
+        0.0002965675294133023,
+        0.017447882183772016,
+        0.006915250576769697,
+        0.007143232762510505,
+        0.015204107186999782,
+        0.0003696414485579253,
+        0.0010222461706943773,
+        0.0013275284306660765,
+        0.03451037858464851,
+        0.0019482148490928112,
+        0.0009329112179382081,
+        0.00010491917476766136
+      ]
+    },
+    "training_samples": 1728,
+    "selection_samples": 1152,
+    "calibration_samples": 1152
+  },
+  "suites": [
+    {
+      "name": "moderate",
+      "experiment_id": "3bf46b0111c2f8ef775022ae098b16a2360498929c85644ada7f03bfd486f1e6",
+      "receipt_sha256": "2f9821149c7f061015bca15afa1a8b04b91058021674f66f00e00cf12c66d570",
+      "receipt_file": "outputs/contrast_experiments/3bf46b0111c2f8ef-2f9821149c7f.json",
+      "receipt_file_sha256": "1deec36db4a552477b0b30af5a5e45e7fea02117723addf567ebfcc80fc06e5e",
+      "spec": {
+        "seed": 105000001,
+        "episodes": 8,
+        "max_steps": 128,
+        "scarcity": 2.5
+      },
+      "source_sha256": {
+        "__init__.py": "e8cad6c00a2a0f0acbd8031fb49c425dd2f5a1ace464d3fe4a83cf0893fc3d5e",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "adaptation.py": "cc781aa4a3e17e844db1597cd714bcc05814af1a1e24836d422d4ffcb0a0bd7d",
+        "atlas.py": "9612bfe9125edbb5f7d89133ef8070ea1bf5240ba91978298d7b0f7d27f326c8",
+        "beyond_benchmark.py": "8984ff052f0149d4f16edb43910c56f165e7a0483075f0e10709b9d3b88a1c90",
+        "calibrate.py": "cbf88fec081dc815bcfb9a5f4985b73e280dbaac4c64cf48888f1c14dcac3e25",
+        "cli.py": "a9d825109bad70671f543fcd8be2ba81fcc7bf0fc14e74b06fdae2c868baadf2",
+        "connectome.py": "83852fd3292012d1a58c5fb0346b6cbd27261be1cd0953637607befdb59bcb8e",
+        "contrast.py": "2efa124de20f04e476d6daea7a78079578fa1e9faa817d5506dfb772f0701eba",
+        "contrast_experiments.py": "2bf752cd541c3f64417cc22611e4272ce2ea00571486a641f778268052a19b3f",
+        "core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "ensemble.py": "990aff85f3748586a0348aeb9b5bb8905fe8efcaf5b5bd748a58b619e43291ca",
+        "evaluate.py": "5d35b5e6c61fab254512d0e2e38a31f7ed3ddf5c1ecc1b06c5e81a436068ebfa",
+        "experiments.py": "c2af18daba6b44b944f2808062028fd642dae413f96dde4eda0944932b05ab74",
+        "language.py": "1f0df8628a07aacf8a5ea0299160863166b0425a2e1e10f3f2d3174b9c630935",
+        "media.py": "d22539e40aaa22f7651e3e97b961f5f9c89d260fc32c4f4339d9b94d7d83c13e",
+        "memory.py": "fa173db880d504036e2cf3a889099a821d9e488a32ff9aa0e6eb5167168de2e5",
+        "persistent_memory.py": "75f949827cc43ef29897418bad5a1e32cbd16c65ed309f2215252d55d9b8759c",
+        "planning.py": "45a81b508de15b65bfa62ca940d3d27d1d2d823841fc6270ce88780361097718",
+        "prepare_language.py": "05ff01f4710749527029ade6efdf371be12712a881cdc11c5bec3e11b04bcbe3",
+        "provenance.py": "893a87df9ed48722fb9a0758b6c9191851a7a6564e0314bb0c94d91ed7e99009",
+        "reasoning.py": "e46714a061149881d1386f8eb4707adc32e097603a16270b9b6d1b42aff07c89",
+        "runtime.py": "c6cc389d88ba24a38ec0a0954f54ecac1360376973142caa6118b17e27692580",
+        "scene_graph.py": "5432c1dc661b61bf70d6c139b5e085f3be48814b918b589760f13788bf722d98",
+        "server.py": "7de27ca7e40f33cd2f7ad41e42b74ac2a08c24dcb50e528ca3391df0acf10165",
+        "sparse_moe.py": "41b45b8adaeec90482bb1d569e1eb9edd478916e9ba9127afd26f43b1ba10f90",
+        "train_adaptation.py": "ab795bb4b3dcdf7f7b6e8b4d7fed58fad5167f41c6b303bff8b7723de7ace6ee",
+        "train_core.py": "2475204c6993ad51eab3febcf5d82a7a47ad2007458b319b752f74b60e6c283a",
+        "train_dagger.py": "ca1d337f79ca219a10648a61a12bf12a39913e2ce52883cca0f0793477f0b2b2",
+        "train_language.py": "81198e6dad683be51ad18bdea0647565117c0f7605fc69588d281c12ad90b434",
+        "unity_bridge.py": "9af9dfbed81b1ad068d3b11c74077c8814c3e5a675f65844641c91d7fddaf463",
+        "world.py": "f64b06b9434827b8ad6ce84212d8a7c62648abefa70661283de8b281c0acdbee",
+        "world_controls.py": "d534a2ed11b811050c29ec8bf8501394cc679c8bd03f4600dca89c793af9a5f7"
+      },
+      "atlas_v2_sha256": "db9a4bc78e738ca55e61ec0511ea48814b13ed0ba48f8264f8c43cfda7205dc8",
+      "summary": {
+        "policy": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.884032561843252,
+          "mean_decision_ms": 1.296943652263849,
+          "mean_latency_ms": 1.296943652263849,
+          "mean_audit_ms": 26.607143945483358,
+          "fallback_rate": 0.0,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.004432089981867007,
+          "per_channel_mse": [
+            2.363826074873454e-05,
+            0.0002874625923039672,
+            0.00020359490380419569,
+            0.00048213598217262407,
+            0.00020313403344760024,
+            0.031773149788811336,
+            0.001010334412075936,
+            0.000915711717046885,
+            0.005314120639733006,
+            0.013516089889426227,
+            0.0021434985879534335,
+            0.0012687766873231822,
+            0.012791263628789153,
+            0.0003055675581561966,
+            0.0005893699342215287,
+            8.55910938581012e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.0983914906766799,
+            "ranking_accuracy": 0.41796875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "neural_mpc": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.86500080163512,
+          "mean_decision_ms": 6.024484570247068,
+          "mean_latency_ms": 6.024484570247068,
+          "mean_audit_ms": 8.738617382675784,
+          "fallback_rate": 0.0,
+          "overrides": 15,
+          "override_rate": 0.0146484375,
+          "mean_prediction_mse": 0.004490530903869996,
+          "per_channel_mse": [
+            2.290090820312499e-05,
+            0.0003195982693954503,
+            0.0002128728604018255,
+            0.0005546644776871184,
+            0.00022679258549809287,
+            0.03266359030472524,
+            0.0010717919126577828,
+            0.0009430667729312069,
+            0.005492257659692941,
+            0.013505123853774706,
+            0.0021464318196436965,
+            0.001261688201039808,
+            0.012477760988164185,
+            0.0003191664628508515,
+            0.0005461024804687499,
+            8.468490478515625e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 15,
+            "mean_actual_advantage_at_overrides": 0.2853279608267743,
+            "adverse_overrides": 2,
+            "mean_one_step_regret": 0.09079464198675945,
+            "ranking_accuracy": 0.439453125,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "atlas_v2": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.884032561843252,
+          "mean_decision_ms": 5.911186230477483,
+          "mean_latency_ms": 5.911186230477483,
+          "mean_audit_ms": 8.627569433585336,
+          "fallback_rate": 0.17578125,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.004984253332375556,
+          "per_channel_mse": [
+            1.204203320099781e-05,
+            0.0003880904385180175,
+            0.0002186884030481626,
+            0.00037470135269779395,
+            0.00015718077954523607,
+            0.03430992213829037,
+            0.0012104905609588012,
+            0.0010156206807010926,
+            0.006094879193375518,
+            0.013814317412171822,
+            0.0022635696451360518,
+            0.001299796523236854,
+            0.017648474854501783,
+            0.0004042697602312207,
+            0.0004836617669911799,
+            5.234777540398705e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.0983914906766799,
+            "ranking_accuracy": 0.41796875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.858885017191513,
+          "mean_decision_ms": 6.1862444333229405,
+          "mean_latency_ms": 6.1862444333229405,
+          "mean_audit_ms": 8.589963476310913,
+          "fallback_rate": 0.501953125,
+          "overrides": 7,
+          "override_rate": 0.0068359375,
+          "mean_prediction_mse": 0.004389345804701654,
+          "per_channel_mse": [
+            1.1028790027622914e-05,
+            0.0003989186654799238,
+            0.0002038076128471564,
+            0.0004524911174122609,
+            0.00015995373155868912,
+            0.03205245359669355,
+            0.0010124005321896295,
+            0.0008561607032283676,
+            0.005317548032671264,
+            0.01361701106267455,
+            0.002148466567621932,
+            0.0012822123105391318,
+            0.011890312229425597,
+            0.00030772051014106577,
+            0.00046656375219138456,
+            5.248366052433297e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 7,
+            "mean_actual_advantage_at_overrides": 0.4808242736714891,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.09401934967710822,
+            "ranking_accuracy": 0.4375,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_absolute": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.884032561843252,
+          "mean_decision_ms": 5.980978418065774,
+          "mean_latency_ms": 5.980978418065774,
+          "mean_audit_ms": 8.22951337896427,
+          "fallback_rate": 0.296875,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.004443636795499673,
+          "per_channel_mse": [
+            1.1210605430474196e-05,
+            0.000360707886197709,
+            0.00018799731321668308,
+            0.000395228538612093,
+            0.00014458777061488126,
+            0.03226607956802476,
+            0.0009447664741861972,
+            0.0009041486351330755,
+            0.005250017700308454,
+            0.013606762129547569,
+            0.0021171433716157214,
+            0.0012687767489309315,
+            0.012791263745733744,
+            0.0003203871641178215,
+            0.0004783698286456088,
+            5.0741247679044525e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.09839149136408158,
+            "ranking_accuracy": 0.41796875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_no_memory": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.884032561843252,
+          "mean_decision_ms": 5.612041601622764,
+          "mean_latency_ms": 5.612041601622764,
+          "mean_audit_ms": 8.272016210938204,
+          "fallback_rate": 0.67578125,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.0044320900250382,
+          "per_channel_mse": [
+            2.3638262725163978e-05,
+            0.0002874625733925655,
+            0.0002035948690508133,
+            0.00048213593090853647,
+            0.00020313406349082178,
+            0.03177315011511161,
+            0.0010103346407977227,
+            0.0009157120972389791,
+            0.005314120729216627,
+            0.013516089619224788,
+            0.0021434986263210885,
+            0.0012687767489309315,
+            0.012791263745733744,
+            0.00030556759677304404,
+            0.0005893697181216773,
+            8.55910635730843e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.09839149136408158,
+            "ranking_accuracy": 0.41796875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_unfiltered": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.79912711273377,
+          "mean_decision_ms": 6.487893359292229,
+          "mean_latency_ms": 6.487893359292229,
+          "mean_audit_ms": 8.187980859119648,
+          "fallback_rate": 0.4970703125,
+          "overrides": 10,
+          "override_rate": 0.009765625,
+          "mean_prediction_mse": 0.004754067288439057,
+          "per_channel_mse": [
+            1.1644492669604647e-05,
+            0.00038816106845248645,
+            0.0002161419028905414,
+            0.00043897988444015294,
+            0.00016705926280595154,
+            0.033377253658837494,
+            0.0011204933648686786,
+            0.0008962094693380756,
+            0.006112911725882833,
+            0.013657690589395576,
+            0.0022791634026560607,
+            0.0015344510589922413,
+            0.01499875307841229,
+            0.0003464521168610219,
+            0.00046742463698231594,
+            5.2286901539587206e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 10,
+            "mean_actual_advantage_at_overrides": 0.4347895420968532,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.09319370768846934,
+            "ranking_accuracy": 0.4326171875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "heuristic": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.867579053778286,
+          "mean_decision_ms": 0.00880224608579283,
+          "mean_latency_ms": 0.00880224608579283,
+          "mean_audit_ms": 9.525777734282315,
+          "fallback_rate": 0.0,
+          "overrides": 86,
+          "override_rate": 0.083984375,
+          "mean_prediction_mse": 0.004659426841236309,
+          "per_channel_mse": [
+            3.294163628041885e-05,
+            0.0002360273935606888,
+            0.00021129263036057054,
+            0.0005284568644976834,
+            0.00021552339608191308,
+            0.034554913469367614,
+            0.0010900182115326875,
+            0.001089758457180611,
+            0.005367278474844859,
+            0.013657316514062687,
+            0.0021623945580810117,
+            0.001264434872700015,
+            0.01303364108907515,
+            0.00029947587334199096,
+            0.000718786335099417,
+            8.856968371363436e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 86,
+            "mean_actual_advantage_at_overrides": -0.12020380250437611,
+            "adverse_overrides": 52,
+            "mean_one_step_regret": 0.1117629990776269,
+            "ranking_accuracy": 0.4013671875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "random": {
+          "episodes": 8,
+          "survival_rate": 0.0,
+          "mean_steps": 62.0,
+          "mean_reward": 0.06377461169640342,
+          "mean_decision_ms": 0.007932056295460151,
+          "mean_latency_ms": 0.007932056295460151,
+          "mean_audit_ms": 9.632785483606106,
+          "fallback_rate": 0.0,
+          "overrides": 440,
+          "override_rate": 0.8870967741935484,
+          "mean_prediction_mse": 0.010934852565180798,
+          "per_channel_mse": [
+            0.0016178166007236527,
+            0.0014611766732849025,
+            0.0014061855824819747,
+            0.002489200358883382,
+            0.0006090840117441559,
+            0.06835635827252755,
+            0.009690726797882814,
+            0.007379280309606603,
+            0.013976197946421005,
+            0.017321924499308597,
+            0.002592965283456983,
+            0.0014171404161405891,
+            0.037414401731616836,
+            0.001263802946787348,
+            0.0076736049006605744,
+            0.000287774711365814
+          ],
+          "counterfactual_audit": {
+            "anchors": 496,
+            "overrides_audited": 440,
+            "mean_actual_advantage_at_overrides": -0.46613887317014846,
+            "adverse_overrides": 373,
+            "mean_one_step_regret": 0.4836819451085503,
+            "ranking_accuracy": 0.14717741935483872,
+            "paired_margin_exceedances": 0
+          }
+        }
+      },
+      "paired": {
+        "neural_mpc": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.01903176020813202,
+          "ci95": [
+            -0.04988492671703404,
+            -0.0017000454168143442
+          ],
+          "wins": 0,
+          "ties": 3,
+          "losses": 5,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": -0.11974608916619367,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": -0.01276036333450925,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": -0.0008400000000001739,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": -0.014320419568671028,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": -1.7763568394002505e-15,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": -0.004587209595680264,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "atlas_v2": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "wins": 0,
+          "ties": 8,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.02514754465173774,
+          "ci95": [
+            -0.06191373746326945,
+            0.001651260456105863
+          ],
+          "wins": 1,
+          "ties": 5,
+          "losses": 2,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": 0.006605041824423452,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": -0.07973910162950482,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": -0.12804629740882056,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_absolute": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "wins": 0,
+          "ties": 8,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_no_memory": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "wins": 0,
+          "ties": 8,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_unfiltered": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.08490544910948183,
+          "ci95": [
+            -0.18105886763633294,
+            -0.014968261145774209
+          ],
+          "wins": 1,
+          "ties": 3,
+          "losses": 4,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": -0.11974608916619367,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": 0.012898075667724385,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": -0.07973910162950482,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": -0.12804629740882056,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": -0.36461018033906,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "heuristic": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.016453508064964817,
+          "ci95": [
+            -0.04153555314456514,
+            0.008639442400673714
+          ],
+          "wins": 3,
+          "ties": 0,
+          "losses": 5,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": -0.03771610488440125,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": -0.07754617856644508,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": -0.024661733251576834,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": -0.04224483837776205,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": -0.017382084537292286,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": 0.024958188179031282,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": 0.02235887159384653,
+              "survival_delta": 0
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": 0.02060581532488115,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "random": {
+          "baseline": "policy",
+          "mean_reward_delta": -12.820257950146848,
+          "ci95": [
+            -14.035740573088425,
+            -10.96568539999206
+          ],
+          "wins": 0,
+          "ties": 0,
+          "losses": 8,
+          "per_seed": [
+            {
+              "seed": 105000001,
+              "reward_delta": -12.585823510255942,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000002,
+              "reward_delta": -14.352410598767552,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000003,
+              "reward_delta": -11.734432625860522,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000004,
+              "reward_delta": -13.72936329178004,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000005,
+              "reward_delta": -7.473104092550254,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000006,
+              "reward_delta": -14.578987103175848,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000007,
+              "reward_delta": -13.693465933577144,
+              "survival_delta": -1
+            },
+            {
+              "seed": 105000008,
+              "reward_delta": -14.414476445207484,
+              "survival_delta": -1
+            }
+          ]
+        }
+      },
+      "prediction_comparison": {
+        "base": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            0.00020028316140477005,
+            0.0009509429536340076,
+            0.0008904281987973561,
+            0.000810685679488018,
+            0.0007385483117636664,
+            0.04359479392587841,
+            0.004784217532672312,
+            0.003976036732744457,
+            0.012449644456562072,
+            0.013887525001961115,
+            0.0022144974115577624,
+            0.001345086227984472,
+            0.03235817181907852,
+            0.0007789199470229547,
+            0.0011911223833919013,
+            0.00016014658144950671
+          ],
+          "mse": 0.007520690645336956,
+          "branches": 6144
+        },
+        "unfiltered": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            4.502737179605631e-05,
+            0.0006155365358019324,
+            0.0004563812000289699,
+            0.0005537158132834628,
+            0.0003508790273960931,
+            0.04766250377882826,
+            0.004156309842438861,
+            0.0035677501716280787,
+            0.013856978581610667,
+            0.013732682800619818,
+            0.0023368927682222793,
+            0.0015299024094309773,
+            0.042534720552027186,
+            0.000933253376502482,
+            0.0008846416922143,
+            0.00010288003590172277
+          ],
+          "mse": 0.008332503497358196,
+          "branches": 6144
+        },
+        "memory": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            4.502737179605631e-05,
+            0.0006155365358019324,
+            0.0004787168357051174,
+            0.0005537158132834628,
+            0.0003508790273960931,
+            0.04474954465642571,
+            0.004014169184073694,
+            0.0034120589624198573,
+            0.012380235368172985,
+            0.013732682800619818,
+            0.002196946718075265,
+            0.001345086227984472,
+            0.03235817181907852,
+            0.0007925596510030401,
+            0.0008758785164422281,
+            0.00010288003590172277
+          ],
+          "mse": 0.007375255595261248,
+          "branches": 6144
+        }
+      },
+      "verification": {
+        "verified": true,
+        "experiment_id": "3bf46b0111c2f8ef775022ae098b16a2360498929c85644ada7f03bfd486f1e6",
+        "episodes_replayed": 72,
+        "transitions_replayed": 8688,
+        "counterfactual_branches_replayed": 52128,
+        "scope": "same-version simulation, all six action interventions and evidence arithmetic; not model authorship"
+      }
+    },
+    {
+      "name": "stress",
+      "experiment_id": "00cec956b1e574b6cf74590436491e2dd47e577f6e089842086c4c0a456f6c1e",
+      "receipt_sha256": "be6ece8823339393e7feee6d8f74f5252279dbec2ceed4f45918e407c82b89b7",
+      "receipt_file": "outputs/contrast_experiments/00cec956b1e574b6-be6ece882333.json",
+      "receipt_file_sha256": "828ba6a777b31e60913cba9ea3b742283684e2440331dd847fe25d8a8e90eac9",
+      "spec": {
+        "seed": 106000001,
+        "episodes": 8,
+        "max_steps": 128,
+        "scarcity": 4.0
+      },
+      "source_sha256": {
+        "__init__.py": "e8cad6c00a2a0f0acbd8031fb49c425dd2f5a1ace464d3fe4a83cf0893fc3d5e",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "adaptation.py": "cc781aa4a3e17e844db1597cd714bcc05814af1a1e24836d422d4ffcb0a0bd7d",
+        "atlas.py": "9612bfe9125edbb5f7d89133ef8070ea1bf5240ba91978298d7b0f7d27f326c8",
+        "beyond_benchmark.py": "8984ff052f0149d4f16edb43910c56f165e7a0483075f0e10709b9d3b88a1c90",
+        "calibrate.py": "cbf88fec081dc815bcfb9a5f4985b73e280dbaac4c64cf48888f1c14dcac3e25",
+        "cli.py": "a9d825109bad70671f543fcd8be2ba81fcc7bf0fc14e74b06fdae2c868baadf2",
+        "connectome.py": "83852fd3292012d1a58c5fb0346b6cbd27261be1cd0953637607befdb59bcb8e",
+        "contrast.py": "2efa124de20f04e476d6daea7a78079578fa1e9faa817d5506dfb772f0701eba",
+        "contrast_experiments.py": "2bf752cd541c3f64417cc22611e4272ce2ea00571486a641f778268052a19b3f",
+        "core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "ensemble.py": "990aff85f3748586a0348aeb9b5bb8905fe8efcaf5b5bd748a58b619e43291ca",
+        "evaluate.py": "5d35b5e6c61fab254512d0e2e38a31f7ed3ddf5c1ecc1b06c5e81a436068ebfa",
+        "experiments.py": "c2af18daba6b44b944f2808062028fd642dae413f96dde4eda0944932b05ab74",
+        "language.py": "1f0df8628a07aacf8a5ea0299160863166b0425a2e1e10f3f2d3174b9c630935",
+        "media.py": "d22539e40aaa22f7651e3e97b961f5f9c89d260fc32c4f4339d9b94d7d83c13e",
+        "memory.py": "fa173db880d504036e2cf3a889099a821d9e488a32ff9aa0e6eb5167168de2e5",
+        "persistent_memory.py": "75f949827cc43ef29897418bad5a1e32cbd16c65ed309f2215252d55d9b8759c",
+        "planning.py": "45a81b508de15b65bfa62ca940d3d27d1d2d823841fc6270ce88780361097718",
+        "prepare_language.py": "05ff01f4710749527029ade6efdf371be12712a881cdc11c5bec3e11b04bcbe3",
+        "provenance.py": "893a87df9ed48722fb9a0758b6c9191851a7a6564e0314bb0c94d91ed7e99009",
+        "reasoning.py": "e46714a061149881d1386f8eb4707adc32e097603a16270b9b6d1b42aff07c89",
+        "runtime.py": "c6cc389d88ba24a38ec0a0954f54ecac1360376973142caa6118b17e27692580",
+        "scene_graph.py": "5432c1dc661b61bf70d6c139b5e085f3be48814b918b589760f13788bf722d98",
+        "server.py": "7de27ca7e40f33cd2f7ad41e42b74ac2a08c24dcb50e528ca3391df0acf10165",
+        "sparse_moe.py": "41b45b8adaeec90482bb1d569e1eb9edd478916e9ba9127afd26f43b1ba10f90",
+        "train_adaptation.py": "ab795bb4b3dcdf7f7b6e8b4d7fed58fad5167f41c6b303bff8b7723de7ace6ee",
+        "train_core.py": "2475204c6993ad51eab3febcf5d82a7a47ad2007458b319b752f74b60e6c283a",
+        "train_dagger.py": "ca1d337f79ca219a10648a61a12bf12a39913e2ce52883cca0f0793477f0b2b2",
+        "train_language.py": "81198e6dad683be51ad18bdea0647565117c0f7605fc69588d281c12ad90b434",
+        "unity_bridge.py": "9af9dfbed81b1ad068d3b11c74077c8814c3e5a675f65844641c91d7fddaf463",
+        "world.py": "f64b06b9434827b8ad6ce84212d8a7c62648abefa70661283de8b281c0acdbee",
+        "world_controls.py": "d534a2ed11b811050c29ec8bf8501394cc679c8bd03f4600dca89c793af9a5f7"
+      },
+      "atlas_v2_sha256": "db9a4bc78e738ca55e61ec0511ea48814b13ed0ba48f8264f8c43cfda7205dc8",
+      "summary": {
+        "policy": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.829192013758421,
+          "mean_decision_ms": 1.2879559570961874,
+          "mean_latency_ms": 1.2879559570961874,
+          "mean_audit_ms": 26.165301855442635,
+          "fallback_rate": 0.0,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.0063073621880955595,
+          "per_channel_mse": [
+            4.284848151932599e-05,
+            0.0005481090096201966,
+            0.00024218253705065356,
+            0.0009698473096185393,
+            0.0004115528237359379,
+            0.04195233596149221,
+            0.0018343979549917152,
+            0.0015908626580969224,
+            0.010607762944022017,
+            0.015265294944355882,
+            0.0022694375685630296,
+            0.0013932131991069223,
+            0.021842329242133827,
+            0.00035733107467830294,
+            0.0014255159197743442,
+            0.00016477338076912167
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.1409259071195947,
+            "ranking_accuracy": 0.37890625,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "neural_mpc": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.857409956162504,
+          "mean_decision_ms": 5.5393790038209545,
+          "mean_latency_ms": 5.5393790038209545,
+          "mean_audit_ms": 8.180638769758275,
+          "fallback_rate": 0.0,
+          "overrides": 40,
+          "override_rate": 0.0390625,
+          "mean_prediction_mse": 0.006003684813419687,
+          "per_channel_mse": [
+            4.502816406249999e-05,
+            0.0004573969265638597,
+            0.00024091008340379523,
+            0.0008381120039188001,
+            0.00046197382439422933,
+            0.03912454375964225,
+            0.0015639447632044075,
+            0.0014954971071821348,
+            0.010050652181042988,
+            0.015265904517235366,
+            0.0022923613140300642,
+            0.0013382481084568312,
+            0.021000124480548152,
+            0.00034194749831476537,
+            0.0013797776562499999,
+            0.00016253462646484372
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 40,
+            "mean_actual_advantage_at_overrides": 0.28767268703675214,
+            "adverse_overrides": 1,
+            "mean_one_step_regret": 0.1282384228137707,
+            "ranking_accuracy": 0.37109375,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "atlas_v2": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.829192013758421,
+          "mean_decision_ms": 5.047424902514308,
+          "mean_latency_ms": 5.047424902514308,
+          "mean_audit_ms": 7.533645996090854,
+          "fallback_rate": 0.4287109375,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.0068006646248783935,
+          "per_channel_mse": [
+            2.1206981689933513e-05,
+            0.0005562496546077994,
+            0.00028945415326122947,
+            0.0008257134470936489,
+            0.000329537660130282,
+            0.04455208470354346,
+            0.0015156287060748808,
+            0.0017876358305035978,
+            0.011715585701672445,
+            0.015692933326906258,
+            0.002328497983537656,
+            0.0016249277630365547,
+            0.025612915955771635,
+            0.0004985058064733101,
+            0.0013460851746795043,
+            0.00011367114907208935
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.1409259071195947,
+            "ranking_accuracy": 0.37890625,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.823717749231482,
+          "mean_decision_ms": 5.285527734429252,
+          "mean_latency_ms": 5.285527734429252,
+          "mean_audit_ms": 7.419509961238191,
+          "fallback_rate": 0.5390625,
+          "overrides": 27,
+          "override_rate": 0.0263671875,
+          "mean_prediction_mse": 0.0055183241077281725,
+          "per_channel_mse": [
+            2.51890319885352e-05,
+            0.0003830567609426668,
+            0.00022929649189031674,
+            0.0006926038517300996,
+            0.0002572668208869575,
+            0.033856207056268295,
+            0.0015039500541396016,
+            0.0011557351794348309,
+            0.009914219466973146,
+            0.015387686852448233,
+            0.0022442538140338545,
+            0.001320667606494673,
+            0.019759428820568182,
+            0.0003095161613526003,
+            0.0011557187447431754,
+            9.838900975558905e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 27,
+            "mean_actual_advantage_at_overrides": 0.44954579561833913,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.10027806432061279,
+            "ranking_accuracy": 0.408203125,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_absolute": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.829192013758421,
+          "mean_decision_ms": 5.078191699269041,
+          "mean_latency_ms": 5.078191699269041,
+          "mean_audit_ms": 7.326183105305972,
+          "fallback_rate": 0.525390625,
+          "overrides": 0,
+          "override_rate": 0.0,
+          "mean_prediction_mse": 0.006469526638132216,
+          "per_channel_mse": [
+            2.215702400293687e-05,
+            0.0005667145759436132,
+            0.00025234184835305285,
+            0.0008362991176637981,
+            0.0002925924253610262,
+            0.04485335237449055,
+            0.0015839593166397704,
+            0.001607553000059132,
+            0.010745948735466413,
+            0.015590880015724352,
+            0.0022558676090913866,
+            0.001393213196333232,
+            0.021842329193667638,
+            0.0003294958610038714,
+            0.0012391226712423428,
+            0.00010059924507233558
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 0,
+            "mean_actual_advantage_at_overrides": null,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.14092590566391278,
+            "ranking_accuracy": 0.37890625,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_no_memory": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.833812508165549,
+          "mean_decision_ms": 5.110448144634461,
+          "mean_latency_ms": 5.110448144634461,
+          "mean_audit_ms": 7.575415429442955,
+          "fallback_rate": 0.5888671875,
+          "overrides": 1,
+          "override_rate": 0.0009765625,
+          "mean_prediction_mse": 0.006369119296066697,
+          "per_channel_mse": [
+            4.241297519761572e-05,
+            0.0005473752599181469,
+            0.00024139148942940665,
+            0.0009745603095347135,
+            0.0004129794523757272,
+            0.04272924069165302,
+            0.0018588689582051798,
+            0.0016238001270293344,
+            0.010637503575354312,
+            0.01526412036807856,
+            0.0022519800420430793,
+            0.0013807018941496575,
+            0.021986603268974253,
+            0.0003585930888494119,
+            0.0014296650982009275,
+            0.00016611213807380258
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 1,
+            "mean_actual_advantage_at_overrides": 0.2723831179547762,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.1412406974214717,
+            "ranking_accuracy": 0.37890625,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "contrast_unfiltered": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.814847822569469,
+          "mean_decision_ms": 5.1666530274587785,
+          "mean_latency_ms": 5.1666530274587785,
+          "mean_audit_ms": 7.3589627928782875,
+          "fallback_rate": 0.515625,
+          "overrides": 31,
+          "override_rate": 0.0302734375,
+          "mean_prediction_mse": 0.0064792494548924695,
+          "per_channel_mse": [
+            2.708214098701492e-05,
+            0.0003844746233287333,
+            0.00023063791916719755,
+            0.000725286022798495,
+            0.00025211615770217194,
+            0.04095704884186137,
+            0.001579212096533128,
+            0.0012636630953052474,
+            0.011534288939168424,
+            0.015372348812112743,
+            0.0023469492026018265,
+            0.0013493594257595965,
+            0.02602687067882013,
+            0.00034814051020750546,
+            0.0011710816213125774,
+            9.943119061336006e-05
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 31,
+            "mean_actual_advantage_at_overrides": 0.408686605869041,
+            "adverse_overrides": 0,
+            "mean_one_step_regret": 0.0919701571061491,
+            "ranking_accuracy": 0.435546875,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "heuristic": {
+          "episodes": 8,
+          "survival_rate": 1.0,
+          "mean_steps": 128.0,
+          "mean_reward": 12.820344023520075,
+          "mean_decision_ms": 0.008354101922236623,
+          "mean_latency_ms": 0.008354101922236623,
+          "mean_audit_ms": 8.730137109523639,
+          "fallback_rate": 0.0,
+          "overrides": 147,
+          "override_rate": 0.1435546875,
+          "mean_prediction_mse": 0.005765395832801069,
+          "per_channel_mse": [
+            4.7299863470323666e-05,
+            0.00039031624274926983,
+            0.00021959045646499485,
+            0.000891618493413568,
+            0.0005130788391516183,
+            0.03549648724309369,
+            0.0017293107108889384,
+            0.0017125156489413086,
+            0.00945007749259224,
+            0.01548839328519344,
+            0.002237889911183791,
+            0.0012660556167609783,
+            0.02074206393952105,
+            0.0003351145066473712,
+            0.00156203421946367,
+            0.00016448685528084805
+          ],
+          "counterfactual_audit": {
+            "anchors": 1024,
+            "overrides_audited": 147,
+            "mean_actual_advantage_at_overrides": 0.061831279360777716,
+            "adverse_overrides": 56,
+            "mean_one_step_regret": 0.1483387877080441,
+            "ranking_accuracy": 0.3193359375,
+            "paired_margin_exceedances": 0
+          }
+        },
+        "random": {
+          "episodes": 8,
+          "survival_rate": 0.0,
+          "mean_steps": 44.25,
+          "mean_reward": -1.118185764484047,
+          "mean_decision_ms": 0.007134745171093671,
+          "mean_latency_ms": 0.007134745171093671,
+          "mean_audit_ms": 8.7365415251875,
+          "fallback_rate": 0.0,
+          "overrides": 305,
+          "override_rate": 0.8615819209039548,
+          "mean_prediction_mse": 0.009463554888703237,
+          "per_channel_mse": [
+            0.0018488236454652933,
+            0.0020330137955040816,
+            0.002082392738432883,
+            0.00472943251523659,
+            0.0011404571224294493,
+            0.053747639689285885,
+            0.004903528715923693,
+            0.005122596955283357,
+            0.01564054510076952,
+            0.016200281254300834,
+            0.002408779069359569,
+            0.0014925700410744907,
+            0.03311191641521963,
+            0.0011430463989317136,
+            0.005463970036252227,
+            0.0003478847257825735
+          ],
+          "counterfactual_audit": {
+            "anchors": 354,
+            "overrides_audited": 305,
+            "mean_actual_advantage_at_overrides": -0.2822194608339675,
+            "adverse_overrides": 257,
+            "mean_one_step_regret": 0.37369254411536673,
+            "ranking_accuracy": 0.11581920903954802,
+            "paired_margin_exceedances": 0
+          }
+        }
+      },
+      "paired": {
+        "neural_mpc": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.02821794240408315,
+          "ci95": [
+            -0.013123290683745958,
+            0.06660067311408646
+          ],
+          "wins": 6,
+          "ties": 0,
+          "losses": 2,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": -0.05764987168677216,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.02486144063446183,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.049467786701530514,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": 0.04429893254745032,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": -0.045178586838229506,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.13027225999457492,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": 0.052082459169284334,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.027589118710364957,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "atlas_v2": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "wins": 0,
+          "ties": 8,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.005474264526938777,
+          "ci95": [
+            -0.0381465917876449,
+            0.03075921438680007
+          ],
+          "wins": 3,
+          "ties": 1,
+          "losses": 4,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": -0.04682598559360329,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.009277100980353836,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": -0.020695183302592568,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": -0.04110147030505473,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.0979312005287909,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": -0.06996889723376931,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.027589118710364957,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_absolute": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "wins": 0,
+          "ties": 8,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_no_memory": {
+          "baseline": "policy",
+          "mean_reward_delta": 0.004620494407127973,
+          "ci95": [
+            0.0,
+            0.013861483221383919
+          ],
+          "wins": 1,
+          "ties": 7,
+          "losses": 0,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.036963955257023784,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "contrast_unfiltered": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.014344191188952582,
+          "ci95": [
+            -0.055590082065054114,
+            0.026184610065904
+          ],
+          "wins": 3,
+          "ties": 1,
+          "losses": 4,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": -0.04682598559360329,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.02032077485342043,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": 0.0,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": -0.05075758330590041,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": -0.05221621812224342,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.0979312005287909,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": -0.11079483658244982,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": 0.027589118710364957,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "heuristic": {
+          "baseline": "policy",
+          "mean_reward_delta": -0.008847990238345371,
+          "ci95": [
+            -0.03172951818362546,
+            0.019457274443928307
+          ],
+          "wins": 2,
+          "ties": 0,
+          "losses": 6,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": -0.036865607594473104,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": 0.07331536009368911,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": -0.015155698499979664,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": -0.06400266041584857,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": -0.003998523268851528,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": 0.010125205138105997,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": -0.010931665601404461,
+              "survival_delta": 0
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": -0.02327033175800075,
+              "survival_delta": 0
+            }
+          ]
+        },
+        "random": {
+          "baseline": "policy",
+          "mean_reward_delta": -13.947377778242467,
+          "ci95": [
+            -14.759813916672279,
+            -12.966856518670479
+          ],
+          "wins": 0,
+          "ties": 0,
+          "losses": 8,
+          "per_seed": [
+            {
+              "seed": 106000001,
+              "reward_delta": -14.898184165666063,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000002,
+              "reward_delta": -14.02256732796212,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000003,
+              "reward_delta": -14.415748618105908,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000004,
+              "reward_delta": -14.643365220851534,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000005,
+              "reward_delta": -15.152501076047855,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000006,
+              "reward_delta": -12.04840649788267,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000007,
+              "reward_delta": -11.623133642138473,
+              "survival_delta": -1
+            },
+            {
+              "seed": 106000008,
+              "reward_delta": -14.775115677285115,
+              "survival_delta": -1
+            }
+          ]
+        }
+      },
+      "prediction_comparison": {
+        "base": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            0.0002975902563546128,
+            0.0016663552476160325,
+            0.001040494066859597,
+            0.001432224893689337,
+            0.001402629261052231,
+            0.04152608736636263,
+            0.004194977976728945,
+            0.00332385822546684,
+            0.012303520165739584,
+            0.015704132028088374,
+            0.0024107761412904415,
+            0.00146527975178431,
+            0.029055561549036404,
+            0.0006390707821707473,
+            0.0015893270198822742,
+            0.000247235087857168
+          ],
+          "mse": 0.00739369498874872,
+          "branches": 6144
+        },
+        "unfiltered": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            6.870227746450772e-05,
+            0.0009911412110756872,
+            0.0005556209181324465,
+            0.0009647076146672987,
+            0.0007649582429843312,
+            0.04553178043298954,
+            0.002784608603954839,
+            0.0029017562569343893,
+            0.014745473793150327,
+            0.01576934645382941,
+            0.0025102512322438724,
+            0.0015448391505997817,
+            0.03603477474971474,
+            0.0005528268780172046,
+            0.0013930940710962074,
+            0.0001514821296955053
+          ],
+          "mse": 0.00795408525103438,
+          "branches": 6144
+        },
+        "memory": {
+          "anchors": 1024,
+          "per_channel_mse": [
+            6.870227746450772e-05,
+            0.0009911412110756872,
+            0.0005855223620868173,
+            0.0009647076146672987,
+            0.0007649582429843312,
+            0.04269327629563753,
+            0.00304025348156807,
+            0.002674234430576297,
+            0.012839531097557508,
+            0.01576934645382941,
+            0.002386199728941611,
+            0.00146527975178431,
+            0.029055561549036404,
+            0.0005377983859568923,
+            0.001349033830423819,
+            0.0001514821296955053
+          ],
+          "mse": 0.007208564302705375,
+          "branches": 6144
+        }
+      },
+      "verification": {
+        "verified": true,
+        "experiment_id": "00cec956b1e574b6cf74590436491e2dd47e577f6e089842086c4c0a456f6c1e",
+        "episodes_replayed": 72,
+        "transitions_replayed": 8546,
+        "counterfactual_branches_replayed": 51276,
+        "scope": "same-version simulation, all six action interventions and evidence arithmetic; not model authorship"
+      }
+    }
+  ]
+}

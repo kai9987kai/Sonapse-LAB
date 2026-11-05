@@ -1,0 +1,8 @@
+numpy>=1.24
+torch>=2.1
+pandas>=2.0
+pyarrow>=14
+aiohttp>=3.9
+opencv-python>=4.8     # webcam (optional; synthetic stimulus is used without it)
+# optional real-data loaders:
+# neuprint-python      # hemibrain / MANC / optic-lobe / male CNS via neuPrint (needs an API token)

@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraftBrain - live</title>
+<style>
+  :root { color-scheme: dark; --bg:#0b0e14; --panel:#121722; --line:#232b3b; --txt:#d6deeb; --dim:#7f8ba3; --acc:#5ec4ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:13px/1.4 system-ui, Segoe UI, sans-serif; display:grid; grid-template-columns: 1fr 380px; height:100vh; overflow:hidden; }
+  #view { position:relative; }
+  #view canvas { display:block; }
+  #hud { position:absolute; left:12px; top:10px; background:#0b0e14cc; padding:8px 12px; border-radius:8px; border:1px solid var(--line); }
+  #hud b { color:var(--acc); }
+  #cue { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:middle; border:1px solid var(--line); }
+  aside { background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding:12px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin:16px 0 6px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  button, select { background:#1a2130; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:5px 9px; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--acc); }
+  .kv { display:grid; grid-template-columns: 1fr auto; gap:2px 10px; }
+  .kv span:nth-child(odd) { color:var(--dim); }
+  .note { color:var(--dim); font-size:11px; margin-top:5px; }
+  .site-kind { color:var(--dim); font-size:10px; }
+  button:disabled, select:disabled, input:disabled { opacity:.5; cursor:default; }
+  .bar { height:8px; background:#1a2130; border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  .succ { display:grid; grid-template-columns: 110px 1fr 36px; gap:4px 8px; align-items:center; }
+  #brains { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
+  #brains figure { margin:0; text-align:center; font-size:11px; color:var(--dim); }
+  #brains canvas { width:100%; image-rendering:pixelated; border-radius:4px; border:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  td, th { padding:2px 4px; border-bottom:1px solid var(--line); text-align:left; }
+  th { color:var(--dim); font-weight:500; }
+  .sites-table { table-layout:fixed; font-size:10px; }
+  .sites-table th:first-child { width:30%; }
+  .sites-table th:nth-child(2) { width:23%; }
+  .sites-table th:nth-child(3), .sites-table th:nth-child(4) { width:10%; }
+  .sites-table th:nth-child(5) { width:12%; }
+  .sites-table th:nth-child(6) { width:15%; }
+  .sites-table td { font-variant-numeric:tabular-nums; }
+  .sites-table td:first-child { overflow-wrap:anywhere; }
+  #chart { width:100%; height:80px; background:#0e131c; border-radius:6px; }
+  #cam { width:100%; border-radius:6px; border:1px solid var(--line); display:none; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>
+</head>
+<body>
+<div id="view"><div id="hud">task <b id="h-task">-</b> &middot; t <span id="h-t">0</span> &middot; episode <span id="h-ep">0</span> &middot; return <span id="h-ret">0</span> &middot; cue <span id="cue"></span></div></div>
+<aside>
+  <div class="row">
+    <select id="task"></select>
+    <button id="pause">Pause</button>
+    <button id="save">Save now</button>
+    <button id="rst" title="Zero neural activity (keeps learned weights)">Reset activity</button>
+  </div>
+  <div class="row" style="margin-top:6px">speed <input id="hz" type="range" min="0" max="120" value="30"> <span id="hzv">30 Hz</span></div>
+  <div class="note" id="connection" role="status">Connecting to local simulation…</div>
+
+  <h2>System</h2>
+  <div class="kv" id="stats"></div>
+
+  <h2>Episode return</h2>
+  <canvas id="chart" width="356" height="80"></canvas>
+
+  <h2>Success rate (last 50)</h2>
+  <div class="succ" id="succ"></div>
+
+  <h2>Central Complex Compass & Mushroom Body</h2>
+  <div style="display:flex; align-items:center; gap:10px; background:#0e131c; padding:8px; border-radius:6px; border:1px solid var(--line);">
+    <canvas id="compass" width="90" height="90" style="display:block; border-radius:45px; background:#070a10;"></canvas>
+    <div style="flex:1; font-size:11px; line-height:1.45;">
+      <div><b>CX Compass:</b> <span id="cx-angle">0.0°</span></div>
+      <div><b>MB KC Active:</b> <span id="mb-kc">0%</span></div>
+      <div><b>MBON Valence:</b> <span id="mb-mbon">+0.00 / -0.00</span></div>
+      <div><b>RND Curiosity:</b> <span id="rnd-bonus">0.000</span></div>
+    </div>
+  </div>
+
+  <h2>Connectome activity</h2>
+  <div id="brains"></div>
+
+  <h2>Neural plasticity</h2>
+  <div class="kv" id="plasticity"><span>telemetry</span><span>waiting for snapshot</span></div>
+  <div class="note">Active support changes within fixed candidate edge records. Gradient scores measure loss sensitivity, not guaranteed reward improvement. Protected connections remain active while they mature.</div>
+
+  <h2>Graft sites (highest effective flow)</h2>
+  <table class="sites-table"><thead><tr><th>site / kind</th><th title="Active edge records / candidate edge records">active / cand.</th><th>gain</th><th>swaps</th><th title="Mean absolute stored candidate weight">|w|</th><th title="Current masked and gated signal flow">flow</th></tr></thead><tbody id="sites"></tbody></table>
+  <div class="note">Candidate counts include dormant records and may include duplicate endpoints. Flow uses the current mask and site gain.</div>
+
+  <h2>Webcam (local only)</h2>
+  <img id="cam" alt="webcam thumbnail"><div id="camnote" style="color:var(--dim)">synthetic stimulus (start with --webcam for the live feed)</div>
+</aside>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const TASKS = ["auto","forage","maze","push","grasp_place","peg_insert","delayed_match","go_nogo","button_sequence","webcam_chase"];
+const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[ch]));
+const number = (value, places = 0) => typeof value === "number" && Number.isFinite(value)
+  ? value.toLocaleString(undefined, {minimumFractionDigits: places, maximumFractionDigits: places}) : "—";
+function renderValues(id, rows) {
+  $(id).replaceChildren(...rows.flatMap(([key, value]) => [key, value].map(text => {
+    const span = document.createElement("span"); span.textContent = text; return span;
+  })));
+}
+TASKS.forEach(t => $("task").add(new Option(t, t)));
+
+const view = $("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0e14);
+scene.fog = new THREE.Fog(0x0b0e14, 14, 30);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 100);
+camera.position.set(0, 9, 9);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+scene.add(new THREE.HemisphereLight(0xbfd7ff, 0x202030, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(4, 10, 3); sun.castShadow = true;
+sun.shadow.camera.left = sun.shadow.camera.bottom = -7; sun.shadow.camera.right = sun.shadow.camera.top = 7;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x1b2230 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(10, 20, 0x2b3550, 0x222a3c); grid.position.y = 0.002; scene.add(grid);
+
+// world (x,y) -> three (x, -y)
+const P = (x, y, z = 0) => new THREE.Vector3(x, z, -y);
+
+// agent
+const agent = new THREE.Group();
+const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.3, 24), new THREE.MeshStandardMaterial({ color: 0x5ec4ff, metalness: .3, roughness: .4 }));
+body.position.y = 0.15; body.castShadow = true; agent.add(body);
+const nose = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.18, 12), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+nose.rotation.z = -Math.PI / 2; nose.position.set(0.28, 0.2, 0); agent.add(nose);
+scene.add(agent);
+const armMat = new THREE.LineBasicMaterial({ color: 0xffd166 });
+const armGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+const arm = new THREE.Line(armGeo, armMat); scene.add(arm);
+const fingerMat = new THREE.MeshStandardMaterial({ color: 0xffd166 });
+const fingers = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), fingerMat); scene.add(m); return m; });
+const rayGeo = new THREE.BufferGeometry(); const rays = new THREE.LineSegments(rayGeo, new THREE.LineBasicMaterial({ color: 0x5ec4ff, transparent: true, opacity: .18 })); scene.add(rays);
+
+let worldKey = "", wallGroup = new THREE.Group(), objMeshes = new Map();
+scene.add(wallGroup);
+
+function buildWorld(w) {
+  scene.remove(wallGroup); wallGroup = new THREE.Group(); scene.add(wallGroup);
+  const wm = new THREE.MeshStandardMaterial({ color: 0x5a6378, roughness: .8 });
+  for (const [x1, y1, x2, y2] of w.walls) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len + 0.05, 0.5, 0.08), wm);
+    m.position.copy(P((x1 + x2) / 2, (y1 + y2) / 2, 0.25));
+    m.rotation.y = Math.atan2(y2 - y1, x2 - x1);
+    m.castShadow = m.receiveShadow = true; wallGroup.add(m);
+  }
+  for (const m of objMeshes.values()) scene.remove(m);
+  objMeshes.clear();
+  for (const o of w.objects) {
+    const col = new THREE.Color(...o.color);
+    const mat = new THREE.MeshStandardMaterial({ color: col, emissive: o.kind === "orb" ? col : 0x000000, emissiveIntensity: .6, roughness: .5 });
+    let g;
+    if (o.shape === "box") g = new THREE.BoxGeometry(o.r * 2, o.r * 2, o.r * 2);
+    else if (o.shape === "cylinder") g = new THREE.CylinderGeometry(o.r, o.r, 0.3, 16);
+    else if (o.shape === "pad") g = new THREE.CylinderGeometry(o.r, o.r, 0.02, 32);
+    else if (o.shape === "bin") g = new THREE.TorusGeometry(o.r, 0.04, 8, 32);
+    else if (o.shape === "hole") g = new THREE.RingGeometry(o.r * 0.55, o.r * 1.6, 24);
+    else if (o.shape === "button") g = new THREE.CylinderGeometry(o.r, o.r, 0.06, 20);
+    else g = new THREE.SphereGeometry(o.r, 24, 16);
+    const m = new THREE.Mesh(g, mat); m.castShadow = true;
+    if (o.shape === "bin" || o.shape === "hole") m.rotation.x = -Math.PI / 2;
+    if (o.shape === "button") m.rotation.x = Math.PI / 2;
+    m.userData.o = o; scene.add(m); objMeshes.set(o.id, m);
+  }
+}
+
+function updateWorld(w) {
+  const key = w.task + ":" + w.episode;
+  if (key !== worldKey) { buildWorld(w); worldKey = key; }
+  for (const o of w.objects) {
+    const m = objMeshes.get(o.id); if (!m) continue;
+    m.visible = o.visible;
+    let h = o.z + (o.shape === "box" ? o.r : o.shape === "cylinder" ? 0.15 : o.shape === "sphere" ? o.r : 0.01);
+    if (o.shape === "button") h = o.z;
+    if (o.kind === "orb") h = 0.6;
+    m.position.copy(P(o.x, o.y, h));
+    if (o.pressed) m.material.emissive.set(0xffffff);
+  }
+  const a = w.agent;
+  agent.position.copy(P(a.x, a.y)); agent.rotation.y = a.th;
+  const base = P(a.x + 0.2 * Math.cos(a.th), a.y + 0.2 * Math.sin(a.th), 0.3), tip = P(...a.tip);
+  armGeo.setFromPoints([base, tip]);
+  const sx = -Math.sin(a.th), sy = Math.cos(a.th), open = 0.06 * (1 - a.grip) + 0.015;
+  fingers[0].position.copy(P(a.tip[0] + sx * open, a.tip[1] + sy * open, a.tip[2]));
+  fingers[1].position.copy(P(a.tip[0] - sx * open, a.tip[1] - sy * open, a.tip[2]));
+  const pts = []; for (const [x, y] of w.rays) { pts.push(P(a.x, a.y, 0.25), P(x, y, 0.25)); }
+  rayGeo.setFromPoints(pts);
+  $("h-task").textContent = w.task; $("h-t").textContent = w.t; $("h-ep").textContent = w.episode;
+  $("h-ret").textContent = w.ep_return.toFixed(2);
+  $("cue").style.background = w.cue[3] ? `rgb(${w.cue.slice(0, 3).map(v => v * 255).join(",")})` : "transparent";
+  $("succ").innerHTML = Object.entries(w.success).map(([t, s]) =>
+    `<span>${escapeHtml(t)}</span><div class="bar"><i style="width:${Math.max(0, Math.min(1, Number(s) || 0)) * 100}%"></i></div><span>${s == null ? "-" : Math.round(s * 100) + "%"}</span>`).join("");
+}
+
+// brain panels
+const brainCanvases = new Map();
+function updateBrains(list) {
+  for (const b of list) {
+    let c = brainCanvases.get(b.name);
+    if (!c) {
+      const fig = document.createElement("figure");
+      c = document.createElement("canvas"); c.width = c.height = 32;
+      const cap = document.createElement("figcaption");
+      fig.append(c, cap); $("brains").append(fig); brainCanvases.set(b.name, c); c._cap = cap;
+    }
+    const bytes = Uint8Array.from(atob(b.img), ch => ch.charCodeAt(0));
+    const ctx = c.getContext("2d"), img = ctx.createImageData(32, 32);
+    for (let i = 0; i < 1024; i++) { const v = bytes[i]; img.data.set([v * 0.4, v * 0.8 + 20, v + 30, 255], i * 4); }
+    ctx.putImageData(img, 0, 0);
+    c._cap.textContent = `${b.name} · ${b.mean.toFixed(3)}`;
+  }
+}
+
+const returns = [];
+function drawChart(recent) {
+  const c = $("chart"), ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (!returns.length) return;
+  const lo = Math.min(...returns, 0), hi = Math.max(...returns, 1);
+  ctx.strokeStyle = "#2b3550"; ctx.beginPath(); const z = c.height - (0 - lo) / (hi - lo) * c.height; ctx.moveTo(0, z); ctx.lineTo(c.width, z); ctx.stroke();
+  ctx.strokeStyle = "#5ec4ff"; ctx.beginPath();
+  returns.forEach((r, i) => { const x = i / Math.max(1, returns.length - 1) * c.width, y = c.height - (r - lo) / (hi - lo) * c.height; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.stroke();
+}
+
+let lastEpisodeSeen = -1;
+
+function drawCompass(cmp) {
+  const c = $("compass"); if (!c) return;
+  const ctx = c.getContext("2d");
+  const cx = 45, cy = 45, rOut = 38, rIn = 22;
+  ctx.clearRect(0, 0, 90, 90);
+
+  const wedges = cmp?.wedges || [];
+  const n = wedges.length || 16;
+  const step = (2 * Math.PI) / n;
+  for (let i = 0; i < n; i++) {
+    const val = wedges[i] ?? 0;
+    const a0 = -Math.PI / 2 + i * step - step / 2;
+    const a1 = a0 + step;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rOut, a0, a1);
+    ctx.arc(cx, cy, rIn, a1, a0, true);
+    ctx.closePath();
+    const glow = Math.min(255, Math.floor(val * 800));
+    ctx.fillStyle = `rgb(${Math.floor(glow * 0.4)}, ${Math.floor(glow * 0.8 + 20)}, ${Math.floor(glow + 40)})`;
+    ctx.fill();
+    ctx.strokeStyle = "#0e131c"; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  const ang = (cmp?.bump ?? 0) - Math.PI / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(ang) * (rOut + 3), cy + Math.sin(ang) * (rOut + 3));
+  ctx.strokeStyle = "#ffcf40"; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, 2 * Math.PI);
+  ctx.fillStyle = "#ffcf40"; ctx.fill();
+}
+
+function updatePlasticity(summary) {
+  if (!summary) { renderValues("plasticity", [["telemetry", "unavailable in this snapshot"]]); return; }
+  const event = summary.last_event;
+  const lastUpdate = summary.last_rewire_update ?? (typeof event === "number" ? event : event?.update ?? event?.updates ?? event?.update_clock);
+  const density = summary.candidates > 0 ? 100 * summary.active / summary.candidates : 0;
+  const percent = value => Number.isFinite(value) ? `${number(value * 100, 1)}%` : "unavailable";
+  const cohort = (mean, count) => count == null ? "unavailable" : count === 0 ? "no samples"
+    : `${Number.isFinite(mean) ? mean.toExponential(2) : "unavailable"} (n=${number(count)})`;
+  renderValues("plasticity", [
+    ["mode", summary.mode ?? "—"],
+    ["growth rule / initialization", summary.growth_rule == null ? "unavailable · older runtime"
+      : `${summary.growth_rule} / ${summary.growth_init}`],
+    ["minimum active age", summary.min_age == null ? "unavailable" : `${number(summary.min_age)} updates`],
+    ["active / candidates", `${number(summary.active)} / ${number(summary.candidates)}`],
+    ["protected / mature active", summary.protected_active == null ? "unavailable"
+      : `${number(summary.protected_active)} / ${number(summary.mature_active)}`],
+    ["dormant records", number(summary.dormant)],
+    ["active density", `${number(density, 1)}%`],
+    ["learning updates", number(summary.updates)],
+    ["rewire events / swaps", `${number(summary.rewires)} / ${number(summary.swaps)}`],
+    ["last rewire update", !summary.rewires || lastUpdate == null ? "none" : number(lastUpdate)],
+    ["last event swaps / active", event?.swaps == null ? "none"
+      : `${number(event.swaps)} (${percent(summary.active > 0 ? event.swaps / summary.active : 0)})`],
+    ["last event eligible / protected", !event ? "none"
+      : `${number(event.eligible_active)} / ${number(event.protected_active)}`],
+    ["last event growth rule", event?.growth_rule ?? (event ? "not reported" : "none")],
+    ["last recruitment score", Number.isFinite(event?.selection_score_mean)
+      ? event.selection_score_mean.toExponential(2) : event?.growth_rule === "random" ? "random ranking" : "not reported"],
+    ["site gain mean / spread", `${number(summary.gate_mean, 3)} / ${number(summary.gate_spread, 3)}`],
+    ["site gain range", `${number(summary.gate_min, 3)} – ${number(summary.gate_max, 3)}`],
+    ["gradient evidence updates", number(summary.gradient_updates)],
+    ["finite gradient / dormant coverage", `${percent(summary.gradient_coverage)} / ${percent(summary.dormant_gradient_coverage)}`],
+    ["newborn gradient", cohort(summary.newborn_gradient_mean, summary.newborn_gradient_count)],
+    ["incumbent gradient", cohort(summary.incumbent_gradient_mean, summary.incumbent_gradient_count)],
+    ["invalid candidate/update entries", number(summary.gradient_nonfinite)],
+    ["support interventions / swaps", summary.interventions == null ? "unavailable"
+      : `${number(summary.interventions)} / ${number(summary.intervention_swaps)}`],
+  ]);
+}
+
+function onSnap(s) {
+  updateWorld(s.world); updateBrains(s.brain); drawCompass(s.compass); updatePlasticity(s.plasticity);
+  if ($("cx-angle")) $("cx-angle").textContent = `${Math.round(((s.compass?.bump ?? 0) * 180 / Math.PI + 360) % 360)}°`;
+  if ($("mb-kc")) $("mb-kc").textContent = `${Math.round((s.mb?.kc_sparsity ?? 0) * 100)}%`;
+  if ($("mb-mbon")) {
+    const m = s.mb?.mbon || [0, 0];
+    $("mb-mbon").textContent = `${m[0] >= 0 ? '+' : ''}${m[0].toFixed(2)} / ${m[1] >= 0 ? '+' : ''}${m[1].toFixed(2)}`;
+  }
+  if ($("rnd-bonus")) $("rnd-bonus").textContent = (s.stats?.curiosity ?? 0).toFixed(3);
+  const st = s.stats;
+  renderValues("stats", [
+    ["neurons", st.neurons.toLocaleString()], ["connectome edges (frozen)", st.conn_edges.toLocaleString()],
+    ["graft candidate records", st.graft_edges.toLocaleString()], ["steps", st.steps.toLocaleString()],
+    ["learning updates", st.updates], ["loss", st.loss.toFixed(3)], ["TD error (ema)", st.td.toFixed(3)],
+    ["value", (st.value ?? 0).toFixed(3)], ["mean |graft w|", st.graft_w_abs.toFixed(4)],
+    ["last save", Math.round(st.since_save) + " s ago"], ["status", st.paused ? "paused" : "running"],
+  ]);
+  $("pause").textContent = st.paused ? "Resume" : "Pause";
+  if (document.activeElement !== $("hz") && Number.isFinite(st.hz)) {
+    $("hz").value = st.hz; $("hzv").textContent = st.hz === 0 ? "max" : st.hz + " Hz";
+  }
+  if (s.recent.length) {
+    const last = s.recent[s.recent.length - 1];
+    if (s.world.episode !== lastEpisodeSeen) { lastEpisodeSeen = s.world.episode; returns.push(last.ret); if (returns.length > 200) returns.shift(); drawChart(); }
+  }
+  const sites = [...s.sites].sort((a, b) => b.flow - a.flow).slice(0, 14);
+  $("sites").innerHTML = sites.length ? sites.map(x => `<tr><td title="${escapeHtml(x.detail)} · site ${escapeHtml(x.id)}">${escapeHtml(x.from)}&rarr;${escapeHtml(x.to)}<div class="site-kind">${escapeHtml(x.kind)}</div></td><td>${number(x.active)} / ${number(x.candidates ?? x.edges)}</td><td>${number(x.gate, 2)}</td><td>${number(x.swaps)}</td><td>${number(x.w, 3)}</td><td>${number(x.flow, 4)}</td></tr>`).join("")
+    : '<tr><td colspan="6">No graft sites in this graph.</td></tr>';
+  if (s.cam) { $("cam").src = "data:image/jpeg;base64," + s.cam; $("cam").style.display = "block"; $("camnote").style.display = "none"; }
+}
+
+let ws;
+function connectionStatus(connected) {
+  $("connection").textContent = connected ? "Connected to local simulation" : "Disconnected · reconnecting; displayed values may be stale";
+  ["task", "pause", "save", "rst", "hz"].forEach(id => { $(id).disabled = !connected; });
+}
+["task", "pause", "save", "rst", "hz"].forEach(id => { $(id).disabled = true; });
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => connectionStatus(true);
+  ws.onmessage = e => onSnap(JSON.parse(e.data));
+  ws.onclose = () => { connectionStatus(false); setTimeout(connect, 1000); };
+}
+connect();
+const send = o => ws?.readyState === 1 && ws.send(JSON.stringify(o));
+$("pause").onclick = () => send({ cmd: "pause" });
+$("save").onclick = () => send({ cmd: "save" });
+$("rst").onclick = () => send({ cmd: "reset_activity" });
+$("task").onchange = e => send({ cmd: "task", task: e.target.value });
+$("hz").oninput = e => { $("hzv").textContent = e.target.value == 0 ? "max" : e.target.value + " Hz"; send({ cmd: "speed", hz: +e.target.value }); };
+
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener("resize", resize); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>

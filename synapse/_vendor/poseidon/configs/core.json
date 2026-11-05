@@ -1,0 +1,9 @@
+{
+  "hash_buckets": 512,
+  "hidden_size": 128,
+  "experts": 4,
+  "recurrent_steps": 2,
+  "observation_size": 16,
+  "action_count": 6,
+  "feature_schema": "blake2b-lemma-words-bigrams-l2-v2"
+}
