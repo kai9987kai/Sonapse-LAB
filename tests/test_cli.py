@@ -35,3 +35,14 @@ def test_cli_transplant(tmp_path,capsys):
     data=json.loads(capsys.readouterr().out)
     assert data['status']=='ok'
     assert 'arms' in data
+
+def test_cli_metamorphic_and_spectral(tmp_path,capsys):
+    assert main(['--output',str(tmp_path),'--nodes','16','metamorphic'])==0
+    data=json.loads(capsys.readouterr().out)
+    assert data['status']=='ok'
+    assert 'relations' in data
+
+    assert main(['--output',str(tmp_path),'--nodes','16','spectral'])==0
+    data_spec=json.loads(capsys.readouterr().out)
+    assert 'eigenvalues' in data_spec
+    assert 'projection' in data_spec

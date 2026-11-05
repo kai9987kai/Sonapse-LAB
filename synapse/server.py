@@ -148,6 +148,27 @@ class Workbench:
                     episodes=integer(data.get('episodes', 3), 'episodes', 1, 10),
                     seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
                 )
+            if path=='/api/metamorphic':
+                from .metamorphic import run_metamorphic_verification_suite
+                return run_metamorphic_verification_suite(self.runtime.agent)
+            if path=='/api/spectral':
+                from .spectral import compute_connectome_harmonics, project_spectral_activity
+                harmonics = compute_connectome_harmonics(self.runtime.agent.graph, num_modes=8)
+                proj = project_spectral_activity(self.runtime.agent.brain.r, harmonics)
+                return {'harmonics': harmonics['eigenvalues'], 'projection': proj}
+            if path=='/api/hyperprogram':
+                from .hypernetwork import WeightSpaceHypernetwork, compile_hypernetwork_patch
+                hypernet = WeightSpaceHypernetwork()
+                diag = {
+                    'mean_return': float(data.get('return', 0.2)),
+                    'total_steps': 30,
+                    'mean_graph_activity': float(self.runtime.agent.brain.r.mean()),
+                    'mean_approach_valence': float(self.runtime.last.get('mbon', [0, 0])[0]) if self.runtime.last.get('mbon') else 0.0,
+                    'mean_avoid_valence': float(self.runtime.last.get('mbon', [0, 0])[1]) if self.runtime.last.get('mbon') else 0.0,
+                    'action_mean': self.runtime.last_action.tolist(),
+                    'task': self.runtime.config.task,
+                }
+                return compile_hypernetwork_patch(self.runtime.agent, hypernet, diag, target_surface=data.get('target', 'motor.weight'), max_edits=16)
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):

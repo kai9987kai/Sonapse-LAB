@@ -98,6 +98,24 @@ def test_server_autoprogram_and_transplant(tmp_path):
         res2 = json.load(urllib.request.urlopen(req2))
         assert res2['status'] == 'ok'
         assert 'arms' in res2
+
+        req3 = urllib.request.Request(
+            base + '/api/metamorphic',
+            data=b'{}',
+            headers={'Content-Type': 'application/json'}
+        )
+        res3 = json.load(urllib.request.urlopen(req3))
+        assert res3['status'] == 'ok'
+        assert 'relations' in res3
+
+        req4 = urllib.request.Request(
+            base + '/api/spectral',
+            data=b'{}',
+            headers={'Content-Type': 'application/json'}
+        )
+        res4 = json.load(urllib.request.urlopen(req4))
+        assert 'harmonics' in res4
+        assert 'projection' in res4
     finally:
         server.shutdown()
         server.server_close()

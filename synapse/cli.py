@@ -21,6 +21,9 @@ def main(argv=None):
     p=sub.add_parser('patch'); p.add_argument('operation',choices=['make','apply']); p.add_argument('file',type=Path); p.add_argument('--checkpoint'); p.add_argument('--save',default='patched')
     p=sub.add_parser('autoprogram'); p.add_argument('--diagnostic-episodes',type=int,default=3); p.add_argument('--eval-episodes',type=int,default=3); p.add_argument('--min-gain',type=float,default=-0.05); p.add_argument('--save')
     p=sub.add_parser('transplant'); p.add_argument('--donor-task',default='forage'); p.add_argument('--test-task',default='delayed_match'); p.add_argument('--episodes',type=int,default=3)
+    sub.add_parser('metamorphic')
+    sub.add_parser('spectral')
+    p=sub.add_parser('hyperprogram'); p.add_argument('--target',default='motor.weight'); p.add_argument('--edits',type=int,default=16)
     args=parser.parse_args(argv)
     try:
         config=SynapseConfig(seed=args.seed,nodes_per_source=args.nodes,task=args.task)
@@ -56,6 +59,19 @@ def main(argv=None):
                 from .transplantation import extract_donor_subcircuit,run_transplantation_experiment
                 donor=extract_donor_subcircuit(runtime.agent,source_task=args.donor_task)
                 result=run_transplantation_experiment(runtime.agent,donor=donor,test_task=args.test_task,episodes=args.episodes,seed=args.seed)
+            elif args.command=='metamorphic':
+                from .metamorphic import run_metamorphic_verification_suite
+                result=run_metamorphic_verification_suite(runtime.agent)
+            elif args.command=='spectral':
+                from .spectral import compute_connectome_harmonics,project_spectral_activity
+                harmonics=compute_connectome_harmonics(runtime.agent.graph,num_modes=8)
+                proj=project_spectral_activity(runtime.agent.brain.r,harmonics)
+                result={'eigenvalues':harmonics['eigenvalues'],'projection':proj}
+            elif args.command=='hyperprogram':
+                from .hypernetwork import WeightSpaceHypernetwork,compile_hypernetwork_patch
+                hypernet=WeightSpaceHypernetwork()
+                diag={'mean_return':0.2,'total_steps':30,'mean_graph_activity':float(runtime.agent.brain.r.mean()),'mean_approach_valence':0.1,'mean_avoid_valence':-0.1,'action_mean':runtime.last_action.tolist(),'task':runtime.config.task}
+                result=compile_hypernetwork_patch(runtime.agent,hypernet,diag,target_surface=args.target,max_edits=args.edits)
         print(json.dumps(result,indent=2,allow_nan=False,default=str)); return 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:
         parser.exit(2,f'Error: {exc}\n')

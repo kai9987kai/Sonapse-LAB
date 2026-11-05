@@ -5,10 +5,12 @@ def test_inventory_covers_sources_and_typed_operations():
     assert c['source_module_counts']['poseidon'] >= 190
     assert {x['id'] for x in c['capabilities']} >= {
         'reasoning.solve', 'memory.retrieve', 'core.scene', 'graph.successor',
-        'expanse.male_cns', 'core.tidal', 'graph.connectomes', 'rsi.meta_evaluate'
+        'expanse.male_cns', 'core.tidal', 'graph.connectomes', 'rsi.meta_evaluate',
+        'neuromodulation.state', 'spectral.harmonics', 'hypernetwork.synthesize',
+        'metamorphic.audit', 'structural.topology',
     }
     assert all('scope' in x and 'input_schema' in x for x in c['capabilities'])
-    assert len(c['capabilities']) >= 45
+    assert len(c['capabilities']) >= 65
 
 def test_real_tool_result_reaches_memory_consumer():
     r = invoke('reasoning.solve', {'expression': '12 + 30'})
@@ -35,8 +37,29 @@ def test_graph_connectomes():
     for c in res['connectomes']:
         assert 'name' in c and 'neurons' in c
 
+def test_frontier_capabilities():
+    nm = invoke('neuromodulation.state', {'reward': 1.0})
+    assert nm['status'] == 'ok'
+    assert 'dopamine' in nm['neuromodulators']
+
+    spec = invoke('spectral.harmonics', {})
+    assert spec['status'] == 'ok'
+    assert spec['num_modes'] == 8
+
+    hyp = invoke('hypernetwork.synthesize', {'return': 0.4})
+    assert hyp['status'] == 'ok'
+    assert hyp['writes'] > 0
+
+    meta = invoke('metamorphic.audit', {})
+    assert meta['status'] == 'ok'
+    assert 'relations' in meta
+
+    struct = invoke('structural.topology', {})
+    assert struct['status'] == 'ok'
+    assert struct['neurons'] > 0
+
 def test_coverage_sweep():
     sweep = coverage_sweep()
-    assert sweep['total'] >= 45
-    assert sweep['ok'] >= 44
+    assert sweep['total'] >= 70
+    assert sweep['ok'] >= 70
     assert sweep['error'] == 0

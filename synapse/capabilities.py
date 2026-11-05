@@ -925,6 +925,75 @@ def _handle_connectome_dales_law(payload: Dict[str, Any]) -> Dict[str, Any]:
     agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
     return audit_dales_law(agent)
 
+# 17. NEUROMODULATION, SPECTRAL & METAMORPHIC FRONTIERS
+def _handle_neuromodulation_state(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .neuromodulation import NeuromodulatoryEngine
+    engine = NeuromodulatoryEngine()
+    reward = float(payload.get('reward', 0.5))
+    threat = float(payload.get('threat', 0.1))
+    depletion = float(payload.get('depletion', 0.2))
+    state = engine.step(reward=reward, sensory_contrast=0.4, threat_level=threat, energy_depletion=depletion)
+    return {
+        'status': 'ok',
+        'neuromodulators': state.to_dict(),
+        'gains': engine.compute_gains(),
+        'scope': 'multi-factor biological neuromodulatory system simulation',
+    }
+
+def _handle_spectral_harmonics(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .spectral import compute_connectome_harmonics, project_spectral_activity
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    harmonics = compute_connectome_harmonics(agent.graph, num_modes=8)
+    proj = project_spectral_activity(agent.brain.r, harmonics)
+    return {
+        'status': 'ok',
+        'num_modes': harmonics['num_modes'],
+        'spectral_gap': harmonics['spectral_gap'],
+        'eigenvalues': harmonics['eigenvalues'],
+        'activity_projection': proj,
+        'scope': 'connectome harmonic decomposition and spectral activity projection',
+    }
+
+def _handle_hypernetwork_synthesize(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .hypernetwork import WeightSpaceHypernetwork, compile_hypernetwork_patch
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    hypernet = WeightSpaceHypernetwork()
+    dummy_diag = {
+        'mean_return': float(payload.get('return', 0.2)),
+        'total_steps': 25,
+        'mean_graph_activity': 0.12,
+        'mean_approach_valence': 0.1,
+        'mean_avoid_valence': -0.1,
+        'action_mean': [0.1, 0.0, 0.0, 0.0, 0.0],
+    }
+    patch = compile_hypernetwork_patch(agent, hypernet, dummy_diag, target_surface='motor.weight', max_edits=16)
+    return {
+        'status': 'ok',
+        'patch_schema': patch['schema'],
+        'writes': patch['writes'],
+        'delta_l2': patch['delta_l2'],
+        'target_surface': 'motor.weight',
+        'scope': 'low-rank weight-space hypernetwork program synthesis',
+    }
+
+def _handle_metamorphic_audit(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .metamorphic import run_metamorphic_verification_suite
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    return run_metamorphic_verification_suite(agent)
+
+def _handle_structural_topology(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .structural_plasticity import audit_structural_topology
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    return audit_structural_topology(agent)
+
 
 # ---------------------------------------------------------------------------
 # Master Registry of all 47 Audited Capabilities across 19 Families
@@ -1029,6 +1098,13 @@ _REGISTRY: Dict[str, Dict[str, Any]] = {
     'weightspace.causal_mediation': {'id': 'weightspace.causal_mediation', 'family': 'weightspace', 'name': 'Pearlian Causal Mediation Assay', 'description': 'Decomposes weight programs into Natural Direct (NDE) and Natural Indirect (NIE) effects.', 'scope': 'Pearlian causal mediation analysis in weight space', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'task': {'type': 'string'}}}, 'example': {'task': 'forage'}, 'handler': _handle_weightspace_causal_mediation},
     'weightspace.metabolic_pareto': {'id': 'weightspace.metabolic_pareto', 'family': 'weightspace', 'name': 'Metabolic Pareto Front Optimizer', 'description': 'Discovers Pareto-optimal trade-offs between task performance and biological metabolic wiring energy.', 'scope': 'biological connectome metabolic Pareto optimization', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'task': {'type': 'string'}}}, 'example': {'task': 'forage'}, 'handler': _handle_weightspace_metabolic_pareto},
     'connectome.dales_law_audit': {'id': 'connectome.dales_law_audit', 'family': 'connectome', 'name': "Dale's Principle Compliance Auditor", 'description': "Audits and projects synaptic weights against Dale's law and Janelia Drosophila neurotransmitter annotations.", 'scope': "Dale's law sign consistency audit across connectome graph", 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_connectome_dales_law},
+
+    # 17. Neuromodulation, Spectral & Metamorphic Frontiers
+    'neuromodulation.state': {'id': 'neuromodulation.state', 'family': 'neuromodulation', 'name': 'Neuromodulatory Field Engine', 'description': 'Multi-factor biological neurochemical state tracking (DA, 5-HT, OA, ACh).', 'scope': 'multi-factor biological neuromodulatory system simulation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'reward': {'type': 'number'}, 'threat': {'type': 'number'}}}, 'example': {'reward': 1.0, 'threat': 0.0}, 'handler': _handle_neuromodulation_state},
+    'spectral.harmonics': {'id': 'spectral.harmonics', 'family': 'spectral', 'name': 'Connectome Harmonic Analyzer', 'description': 'Graph Laplacian spectral decomposition and resonant harmonic eigenmode projection.', 'scope': 'connectome harmonic decomposition and spectral activity projection', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_spectral_harmonics},
+    'hypernetwork.synthesize': {'id': 'hypernetwork.synthesize', 'family': 'hypernetwork', 'name': 'Weight-Space Hypernetwork Synthesizer', 'description': 'Low-rank neural hypernetwork generating verified weight program patches from diagnostic signatures.', 'scope': 'low-rank weight-space hypernetwork program synthesis', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'return': {'type': 'number'}}}, 'example': {'return': 0.5}, 'handler': _handle_hypernetwork_synthesize},
+    'metamorphic.audit': {'id': 'metamorphic.audit', 'family': 'metamorphic', 'name': 'Metamorphic Invariance Oracle', 'description': 'Stress-tests agents against formal metamorphic relations (rotational invariance, monotonicity, fault tolerance, Lipschitz stability).', 'scope': 'formal metamorphic invariant stress-testing', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_metamorphic_audit},
+    'structural.topology': {'id': 'structural.topology', 'family': 'structural', 'name': 'Connectome Structural Topology Auditor', 'description': 'Audits wiring density, inter-neuropil vs intra-neuropil modularity, and synaptogenesis candidates.', 'scope': 'developmental connectome structural topology audit', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_structural_topology},
 }
 
 

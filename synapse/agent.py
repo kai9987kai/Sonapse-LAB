@@ -15,6 +15,7 @@ from graftbrain.graft import build
 from graftbrain.neuro_modules import MushroomBody, CentralComplexCompass, CuriosityRND
 from graftbrain.plasticity import GraftPlasticity, PlasticityConfig
 from poseidon.core import load_checkpoint
+from .neuromodulation import NeuromodulatoryEngine, NeuromodulatorState
 
 class AcquiringMushroomBody(MushroomBody):
     def forward(self,cue_vec,adapt=True):
@@ -41,6 +42,7 @@ class IntegratedAgent:
             self.mb=AcquiringMushroomBody(4)
             self.compass=CentralComplexCompass()
             self.curiosity=CuriosityRND(155)
+            self.neuromod=NeuromodulatoryEngine()
             self.tidal,self.receipt=load_checkpoint(ARTIFACTS/'tidal_core.pt')
             h=self.tidal.config.hidden_size
             self.encoder=nn.Linear(155+16+2,len(self.brain.sensory_idx))
@@ -58,6 +60,7 @@ class IntegratedAgent:
         self.reset_episode()
     def reset_episode(self):
         self.brain.reset_state(); self.mb.elig.zero_(); self.mb.kc_act.zero_(); self.compass.reset()
+        if hasattr(self, 'neuromod'): self.neuromod.reset()
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
         self.last_features=np.zeros(64,np.float32); self.last_telemetry={}; self.last_obs=np.zeros(155,np.float32)
@@ -120,13 +123,19 @@ class IntegratedAgent:
             pooled=pooled+.01*self.consolidated+.05*torch.tanh(self.native(pooled))
             features=torch.cat([pooled,self.hidden[0,:16],mbon,self.intent,compass[:8]])
             # Every action is gated by actual graph activity; no action from a world oracle.
-            action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)
+            gains=self.neuromod.compute_gains() if hasattr(self, 'neuromod') else {'motor_vigor':1.0}
+            action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)*gains['motor_vigor']
         bonus=self.curiosity.compute_bonus(o,train=learn)
         self.ticks+=1; self.last_obs=obs.copy(); self.last_features=features.numpy().copy()
-        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':False}
+        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':False,'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {}}
         return {'action':action.numpy().copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
     def feedback(self,reward,done=False):
         self.mb.dopaminergic_update(float(reward)); self.brain.hebbian(float(reward)); self.brain.apply_hebbian()
+        if hasattr(self, 'neuromod'):
+            threat=float(self.resources[5]) if hasattr(self, 'resources') and len(self.resources)>5 else 0.0
+            contrast=float(np.std(self.last_obs[:33])) if len(self.last_obs)>=33 else 0.0
+            depletion=float(1.0-self.resources[1]) if hasattr(self, 'resources') and len(self.resources)>1 else 0.0
+            self.neuromod.step(reward=float(reward), sensory_contrast=contrast, threat_level=threat, energy_depletion=depletion)
         self.episodic=(self.episodic+[{'reward':float(reward),'intent':self.intent.tolist(),'done':bool(done)}])[-128:]
     def prepare(self,features,targets,steps=1):
         x=torch.as_tensor(features,dtype=torch.float32); y=torch.as_tensor(targets,dtype=torch.float32)
@@ -181,12 +190,14 @@ class IntegratedAgent:
         out['mb.w_mbon']=self.mb.w_mbon
         return out
     def export_state(self):
-        return deepcopy({'schema':1,'config':self.config.to_dict(),'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations')},'compass_angle':self.compass.bump_angle,'routing':getattr(self,'routing',[])})
+        return deepcopy({'schema':1,'config':self.config.to_dict(),'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'routing':getattr(self,'routing',[])})
     def import_state(self,state):
         if state.get('schema')!=1 or state['config']!=self.config.to_dict(): raise ValueError('agent state/config mismatch')
         for k,v in state['modules'].items(): self.modules[k].load_state_dict(v)
         self.opt.load_state_dict(state['optimizer']); self.curiosity.opt.load_state_dict(state['curiosity_optimizer']); self.rng.bit_generator.state=state['rng']
         for k,v in deepcopy(state['transient']).items(): setattr(self,k,v)
         self.compass.bump_angle=state['compass_angle']; self.routing=state['routing']
+        if hasattr(self, 'neuromod') and state.get('neuromod'):
+            self.neuromod.state = NeuromodulatorState(**state['neuromod'])
     def status(self):
         return {'feature_schema':self.feature_schema,'graph':self.graph.describe(),'tidal_parameters':sum(p.numel() for p in self.tidal.parameters()),'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','motor_preparation_updates':self.preparation_updates,'camera':'inactive; image not consumed','evidence_scope':'synthetic graph and heuristic resource adapter; no integrated performance claim','telemetry':deepcopy(self.last_telemetry)}

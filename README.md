@@ -6,8 +6,15 @@
 3. **Supermix-Expanse-v2** (`kai9987kai/Supermix-Expanse-v2`) — function-preserving dormant expert slots, native latent consolidation blocks, input-dependent graph gates, and evoked zero-subtracted connectome readouts.
 4. **Weight-Space Programming & Autonomous Repair** — transaction-safe, bounded numeric weight modifications with parent fingerprinting, atomic rollback, and closed-loop failure diagnosis with writer-disconnected confirmation.
 5. **Multi-Model Subcircuit Transplantation** — cross-model donor subcircuit extraction and ridge representation alignment evaluated across a full 6-arm factorial control suite (`correct`, `random`, `shuffled`, `irrelevant`, `disabled`, `permuted_host`).
-6. **Causal Mediation & Biological Frontiers** — Pearlian counterfactual decomposition of Natural Direct (NDE) vs Natural Indirect (NIE) effects, Janelia Male CNS Dale's law compliance auditing, and metabolic wiring Pareto-optimal sparsification.
-7. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
+6. **Pearlian Causal Mediation Analysis** — counterfactual decomposition of Natural Direct (NDE) vs Natural Indirect (NIE) effects, determining whether weight programs act through recurrent connectome dynamics vs superficial motor biasing.
+7. **Biological Connectome Metabolic Sparsification** — models physical axonal distance, wiring costs, and homeostatic energy to sweep non-dominated Pareto frontiers.
+8. **Dale's Principle & Neurotransmitter Sign Projection** — sign compliance auditing and convex cone projection grounded in 11,751 cell types from the Janelia Male CNS v1.0 connectome.
+9. **Multi-Factor Biological Neuromodulation** — dynamic neurochemical fields for Dopamine (DA / RPE), Serotonin (5-HT / patience), Octopamine (OA / vigor), and Acetylcholine (ACh / sensory attention).
+10. **Spectral Connectomics & Harmonic Decomposition** — normalized graph Laplacian eigendecomposition, harmonic resonant modes, and live neural power spectra.
+11. **Weight-Space Hypernetwork Synthesis** — low-rank neural hypernetworks compiling behavioral diagnostic vectors directly into verified, bounded parameter patches.
+12. **Metamorphic Invariance Oracle** — formal stress-testing across rotational invariance (MR1), valence monotonicity (MR2), sensor fault tolerance (MR3), and Lipschitz stability (MR5).
+13. **Activity-Dependent Structural Plasticity** — Hebbian cross-neuropil synaptogenesis and metabolic dormant synapse pruning.
+14. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
 
 ---
 
@@ -17,46 +24,27 @@ SYNAPSE operates across coupled timescales:
 
 ```mermaid
 flowchart TD
-    W[Embodied World: 9 Task Backends] -->|155-d sensory obs| S[Retina rays, proprioception, resource cues]
+    W[Embodied World: 9 Native Backends] -->|155-d sensory obs| S[Retina rays, proprioception, resource cues]
     S --> B[Compass bump + Mushroom Body + Curiosity RND]
     B --> G[Grafted Connectome: 300 Neurons across 8 Sites]
     G --> A[Motor Decoder: 5 continuous commands] --> W
     G <-->|bidirectional residual bridge| P[Poseidon Tidal MoE: 4 Experts, 128-d Memory]
     P -->|Intent & routing| G
     G & P --> E[Episodic & Tool Memory Trace]
-    E --> C[Weight-Space Programmer / RSI Meta-Policy]
+    E --> NM[Neuromodulatory Field Engine: DA, 5-HT, OA, ACh]
+    NM -->|Gains & Vigor| G & A
+    E --> C[Weight-Space Hypernetwork / RSI Meta-Policy]
     C --> T[Inactive Candidate Checkpoint]
-    T --> V[Paired Retention & Adaptation Screen]
+    T --> V[Paired Retention & Metamorphic Screen]
     V -->|accepted| G
     V -->|accepted| P
 ```
-
-### 1. Fast Sensorimotor Loop (Every Step)
-- Connectome graph: 300 nodes distributed across three biological profiles (`flywire` central brain, `manc` ventral nerve cord, and `optic-lobe` visual system) with 552 graft edges across 8 homolog/interface sites.
-- Rate dynamics: $\tau \dot{r} = -r + \sigma(W_{base} r + W_{graft} r + I)$.
-- Ellipsoid body ring attractor maintaining a 16-wedge heading direction bump on $S^1$.
-- Mushroom body sparse Kenyon cell expansion (top-$k$ WTA) modulating dopaminergic valence.
-- Output: 5 continuous motor commands (`drive`, `turn`, `reach`, `height`, `grip`) strictly gated by connectome activity.
-
-### 2. Slower Cognition Loop (Every 8 Steps)
-- Bidirectional neural bridge: connectome context modulates Tidal resource representations, while Tidal memory and intent modulate connectome input currents.
-- Trained Tidal core checkpoint (`tidal_core.pt`, SHA-256 `a053104a...`) evaluates resource states and routes across 4 MoE experts.
-- Shared episodic/tool memory records queries, reasoning traces, and environment feedback.
-
-### 3. Weight-Space Programming & Autonomous Repair Loop
-- **Named edit surfaces**: graft weights, router parameters, associative readout weights, and neural bridges. Pretrained Tidal weights remain frozen.
-- **Transaction safety**: parent state verification, strict parameter budget bounds, finite checks, and atomic rollback.
-- **Autonomous Repair**: closed-loop diagnostic rollouts &rarr; circuit failure diagnosis &rarr; weight-space program synthesis &rarr; inactive candidate screening &rarr; confirmation with writer disconnected.
-- **Factorial Donor Transplantation**: extracts portable subcircuits, fits ridge representation alignment maps, and tests causal donor support against 5 rigorous control arms.
-- **Pearlian Causal Mediation**: decomposes weight program effects into Natural Direct Effect (NDE on motor decoder) and Natural Indirect Effect (NIE mediated through connectome dynamics).
-- **Biological Metabolic Sparsification**: models physical axonal wiring costs, spiking energy, and sweeps Pareto-optimal frontiers.
-- **Dale's Principle Enforcement**: audits synaptic sign consistency and projects unconstrained updates onto the biological Dale's law cone.
 
 ---
 
 ## Master Capability Explorer
 
-SYNAPSE exposes 67 typed, audited service capabilities across 16 architecture families:
+SYNAPSE exposes 72 typed, audited service capabilities across 17 architecture families:
 
 | Capability ID | Family | Name | Scope / Intended Role |
 |---|---|---|---|
@@ -86,6 +74,11 @@ SYNAPSE exposes 67 typed, audited service capabilities across 16 architecture fa
 | `weightspace.causal_mediation` | weightspace | Causal Mediation Assay | Pearlian NDE/NIE decomposition of weight edits |
 | `weightspace.metabolic_pareto` | weightspace | Metabolic Pareto Optimizer | Biological wiring cost & Pareto sparsification |
 | `connectome.dales_law_audit` | connectome | Dale's Law Auditor | Janelia neurotransmitter sign compliance audit |
+| `neuromodulation.state` | neuromodulation | Neuromodulatory Field Engine | Dynamic DA, 5-HT, OA, ACh chemical tracking |
+| `spectral.harmonics` | spectral | Connectome Harmonic Analyzer | Laplacian eigenmode decomposition & power spectra |
+| `hypernetwork.synthesize` | hypernetwork | Hypernetwork Synthesizer | Low-rank learned patch compiler from telemetry |
+| `metamorphic.audit` | metamorphic | Metamorphic Invariance Oracle| Stress-testing MR1..MR5 invariant relations |
+| `structural.topology` | structural | Structural Topology Auditor | Synaptic density & synaptogenesis analysis |
 | `rsi.meta_evaluate` | rsi | RSI Meta-Evaluation Screen | Fresh-learner meta-policy benchmark |
 | `language.smollm2` | language | SmolLM2 Interface | Optional local instruct tokenization |
 
@@ -113,8 +106,8 @@ http://127.0.0.1:8765
 
 The workbench provides 5 interactive panes:
 - **01 Live Workbench**: Real-time canvas rendering of connectome activation graphs, 3D world projections, ray-cast visual sensors, and routing telemetry.
-- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 67 audited capabilities.
-- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, and execute factorial donor transplantation assays.
+- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 72 audited capabilities.
+- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, execute factorial donor transplantation assays, stress-test with the Metamorphic Oracle, and compute Connectome Harmonics.
 - **04 Experiments & RSI**: Configure and execute bounded background RSI studies with job monitoring and lineage graphs.
 - **05 State Archive**: Save, load, and inspect exact agent and world session checkpoints.
 
@@ -135,8 +128,14 @@ python -m synapse.cli autoprogram --diagnostic-episodes 2 --eval-episodes 2
 # Run full factorial donor transplantation assay across 6 control arms
 python -m synapse.cli transplant --donor-task forage --test-task delayed_match --episodes 2
 
-# Invoke a specific capability via CLI
-python -m synapse.cli capabilities --id weightspace.causal_mediation
+# Run metamorphic invariance verification suite
+python -m synapse.cli metamorphic
+
+# Compute connectome harmonics and spectral power distribution
+python -m synapse.cli spectral
+
+# Generate learned hypernetwork patch targeting motor weights
+python -m synapse.cli hyperprogram --target motor.weight --edits 16
 ```
 
 ---
@@ -148,8 +147,13 @@ Run the full pytest suite:
 python -m pytest
 ```
 
-All 51 test suites pass with 100% verification across:
+All 61 test suites pass with 100% verification across:
 - Bidirectional neural coupling & bridge preparation
+- Multi-factor biological neuromodulation (DA, 5-HT, OA, ACh)
+- Spectral connectomics & Laplacian harmonic decomposition
+- Learned hypernetwork low-rank patch compilation
+- Formal metamorphic relations (MR1..MR5)
+- Developmental structural synaptogenesis & pruning
 - Acquiring mushroom body learning and reversal
 - Exact checkpoint state round-trip & inference freeze
 - Bounded patch application, stale parent rejection, and atomic rollback
@@ -161,4 +165,4 @@ All 51 test suites pass with 100% verification across:
 - Fresh-learner RSI policy inheritance & receipt verification
 - Multi-backend world simulation across all 9 native tasks
 - Loopback security, CSP headers, and input boundary validation
-- Upstream capability catalog coverage (67 endpoints) & memory consumer wiring
+- Upstream capability catalog coverage (72 endpoints) & memory consumer wiring
