@@ -71,3 +71,33 @@ def test_jobs_failure_cancel_and_restart(monkeypatch,tmp_path):
     stale={'id':'stale','status':'running'}; app.persist(stale)
     loaded=Workbench(Runtime(),output_root=tmp_path)
     assert loaded.jobs['stale']['status']=='interrupted'
+
+def test_server_autoprogram_and_transplant(tmp_path):
+    from synapse.config import SynapseConfig
+    from synapse.runtime import LabRuntime
+    cfg = SynapseConfig(seed=42, nodes_per_source=16)
+    rt = LabRuntime(cfg, output_root=tmp_path)
+    server = create_server(port=0, runtime=rt, output_root=tmp_path)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f'http://127.0.0.1:{server.server_port}'
+    try:
+        req = urllib.request.Request(
+            base + '/api/autoprogram',
+            data=b'{"diagnostic_episodes":1,"eval_episodes":1}',
+            headers={'Content-Type': 'application/json'}
+        )
+        res = json.load(urllib.request.urlopen(req))
+        assert res['status'] == 'ok'
+        assert 'diagnosis' in res
+
+        req2 = urllib.request.Request(
+            base + '/api/transplant',
+            data=b'{"episodes":1}',
+            headers={'Content-Type': 'application/json'}
+        )
+        res2 = json.load(urllib.request.urlopen(req2))
+        assert res2['status'] == 'ok'
+        assert 'arms' in res2
+    finally:
+        server.shutdown()
+        server.server_close()

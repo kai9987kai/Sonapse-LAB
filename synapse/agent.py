@@ -94,11 +94,19 @@ class IntegratedAgent:
             baseline=self.brain(torch.zeros_like(current),effective,adapt=False,advance=False) if self.config.readout!='absolute' else None
             r=self.brain(current,effective,adapt=learn)
             if learn: self.plasticity.observe(r)
-            if self.config.readout=='absolute': read=r
+            if self.config.readout=='absolute':
+                read=r; delta_norm=0.0; baseline_norm=0.0
             else:
                 delta=r-baseline
-                self.evoked=.9*self.evoked+delta if self.config.readout=='persistent_evoked' else delta
-                read=self.evoked
+                delta_norm=float(delta.norm())
+                baseline_norm=float(baseline.norm())
+                if self.config.readout=='persistent_evoked':
+                    gate=torch.sigmoid(delta.abs().mean()*8)
+                    self.evoked=.9*self.evoked+delta
+                    read=gate*self.evoked+(1.-gate)*baseline
+                else:
+                    self.evoked=delta
+                    read=self.evoked
             pooled=self._pooled(read)
             # Dormant candidates participate only when novelty recruits one; unused weights persist.
             novelty=float((r-previous).abs().mean()); expert=int(self.intent.argmax())%2
@@ -115,7 +123,7 @@ class IntegratedAgent:
             action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)
         bonus=self.curiosity.compute_bonus(o,train=learn)
         self.ticks+=1; self.last_obs=obs.copy(); self.last_features=features.numpy().copy()
-        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':False}
+        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':False}
         return {'action':action.numpy().copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
     def feedback(self,reward,done=False):
         self.mb.dopaminergic_update(float(reward)); self.brain.hebbian(float(reward)); self.brain.apply_hebbian()

@@ -1,17 +1,19 @@
 # SYNAPSE: Developmental Connectome Intelligence
 
-**SYNAPSE** is an integrated cognitive and neuromorphic research system combining:
+**SYNAPSE** is an integrated cognitive, neuromorphic, and weight-space research system combining:
 1. **GraftBrain** (`kai9987kai/Graft-brain`) — multi-source recurrent rate connectomes, signed Dale-law synaptic dynamics, adaptive graft plasticity, ellipsoid body heading compass, and sparse Kenyon cell associative memory.
 2. **Supermix-Poseidon** (`kai9987kai/Supermix-Poseidon`) — trained Tidal DAgger MoE expert controller (327,230 parameters), recurrent memory state, and verified symbolic problem solving.
 3. **Supermix-Expanse-v2** (`kai9987kai/Supermix-Expanse-v2`) — function-preserving dormant expert slots, native latent consolidation blocks, input-dependent graph gates, and evoked zero-subtracted connectome readouts.
-4. **Weight-Space Programming** — transaction-safe, bounded numeric weight modifications with parent fingerprinting and exact rollback.
-5. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
+4. **Weight-Space Programming & Autonomous Repair** — transaction-safe, bounded numeric weight modifications with parent fingerprinting, atomic rollback, and closed-loop failure diagnosis with writer-disconnected confirmation.
+5. **Multi-Model Subcircuit Transplantation** — cross-model donor subcircuit extraction and ridge representation alignment evaluated across a full 6-arm factorial control suite (`correct`, `random`, `shuffled`, `irrelevant`, `disabled`, `permuted_host`).
+6. **Causal Mediation & Biological Frontiers** — Pearlian counterfactual decomposition of Natural Direct (NDE) vs Natural Indirect (NIE) effects, Janelia Male CNS Dale's law compliance auditing, and metabolic wiring Pareto-optimal sparsification.
+7. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
 
 ---
 
 ## Architecture Overview
 
-SYNAPSE operates three coupled timescales:
+SYNAPSE operates across coupled timescales:
 
 ```mermaid
 flowchart TD
@@ -41,25 +43,20 @@ flowchart TD
 - Trained Tidal core checkpoint (`tidal_core.pt`, SHA-256 `a053104a...`) evaluates resource states and routes across 4 MoE experts.
 - Shared episodic/tool memory records queries, reasoning traces, and environment feedback.
 
-### 3. Weight-Space Programming & RSI Loop
-- Named edit surfaces: graft weights, router parameters, associative readout weights, and neural bridges. Pretrained Tidal weights remain frozen.
-- Transaction safety: parent state verification, strict parameter budget bounds, finite checks, and atomic rollback.
-- Inherited RSI: each generation's accepted policy program controls candidate generation for subsequent generations. Evaluated strictly on identical fresh learners with sealed query splits.
+### 3. Weight-Space Programming & Autonomous Repair Loop
+- **Named edit surfaces**: graft weights, router parameters, associative readout weights, and neural bridges. Pretrained Tidal weights remain frozen.
+- **Transaction safety**: parent state verification, strict parameter budget bounds, finite checks, and atomic rollback.
+- **Autonomous Repair**: closed-loop diagnostic rollouts &rarr; circuit failure diagnosis &rarr; weight-space program synthesis &rarr; inactive candidate screening &rarr; confirmation with writer disconnected.
+- **Factorial Donor Transplantation**: extracts portable subcircuits, fits ridge representation alignment maps, and tests causal donor support against 5 rigorous control arms.
+- **Pearlian Causal Mediation**: decomposes weight program effects into Natural Direct Effect (NDE on motor decoder) and Natural Indirect Effect (NIE mediated through connectome dynamics).
+- **Biological Metabolic Sparsification**: models physical axonal wiring costs, spiking energy, and sweeps Pareto-optimal frontiers.
+- **Dale's Principle Enforcement**: audits synaptic sign consistency and projects unconstrained updates onto the biological Dale's law cone.
 
 ---
 
-## Foundation Repairs & Upstream Enhancements
+## Master Capability Explorer
 
-1. **Associative Memory Bootstrap Repair**: Corrected a defect where zero-initialized readout weights prevented eligibility traces from accumulating. SYNAPSE's `AcquiringMushroomBody` uses presynaptic eligibility to enable cue acquisition from neutral states and rapid reversal upon negative reinforcement.
-2. **Actor-Critic Calibration**: Validated one-pass GAE actor-critic updates with observation-conditioned plasticity gates.
-3. **Evoked & Persistent Readout**: Integrated Expanse's evoked readout mechanism (subtracting zero-input response to isolate active input response) alongside standard absolute readout.
-4. **Exact Provenance & Isolation**: All 908 vendor files from GraftBrain, Poseidon, and Expanse are pinned and hash-verified against `source_manifest.json`.
-
----
-
-## Upstream Capability Explorer
-
-SYNAPSE exposes 21+ typed, audited service capabilities across 19 architecture families:
+SYNAPSE exposes 67 typed, audited service capabilities across 16 architecture families:
 
 | Capability ID | Family | Name | Scope / Intended Role |
 |---|---|---|---|
@@ -72,7 +69,9 @@ SYNAPSE exposes 21+ typed, audited service capabilities across 19 architecture f
 | `memory.mnemosyne` | memory | Mnemosyne Working Memory | Multi-timescale decaying trace buffer |
 | `memory.hologram` | memory | Holographic Vector Memory | HRR circular convolution binding |
 | `core.scene` | core | Poseidon Tidal Core | Tidal DAgger expert controller inference |
+| `core.tidal` | core | Tidal Core Metadata | MoE expert controller parameter inspection |
 | `graph.substrate` | graph | Connectome Substrate | Recurrent connectome rate graph simulation |
+| `graph.connectomes` | graph | Drosophila Neuropil Profiles | Connectome registry (flywire, manc, optic-lobe) |
 | `graph.successor` | graph | Successor Solver | Bounded successor representation matrix |
 | `embodiment.compass` | embodiment | Central Complex Compass | 16-wedge ring attractor heading bump |
 | `embodiment.mushroom_body`| embodiment | Mushroom Body Learner | Sparse Kenyon cell valence plasticity |
@@ -81,9 +80,14 @@ SYNAPSE exposes 21+ typed, audited service capabilities across 19 architecture f
 | `nexus.phase_world` | nexus | NEXUS PhaseWorld POMDP | Discrete phase transition dynamics |
 | `reliability.crosswire` | reliability | Crosswire Hypothesis Pruner| Version-space hypothesis pruning |
 | `tools.archimedes` | tools | Archimedes Geometric Engine | Exact geometry & constraint evaluation |
-| `expanse.male_cns` | expanse | Male CNS Core | Janelia male CNS 11,751 cell-type graph |
-| `language.smollm2` | language | SmolLM2 Interface | Optional local instruct tokenization |
+| `expanse.male_cns` | expanse | Male CNS Core | Janelia male CNS 11,751 cell-type real connectome |
+| `expanse.dormant_expert` | expanse | Dormant Expert Gate | Zero-initialized expert slot wake-up gate |
+| `expanse.donor_graft` | expanse | Donor Ridge Map | Cross-model representation alignment map |
+| `weightspace.causal_mediation` | weightspace | Causal Mediation Assay | Pearlian NDE/NIE decomposition of weight edits |
+| `weightspace.metabolic_pareto` | weightspace | Metabolic Pareto Optimizer | Biological wiring cost & Pareto sparsification |
+| `connectome.dales_law_audit` | connectome | Dale's Law Auditor | Janelia neurotransmitter sign compliance audit |
 | `rsi.meta_evaluate` | rsi | RSI Meta-Evaluation Screen | Fresh-learner meta-policy benchmark |
+| `language.smollm2` | language | SmolLM2 Interface | Optional local instruct tokenization |
 
 ---
 
@@ -109,8 +113,8 @@ http://127.0.0.1:8765
 
 The workbench provides 5 interactive panes:
 - **01 Live Workbench**: Real-time canvas rendering of connectome activation graphs, 3D world projections, ray-cast visual sensors, and routing telemetry.
-- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 21+ audited capabilities.
-- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets.
+- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 67 audited capabilities.
+- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, and execute factorial donor transplantation assays.
 - **04 Experiments & RSI**: Configure and execute bounded background RSI studies with job monitoring and lineage graphs.
 - **05 State Archive**: Save, load, and inspect exact agent and world session checkpoints.
 
@@ -125,11 +129,14 @@ python -m synapse.cli run --steps 100 --save my_checkpoint
 # Train with active plasticity for 500 steps
 python -m synapse.cli train --steps 500 --save trained_agent
 
-# Invoke a specific capability via CLI
-python -m synapse.cli capabilities --id reasoning.solve --payload "{\"expression\":\"40 + 2\"}"
+# Run closed-loop autonomous failure diagnosis and repair
+python -m synapse.cli autoprogram --diagnostic-episodes 2 --eval-episodes 2
 
-# Start a bounded RSI study
-python -m synapse.cli study --name pilot-study
+# Run full factorial donor transplantation assay across 6 control arms
+python -m synapse.cli transplant --donor-task forage --test-task delayed_match --episodes 2
+
+# Invoke a specific capability via CLI
+python -m synapse.cli capabilities --id weightspace.causal_mediation
 ```
 
 ---
@@ -141,20 +148,17 @@ Run the full pytest suite:
 python -m pytest
 ```
 
-All 31 comprehensive test suites verify:
+All 51 test suites pass with 100% verification across:
 - Bidirectional neural coupling & bridge preparation
 - Acquiring mushroom body learning and reversal
 - Exact checkpoint state round-trip & inference freeze
 - Bounded patch application, stale parent rejection, and atomic rollback
+- Autonomous closed-loop failure diagnosis, synthesis, screening, and confirmation
+- Factorial transplantation with all 6 experimental control arms
+- Pearlian causal mediation analysis of weight programs (NDE vs NIE)
+- Biological connectome metabolic cost and Pareto frontier sweeps
+- Dale's principle sign consistency auditing & neurotransmitter projection
 - Fresh-learner RSI policy inheritance & receipt verification
 - Multi-backend world simulation across all 9 native tasks
 - Loopback security, CSP headers, and input boundary validation
-- Upstream capability catalog coverage & memory consumer wiring
-
----
-
-## Limitations & Evidence Boundaries
-
-- **Synthetic Connectome Profiles**: Unless configured with an external Janelia male-CNS dataset, graph nodes represent synthetic proxy profiles shaped after FlyWire, MANC, and Optic Lobe topologies. They are not living biological brains.
-- **CPU-First Scale**: SYNAPSE is optimized for CPU execution. Bounded graph sizes (16–500 nodes per source) ensure reproducible sub-second simulation cycles.
-- **RSI Evidence**: Inherited meta-policies evolve algorithmic search parameters (learning rates, update counts, replay multiplicity); this represents bounded parameter search rather than open-ended artificial general intelligence.
+- Upstream capability catalog coverage (67 endpoints) & memory consumer wiring

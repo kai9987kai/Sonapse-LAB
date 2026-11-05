@@ -128,6 +128,26 @@ class Workbench:
                 ident=data.get('receipt_id'); receipt=self.receipts[ident]
                 rollback(self.runtime.agent,receipt); del self.receipts[ident]
                 return {'rolled_back':ident}
+            if path=='/api/autoprogram':
+                from .auto_programmer import execute_closed_loop_repair
+                return execute_closed_loop_repair(
+                    self.runtime.agent,
+                    task=data.get('task', self.runtime.config.task),
+                    num_diagnostic_episodes=integer(data.get('diagnostic_episodes', 3), 'diagnostic_episodes', 1, 10),
+                    num_eval_episodes=integer(data.get('eval_episodes', 3), 'eval_episodes', 1, 10),
+                    min_gain=float(data.get('min_gain', -0.05)),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
+            if path=='/api/transplant':
+                from .transplantation import extract_donor_subcircuit, run_transplantation_experiment
+                donor = extract_donor_subcircuit(self.runtime.agent, source_task=data.get('donor_task', 'forage'))
+                return run_transplantation_experiment(
+                    self.runtime.agent,
+                    donor=donor,
+                    test_task=data.get('test_task', 'delayed_match'),
+                    episodes=integer(data.get('episodes', 3), 'episodes', 1, 10),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):

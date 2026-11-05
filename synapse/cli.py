@@ -19,6 +19,8 @@ def main(argv=None):
     p=sub.add_parser('verify'); p.add_argument('path',type=Path)
     p=sub.add_parser('capabilities'); p.add_argument('--id'); p.add_argument('--payload',default='{}')
     p=sub.add_parser('patch'); p.add_argument('operation',choices=['make','apply']); p.add_argument('file',type=Path); p.add_argument('--checkpoint'); p.add_argument('--save',default='patched')
+    p=sub.add_parser('autoprogram'); p.add_argument('--diagnostic-episodes',type=int,default=3); p.add_argument('--eval-episodes',type=int,default=3); p.add_argument('--min-gain',type=float,default=-0.05); p.add_argument('--save')
+    p=sub.add_parser('transplant'); p.add_argument('--donor-task',default='forage'); p.add_argument('--test-task',default='delayed_match'); p.add_argument('--episodes',type=int,default=3)
     args=parser.parse_args(argv)
     try:
         config=SynapseConfig(seed=args.seed,nodes_per_source=args.nodes,task=args.task)
@@ -46,6 +48,14 @@ def main(argv=None):
                 payload=json.loads(args.file.read_text())
                 if args.operation=='make': result=make_patch(runtime.agent,payload.get('edits',payload) if isinstance(payload,dict) else payload)
                 else: result={'receipt':apply_patch(runtime.agent,payload),'checkpoint':runtime.save(safe_name(args.save))}
+            elif args.command=='autoprogram':
+                from .auto_programmer import execute_closed_loop_repair
+                result=execute_closed_loop_repair(runtime.agent,task=args.task,num_diagnostic_episodes=args.diagnostic_episodes,num_eval_episodes=args.eval_episodes,min_gain=args.min_gain,seed=args.seed)
+                if args.save: result={'report':result,'checkpoint':runtime.save(safe_name(args.save))}
+            elif args.command=='transplant':
+                from .transplantation import extract_donor_subcircuit,run_transplantation_experiment
+                donor=extract_donor_subcircuit(runtime.agent,source_task=args.donor_task)
+                result=run_transplantation_experiment(runtime.agent,donor=donor,test_task=args.test_task,episodes=args.episodes,seed=args.seed)
         print(json.dumps(result,indent=2,allow_nan=False,default=str)); return 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:
         parser.exit(2,f'Error: {exc}\n')
