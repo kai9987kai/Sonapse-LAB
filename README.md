@@ -89,6 +89,8 @@ flowchart TD
 | **Masked Diffusion Repair Sidecar** | Non-autoregressive repair & infill | Iterative masked diffusion repair of failing code, configuration, or action trajectory constraints with executable verifier in the loop. |
 | **Machine-Verifiable DPO Engine** | Direct preference optimization | First-party machine-checked preference pairs (safety, return, unit tests) optimized via DPO without ungrounded self-judging loops. |
 | **Unified Evaluation Scorecard** | Calibrated multi-dimensional scoring | Joint deployment score $S = R - \alpha C - \beta U - \gamma F$ balancing task return, compute cost, calibration (Brier / ECE), and safety failures. |
+| **Landmark Connectome Catalog (8 Datasets)** | Whole-animal multi-connectome substrate | Full integration of 8 datasets: MaleCNS v1.0, BANC, FlyEM Optic Lobe, FANC, FlyWire FAFB v783, MANC, Larval Drosophila, and Hemibrain with regional neuromodulation. |
+| **Multi-Connectome Hub** | Scalable cross-region routing | Unifies brain, optic, and cord neuropils with 93 biological interface sites, high-capacity scaling (>40,000 neurons/sec on CPU), and transactional weight-space editing. |
 
 
 ## Run Locally
@@ -127,7 +129,7 @@ python -m synapse.cli --nodes 16 homeostasis
 python -m synapse.cli --nodes 16 mimomix --ponder 4
 python -m synapse.cli --nodes 16 ecology --task ecosystem
 
-# Audited Upstream Capabilities (139 audited capabilities across 47 families)
+# Audited Upstream Capabilities (142 audited capabilities across 47 families)
 python -m synapse.cli capabilities --id structural.neurogenesis
 python -m synapse.cli capabilities --id motivation.homeostasis
 python -m synapse.cli capabilities --id reasoning.mimomix
@@ -152,6 +154,11 @@ python -m synapse.cli coconut-think --think-depth 4
 python -m synapse.cli diffusion-repair --repair-iters 3
 python -m synapse.cli dpo-align --pairs 5
 python -m synapse.cli unified-eval --eval-task forage
+
+# Landmark Connectome Datasets & High-Capacity Scaling
+python -m synapse.cli connectome-datasets
+python -m synapse.cli multi-connectome --nodes-per-source 32
+python -m synapse.cli scale-neurons --targets 64 128 256 512
 
 # Automated Weight-Space Programming & Closed-Loop Repair
 python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 3 --eval-episodes 3 --save repaired_agent

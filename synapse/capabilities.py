@@ -1658,6 +1658,48 @@ def _handle_complex_ecology(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 
+
+def _handle_connectome_dataset_catalog(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .connectome_datasets import list_connectome_datasets
+    catalog_list = list_connectome_datasets()
+    return {
+        'status': 'ok',
+        'scope': 'biological connectome dataset catalog across 8 landmark datasets',
+        'consumer': 'provenance verification and structural connectome discovery',
+        'total_datasets': len(catalog_list),
+        'datasets': catalog_list,
+    }
+
+
+def _handle_connectome_multi_connectome_hub(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .multi_connectome import MultiConnectomeHub
+    sources = payload.get('sources', ['malecns', 'banc', 'optic-lobe', 'fanc', 'flywire', 'manc', 'larval', 'hemibrain'])
+    nodes = int(payload.get('nodes_per_source', 32))
+    hub = MultiConnectomeHub(sources=sources, nodes_per_source=nodes, seed=int(payload.get('seed', 42)))
+    inp = torch.randn(len(hub.brain.sensory_idx))
+    r = hub(inp)
+    return {
+        'status': 'ok',
+        'scope': 'unified multi-connectome recurrent hub across 8 biological datasets',
+        'consumer': 'large-scale whole-cns biological neural simulation and cross-region coordination',
+        'sources': hub.sources,
+        'total_neurons': hub.total_neurons,
+        'graft_sites': len(hub.graph.sites),
+        'summary': hub.get_summary(),
+    }
+
+
+def _handle_connectome_scale_benchmark(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .multi_connectome import benchmark_neuron_scaling
+    targets = payload.get('target_counts', [64, 128, 256])
+    res = benchmark_neuron_scaling(target_counts=targets, steps_per_benchmark=5, seed=int(payload.get('seed', 42)))
+    return {
+        'status': 'ok',
+        'scope': 'multi-connectome high-capacity neuron scaling benchmark',
+        'consumer': 'computational capacity validation and CPU real-time throughput assay',
+        'benchmarks': res['benchmarks'],
+    }
+
 def _handle_rsi_verifier_bounded(payload: Dict[str, Any]) -> Dict[str, Any]:
     from .rsi_verifier import BoundedRSIEngine
     engine = BoundedRSIEngine(seed=int(payload.get('seed', 42)))
@@ -1873,7 +1915,10 @@ def _handle_structural_causal_evolution(payload: Dict[str, Any]) -> Dict[str, An
 # ---------------------------------------------------------------------------
 
 _REGISTRY: Dict[str, Dict[str, Any]] = {
-        'rsi.verifier_bounded': {'id': 'rsi.verifier_bounded', 'family': 'reasoning', 'name': 'Verifier-Gated Bounded RSI Engine', 'description': 'AIDE2 and AlphaEvolve inspired bounded evolutionary self-improvement with multi-stage verification and failure archive.', 'scope': 'verifier-gated bounded recursive self-improvement and failure archive', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'patch_type': {'type': 'string'}}}, 'example': {'patch_type': 'config'}, 'handler': _handle_rsi_verifier_bounded},
+            'connectome.dataset_catalog': {'id': 'connectome.dataset_catalog', 'family': 'structural', 'name': 'Landmark Connectome Dataset Catalog', 'description': 'Official catalog of all 8 landmark Drosophila connectomes (MaleCNS, BANC, Optic Lobe, FANC, FlyWire, MANC, Larval, Hemibrain).', 'scope': 'biological connectome dataset catalog across 8 landmark datasets', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_connectome_dataset_catalog},
+    'connectome.multi_connectome_hub': {'id': 'connectome.multi_connectome_hub', 'family': 'structural', 'name': 'Multi-Connectome Unified Hub', 'description': 'Unified recurrent substrate coupling all 8 biological connectome profiles with regional neuromodulation and cross-graft routing.', 'scope': 'unified multi-connectome recurrent hub across 8 biological datasets', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'nodes_per_source': {'type': 'integer'}}}, 'example': {'nodes_per_source': 32}, 'handler': _handle_connectome_multi_connectome_hub},
+    'connectome.scale_benchmark': {'id': 'connectome.scale_benchmark', 'family': 'structural', 'name': 'High-Capacity Neuron Scaling Benchmark', 'description': 'Benchmarks CPU latency, throughput (neurons/sec), and dynamical stability across scaling biological neuron counts.', 'scope': 'multi-connectome high-capacity neuron scaling benchmark', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'target_counts': {'type': 'array'}}}, 'example': {'target_counts': [64, 128, 256]}, 'handler': _handle_connectome_scale_benchmark},
+    'rsi.verifier_bounded': {'id': 'rsi.verifier_bounded', 'family': 'reasoning', 'name': 'Verifier-Gated Bounded RSI Engine', 'description': 'AIDE2 and AlphaEvolve inspired bounded evolutionary self-improvement with multi-stage verification and failure archive.', 'scope': 'verifier-gated bounded recursive self-improvement and failure archive', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'patch_type': {'type': 'string'}}}, 'example': {'patch_type': 'config'}, 'handler': _handle_rsi_verifier_bounded},
     'world_model.ensemble_cem': {'id': 'world_model.ensemble_cem', 'family': 'planning', 'name': 'Recurrent World Model v2 with CEM & Fallback Shield', 'description': 'M=3 latent dynamics ensemble with JEPA representation loss, CEM multi-step trajectory planning, and frozen fallback shield.', 'scope': 'recurrent latent dynamics ensemble, cem mpc planning, and fallback shield', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'horizon': {'type': 'integer'}}}, 'example': {'horizon': 5}, 'handler': _handle_world_model_ensemble_cem},
     'connectome.causal_assay_9arm': {'id': 'connectome.causal_assay_9arm', 'family': 'structural', 'name': '9-Arm Connectome Causal Controls Assay', 'description': 'Formal causal assay comparing biological wiring against 8 matched nulls (degree-, sign-, community-rewired, random, learned).', 'scope': '9-arm connectome causal controls and inductive bias assay', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'seed': {'type': 'integer'}}}, 'example': {'seed': 42}, 'handler': _handle_connectome_causal_assay_9arm},
     'reasoning.coconut_latent': {'id': 'reasoning.coconut_latent', 'family': 'reasoning', 'name': 'Coconut Continuous Latent Reasoner', 'description': 'Tokenless continuous hidden-state recurrence with dynamic ponder halting and anytime compute depth evaluation.', 'scope': 'coconut-style continuous latent recurrent deliberation and adaptive depth', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_reasoning_coconut_latent},

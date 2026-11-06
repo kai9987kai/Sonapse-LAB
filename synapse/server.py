@@ -91,6 +91,9 @@ class Workbench:
             if path=='/api/observatory/activity':
                 from .observatory import NeuralObservatory
                 return NeuralObservatory(self.runtime.agent).get_live_activity_payload()
+            if path=='/api/connectomes':
+                from .connectome_datasets import list_connectome_datasets
+                return {'status': 'ok', 'total_datasets': 8, 'datasets': list_connectome_datasets()}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/studies': return self.start_study(data.get('config',{}))

@@ -42,6 +42,9 @@ def main(argv=None):
     p=sub.add_parser('multistep-plan'); p.add_argument('--horizon',type=int,default=5)
     sub.add_parser('curriculum-verify')
     sub.add_parser('causal-growth')
+    sub.add_parser('connectome-datasets')
+    p=sub.add_parser('multi-connectome'); p.add_argument('--nodes-per-source', type=int, default=32)
+    p=sub.add_parser('scale-neurons'); p.add_argument('--targets', type=int, nargs='+', default=[64, 128, 256, 512])
     p=sub.add_parser('rsi-verify'); p.add_argument('--patch-type', default='config')
     p=sub.add_parser('world-model-cem'); p.add_argument('--cem-horizon', type=int, default=5)
     p=sub.add_parser('connectome-assay'); p.add_argument('--assay-trials', type=int, default=2)
@@ -207,6 +210,19 @@ def main(argv=None):
                 mut=c_eng.generate_candidate_mutation(runtime.agent)
                 rec=c_eng.evaluate_interventional_mutation(runtime.agent, mut, test_episodes=2, horizon=15)
                 result={'mutation': mut.description, 'causal_delta': rec.causal_delta, 'net_fitness': rec.net_fitness, 'accepted': rec.accepted}
+            elif args.command=='connectome-datasets':
+                from .connectome_datasets import list_connectome_datasets
+                result = {'status': 'ok', 'total_datasets': 8, 'datasets': list_connectome_datasets()}
+            elif args.command=='multi-connectome':
+                from .multi_connectome import MultiConnectomeHub
+                import torch
+                hub = MultiConnectomeHub(nodes_per_source=args.nodes_per_source, seed=args.seed)
+                inp = torch.randn(len(hub.brain.sensory_idx))
+                r = hub(inp)
+                result = hub.get_summary()
+            elif args.command=='scale-neurons':
+                from .multi_connectome import benchmark_neuron_scaling
+                result = benchmark_neuron_scaling(target_counts=args.targets, steps_per_benchmark=5, seed=args.seed)
             elif args.command=='rsi-verify':
                 from .rsi_verifier import BoundedRSIEngine
                 rsi_eng = BoundedRSIEngine(seed=args.seed)

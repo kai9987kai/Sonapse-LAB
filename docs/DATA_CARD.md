@@ -2,6 +2,18 @@
 
 ## Dataset & Environment Specifications
 
+
+### 1.5 Landmark Biological Drosophila Connectome Datasets
+The architecture supports real-time multi-connectome grafting across eight landmark community datasets:
+1. **MaleCNS v1.0**: HHMI Janelia FlyEM / Cambridge / MRC LMB / Google Research (2026-06-08, CC-BY-4.0, 269 projects). Whole CNS (brain + VNC).
+2. **BANC (Brain And Nerve Cord)**: Harvard Medical School (Lee & Wilson labs) / Princeton (Murthy lab) / Harvard (Drugowitsch lab) (2026, CC-BY-4.0, 22 projects).
+3. **FlyEM Optic Lobe Connectome**: HHMI Janelia FlyEM / Google Connectomics (2024, CC-BY-4.0, 5 projects). Retinotopic visual columns.
+4. **FANC (Female Adult Nerve Cord)**: Harvard Medical School (Wei-Chung Allen Lee lab) (2024, unknown, 3 projects).
+5. **FlyWire (FAFB v783)**: Princeton University (Murthy & Seung labs) with FlyWire consortium (2024, CC-BY-NC-4.0, 180 projects). Whole adult female brain (139,255 neurons).
+6. **MANC (Male Adult Nerve Cord)**: HHMI Janelia FlyEM / Cambridge / Google Research (2023-06, CC-BY-4.0, 17 projects).
+7. **Larval Drosophila Brain Connectome**: University of Cambridge (Michael Winding et al.) (2023-03, CC-BY-4.0, 7 projects). Complete insect larva (3,016 neurons).
+8. **Hemibrain**: HHMI Janelia Research Campus (FlyEM Project Team) (2020-01-22, CC-BY-4.0, 23 projects). Central brain hemisphere.
+
 ### 1. Embodied Simulation Worlds
 
 SYNAPSE supports both the 9 native GraftBrain simulation tasks and 4 advanced frontier environments implemented in `ComplexWorld`:

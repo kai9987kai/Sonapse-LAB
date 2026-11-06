@@ -147,6 +147,11 @@ class BoundedRSIEngine:
         elif patch_type == "adapter":
             diff['adapter_rank'] = int(self.rng.choice([2, 4, 8]))
             diff['adapter_scale'] = round(float(self.rng.uniform(0.1, 0.5)), 3)
+        elif patch_type == "connectome_graft":
+            diff['inter_graft_gain'] = round(float(self.rng.uniform(0.8, 1.25)), 4)
+            diff['cross_region_prune_threshold'] = round(float(self.rng.uniform(0.01, 0.05)), 4)
+            diff['da_receptor_sensitivity'] = round(float(self.rng.uniform(0.7, 1.3)), 4)
+            diff['octopamine_locomotion_gain'] = round(float(self.rng.uniform(0.8, 1.4)), 4)
         else:
             diff['delta_lr'] = round(float(self.rng.uniform(-0.0005, 0.0005)), 6)
 
@@ -181,6 +186,10 @@ class BoundedRSIEngine:
             'mimomix_ponder_cost': (0.001, 0.5),
             'mpc_horizon': (1, 20),
             'uncertainty_penalty': (0.01, 2.0),
+            'inter_graft_gain': (0.1, 5.0),
+            'cross_region_prune_threshold': (0.001, 0.1),
+            'da_receptor_sensitivity': (0.1, 3.0),
+            'octopamine_locomotion_gain': (0.1, 3.0),
         }
         for k, val in candidate.diff.items():
             if k in forbidden_ranges:
