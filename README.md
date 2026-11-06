@@ -1,3 +1,17 @@
+---
+language:
+- en
+tags:
+- connectome
+- neuromorphic
+- weight-space-programming
+- biological-neural-networks
+- recursive-self-improvement
+- drosophila
+- pytorch
+license: apache-2.0
+---
+
 # SYNAPSE: Developmental Connectome Intelligence
 
 **SYNAPSE** is an integrated cognitive, neuromorphic, and weight-space research system combining:
