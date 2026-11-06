@@ -23,6 +23,24 @@ SYNAPSE supports both the 9 native GraftBrain simulation tasks and 4 advanced fr
 12. `dynamic_arena`: Multi-room navigational maze featuring harmonic oscillating gates and variable friction surfaces testing spatial mapping under traction variations.
 13. `puzzle_chamber`: Multi-stage logic environment where the agent must press interactive floor triggers/buttons to open pressure-locked security gates protecting high-yield food caches.
 
+
+#### SAIL Verifiable Curriculum & ReLIFT Tasks (`synapse.verified_curriculum`)
+14. `verifiable_relift`: Procedurally generated sequential challenge stages with strictly verifiable intermediate subgoals:
+    - `CUE_DISCOVERED`: Visual recognition and approach toward target color cues.
+    - `GATE_TRIGGERED`: Exact physical manipulation of spatial floor switches/buttons.
+    - `BARRIER_PASSED`: Safe traversal through dynamic barrier passages without collision.
+    - `TARGET_REACHED`: Successful goal acquisition and consumption.
+    - Each transition and subgoal verification is cryptographically anchored by a SHA-256 execution receipt.
+
+#### SAIL 4-Arm Continual Learning Milestone (`synapse.flagship_benchmark`)
+- Standardized sequential curriculum evaluating catastrophic forgetting:
+  $$\text{Task}_1 (\text{forage}) \rightarrow \text{Task}_2 (\text{delayed\_match}) \rightarrow \text{Task}_3 (\text{push}) \rightarrow \text{Task}_4 (\text{ecosystem})$$
+- Evaluates four comparative arms:
+  1. `fixed_gradient`: Standard Adam backpropagation baseline (prone to catastrophic forgetting).
+  2. `dynamic_plasticity`: Structural neurogenesis + Hebbian weight plasticity.
+  3. `continual_sleep`: Trainable student-teacher sleep consolidation.
+  4. `full_developmental_sail`: Full integration (Continual Backprop + Fast Memory + Sleep + MPC Planning).
+
 ### 2. Dynamic Physics & Ecological Mechanics
 
 - **Autonomous Predator Drones**: Drones execute continuous pursuit vectors toward the agent at speed $v_{\text{predator}} = 0.04$, generating a continuous distance-dependent threat field:

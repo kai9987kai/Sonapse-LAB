@@ -7,6 +7,20 @@
 - **Architecture**:
   - **Sensory Encoder**: Linear projection mapping 173 input dimensions (155-d observation + 16-d compass bump + 2-d mushroom body valence) to connectome sensory nodes.
   - **Neural Connectome Substrate**: Signed recurrent rate graph (`GraftedBrain`) combining three source families (`flywire`, `manc`, `optic-lobe`), signed Dale synapses, homeostatic balance, and 8 inter-module graft sites.
+  - **SAIL Continual Backpropagation & Utility Replacement**:
+    - Utility metric: $u_i(t) = \beta u_i(t-1) + (1-\beta)|r_i|\sum_j |W_{ji}|$
+    - Resets low-utility mature units, zeros corresponding Adam first (`exp_avg`) and second (`exp_avg_sq`) moments, and reinitializes with Dale's law sign preservation.
+  - **SAIL Trainable Student-Teacher Sleep Consolidation**:
+    - Optimizes $\mathcal{L}_{\text{sleep}} = \lambda_1\mathcal{L}_{\text{task}} + \lambda_2\mathcal{L}_{\text{distill}} + \lambda_3\mathcal{L}_{\text{replay}} + \lambda_4\mathcal{L}_{\text{regularise}}$.
+    - Employs Synaptic Homeostasis (SHY) downscaling and test-candidate evaluation gating before committing weights.
+  - **SAIL Universal Fast-Weight Associative Memory (uTTT & Titans)**:
+    - Shared fast associative matrix $M \in \mathbb{R}^{d_k \times d_v}$ with self-supervised reconstruction loss $\mathcal{L}_{\text{inner}}$, surprise gating, and bounded memory capacity.
+  - **SAIL Recurrent Multi-Step World Model & MPC Planner**:
+    - Recurrent GRU transition model $s_{t+1} = f_\theta(s_t, a_t)$ with observation, reward, and ensemble epistemic uncertainty estimation.
+    - Model Predictive Control evaluates simulated rollouts across horizons $H \in \{1, 3, 5, 10\}$ with variance penalties.
+  - **SAIL Causal Connectome Evolution**:
+    - Evaluates prospective mutations via counterfactual paired rollouts $\Delta J(m) = \mathbb{E}[R \mid do(m)] - \mathbb{E}[R \mid do(m_0)]$.
+    - Multi-objective fitness function enforces wiring length, metabolic cost, and backward transfer constraint.
   - **Donor Cognitive Core**: Pinned trained Poseidon Tidal MoE DAgger controller (`tidal_core.pt`, SHA-256 `a053104a...`), 327,230 parameters, 4 experts, 128 hidden width, 2 recurrent steps.
   - **Bridges**: Bidirectional residual projections (`graph_to_resource` and `donor_to_graph`) synchronizing graph context with cognitive intent.
   - **Archimedes Connectome Neurogenesis Engine**:
@@ -57,6 +71,9 @@
 | `neurogenesis.*` | Yes | Dynamic online structural updates | No |
 | `homeostasis.*` | Yes | Continuous interoceptive regulation | No |
 | `mimomix.*` | Yes | Deliberative ACT rollout parameters | No |
+| `fast_memory.*` | Yes | Yes (online associative updates) | No |
+| `world_model.*` | Yes | Yes (prequential & multi-step) | No |
+| `continual_backprop.*`| Yes | Dynamic utility-based replacement | No |
 | `tidal.*` (Tidal Core)| **No** | **No** | **Frozen** |
 | `curiosity.*` | **No** | Yes (RND updates) | No |
 

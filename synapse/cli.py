@@ -36,6 +36,13 @@ def main(argv=None):
     sub.add_parser('homeostasis')
     p=sub.add_parser('mimomix'); p.add_argument('--ponder',type=int,default=4)
     p=sub.add_parser('ecology'); p.add_argument('--task',default='ecosystem')
+    sub.add_parser('continual-backprop')
+    p=sub.add_parser('sleep-train'); p.add_argument('--sleep-steps',type=int,default=10)
+    sub.add_parser('fast-memory')
+    p=sub.add_parser('multistep-plan'); p.add_argument('--horizon',type=int,default=5)
+    sub.add_parser('curriculum-verify')
+    sub.add_parser('causal-growth')
+    p=sub.add_parser('flagship-milestone'); p.add_argument('--milestone-steps',type=int,default=20)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
     p.add_argument('--seeds',type=int,nargs='+',default=[7,11,19])
@@ -158,6 +165,45 @@ def main(argv=None):
                 import numpy as np
                 next_obs, reward, done, info = world.step(np.array([0.5, 0.0, 0.0, 0.0, 0.0], dtype=np.float32))
                 result={'task': world.task, 'predators': len(world.predators), 'friction_zones': len(world.terrain_zones), 'gates': len(world.dynamic_gates), 'ambient_light': info.get('ambient_light', 1.0), 'reward': float(reward)}
+            elif args.command=='continual-backprop':
+                from .continual_backprop import benchmark_continual_backprop
+                result=benchmark_continual_backprop(runtime.agent, steps=30, seed=args.seed)
+            elif args.command=='sleep-train':
+                from .sleep import SleepConsolidationEngine
+                sleep=SleepConsolidationEngine()
+                import numpy as np
+                for _ in range(12):
+                    sleep.record_experience(np.random.uniform(0,1,155).astype(np.float32), np.zeros(5,dtype=np.float32), reward=1.0)
+                result=sleep.run_sleep_cycle(runtime.agent, sleep_steps=args.sleep_steps)
+            elif args.command=='fast-memory':
+                from .fast_weight_memory import UniversalFastWeightMemory
+                import torch
+                fmem=UniversalFastWeightMemory(in_dim=32, out_dim=32, seed=args.seed)
+                res=fmem.step_and_update(torch.randn(32), surprisal=0.6)
+                result={'step': res['step'], 'inner_loss': res['inner_loss'], 'summary': fmem.summary()}
+            elif args.command=='multistep-plan':
+                from .multistep_planner import MultistepRecurrentPlanner, compare_planning_horizons
+                planner=MultistepRecurrentPlanner(seed=args.seed)
+                import numpy as np
+                obs=np.random.uniform(0,1,155).astype(np.float32)
+                result=compare_planning_horizons(planner, obs, np.zeros(5,dtype=np.float32), horizons=[1, 3, args.horizon])
+            elif args.command=='curriculum-verify':
+                from .verified_curriculum import VerifiableCurriculumEngine
+                curric=VerifiableCurriculumEngine(base_seed=args.seed)
+                ch=curric.generate_procedural_challenge()
+                sub=curric.check_subgoals((0.0, 0.0))
+                rec=curric.complete_episode(success=True)
+                result={'stage': curric.current_stage, 'proof_hash': rec.proof_hash, 'summary': curric.summary()}
+            elif args.command=='causal-growth':
+                from .causal_growth import CausalConnectomeEvolutionEngine
+                c_eng=CausalConnectomeEvolutionEngine(seed=args.seed)
+                mut=c_eng.generate_candidate_mutation(runtime.agent)
+                rec=c_eng.evaluate_interventional_mutation(runtime.agent, mut, test_episodes=2, horizon=15)
+                result={'mutation': mut.description, 'causal_delta': rec.causal_delta, 'net_fitness': rec.net_fitness, 'accepted': rec.accepted}
+            elif args.command=='flagship-milestone':
+                from .flagship_benchmark import FlagshipContinualBenchmark
+                bench=FlagshipContinualBenchmark(steps_per_stage=args.milestone_steps, seed=args.seed)
+                result=bench.run_benchmark()
         print(json.dumps(result,indent=2,allow_nan=False,default=str))
         return 1 if args.command in ('verify','adaptation-verify') and not result.get('ok',False) else 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:

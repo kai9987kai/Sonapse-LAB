@@ -1656,10 +1656,106 @@ def _handle_complex_ecology(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+
+def _handle_learning_continual_backprop(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .continual_backprop import ContinualBackpropEngine
+    n_neurons = int(payload.get('neurons', 16))
+    engine = ContinualBackpropEngine(num_neurons=n_neurons, seed=int(payload.get('seed', 42)))
+    for _ in range(int(payload.get('steps', 10))):
+        rates = np.random.uniform(0.0, 1.0, size=n_neurons).astype(np.float32)
+        engine.update_utility(rates)
+    cands = engine.identify_replacement_candidates()
+    return {
+        'status': 'ok',
+        'scope': 'continual backpropagation and utility-guided neuron replacement',
+        'consumer': 'continual plastic capacity and representational diversity loop',
+        'summary': engine.summary(),
+        'eligible_candidates': cands,
+    }
+
+
+def _handle_learning_trainable_sleep(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .sleep import SleepConsolidationEngine
+    engine = SleepConsolidationEngine()
+    for i in range(int(payload.get('memories', 8))):
+        obs = np.random.uniform(0.0, 1.0, size=155).astype(np.float32)
+        act = np.random.uniform(-1.0, 1.0, size=5).astype(np.float32)
+        engine.record_experience(obs, act, reward=float(np.random.randn()), surprisal=0.2)
+    return {
+        'status': 'ok',
+        'scope': 'trainable sleep consolidation with multi-objective student distillation',
+        'consumer': 'offline memory consolidation and anti-forgetting regularization',
+        'summary': engine.summary(),
+    }
+
+
+def _handle_memory_fast_weights(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .fast_weight_memory import UniversalFastWeightMemory
+    mem = UniversalFastWeightMemory(in_dim=32, out_dim=32, seed=int(payload.get('seed', 42)))
+    x = torch.randn(32)
+    res = mem.step_and_update(x, surprisal=float(payload.get('surprisal', 0.5)), adapt=True)
+    return {
+        'status': 'ok',
+        'scope': 'shared neural fast-weight memory with universal test-time training',
+        'consumer': 'fast test-time adaptation and associative neural memory',
+        'step': res['step'],
+        'inner_loss': res['inner_loss'],
+        'memory_norm': res['memory_norm'],
+        'summary': mem.summary(),
+    }
+
+
+def _handle_planning_multistep_recurrent(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .multistep_planner import MultistepRecurrentPlanner, compare_planning_horizons
+    planner = MultistepRecurrentPlanner(state_dim=32, action_dim=5, obs_dim=155, seed=int(payload.get('seed', 42)))
+    obs = np.random.uniform(0.0, 1.0, size=155).astype(np.float32)
+    base_act = np.zeros(5, dtype=np.float32)
+    comp = compare_planning_horizons(planner, obs, base_act, horizons=payload.get('horizons', [1, 3, 5]))
+    return {
+        'status': 'ok',
+        'scope': 'recurrent multi-step model predictive control with uncertainty penalties',
+        'consumer': 'long-horizon predictive planning and model-based action selection',
+        'horizons_tested': comp['horizons_tested'],
+        'comparison': comp['results'],
+    }
+
+
+def _handle_curriculum_verifiable_relift(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .verified_curriculum import VerifiableCurriculumEngine
+    engine = VerifiableCurriculumEngine(base_seed=int(payload.get('seed', 42)))
+    ch = engine.generate_procedural_challenge(is_eval=False)
+    sub_res = engine.check_subgoals((0.0, 0.0))
+    receipt = engine.complete_episode(success=True)
+    return {
+        'status': 'ok',
+        'scope': 'verifiable procedural environment curriculum with cryptographic process receipts',
+        'consumer': 'targeted curriculum learning and verifiable intermediate subgoals',
+        'stage': engine.current_stage,
+        'proof_hash': receipt.proof_hash,
+        'subgoals_count': len(ch['subgoals']),
+    }
+
+
+def _handle_structural_causal_evolution(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .causal_growth import CausalConnectomeEvolutionEngine
+    engine = CausalConnectomeEvolutionEngine(seed=int(payload.get('seed', 42)))
+    return {
+        'status': 'ok',
+        'scope': 'causal connectome evolution and interventional do-calculus screening',
+        'consumer': 'multi-objective causal structural plasticity and wiring optimization',
+        'summary': engine.summary(),
+    }
+
 # Master Registry of all 47 Audited Capabilities across 19 Families
 # ---------------------------------------------------------------------------
 
 _REGISTRY: Dict[str, Dict[str, Any]] = {
+    'learning.continual_backprop': {'id': 'learning.continual_backprop', 'family': 'learning', 'name': 'Continual Backpropagation Engine', 'description': 'Utility-driven mature neuron replacement, zeroing stale Adam moments and preserving Dale constraints.', 'scope': 'continual backpropagation and utility-guided neuron replacement', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neurons': {'type': 'integer'}}}, 'example': {'neurons': 16}, 'handler': _handle_learning_continual_backprop},
+    'learning.trainable_sleep': {'id': 'learning.trainable_sleep', 'family': 'learning', 'name': 'Trainable Sleep Consolidation', 'description': 'Multi-objective offline student-teacher distillation with task, replay, and parameter regularization losses.', 'scope': 'trainable sleep consolidation with multi-objective student distillation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'memories': {'type': 'integer'}}}, 'example': {'memories': 8}, 'handler': _handle_learning_trainable_sleep},
+    'memory.fast_weights': {'id': 'memory.fast_weights', 'family': 'memory', 'name': 'Universal Fast-Weight Memory (uTTT & Titans)', 'description': 'Shared associative fast-weight memory matrix with self-supervised test-time gradient adaptation.', 'scope': 'shared neural fast-weight memory with universal test-time training', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'surprisal': {'type': 'number'}}}, 'example': {'surprisal': 0.5}, 'handler': _handle_memory_fast_weights},
+    'planning.multistep_recurrent': {'id': 'planning.multistep_recurrent', 'family': 'planning', 'name': 'Recurrent Multistep MPC Planner', 'description': 'Multi-step predictive control over recurrent latent trajectories with calibrated epistemic uncertainty penalties.', 'scope': 'recurrent multi-step model predictive control with uncertainty penalties', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'horizons': {'type': 'array'}}}, 'example': {'horizons': [1, 3, 5]}, 'handler': _handle_planning_multistep_recurrent},
+    'curriculum.verifiable_relift': {'id': 'curriculum.verifiable_relift', 'family': 'curriculum', 'name': 'Verifiable Curriculum Engine (ReLIFT)', 'description': 'Procedural environment generator with verifiable intermediate subgoals and cryptographic process receipts.', 'scope': 'verifiable procedural environment curriculum with cryptographic process receipts', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'seed': {'type': 'integer'}}}, 'example': {'seed': 42}, 'handler': _handle_curriculum_verifiable_relift},
+    'structural.causal_evolution': {'id': 'structural.causal_evolution', 'family': 'structural', 'name': 'Causal Connectome Evolution', 'description': 'Interventional do-calculus screening evaluating Delta J(m) on cloned agents with multi-objective wiring penalties.', 'scope': 'causal connectome evolution and interventional do-calculus screening', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'seed': {'type': 'integer'}}}, 'example': {'seed': 42}, 'handler': _handle_structural_causal_evolution},
     'structural.neurogenesis': {'id': 'structural.neurogenesis', 'family': 'structural', 'name': 'Archimedes Connectome Neurogenesis Engine', 'description': 'Online covariance-driven synaptogenesis, apoptosis under Dale constraints, and neuromodulator/glial gating.', 'scope': 'online covariance-driven synaptogenesis and apoptosis under Dale constraints', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neurons': {'type': 'integer'}, 'steps': {'type': 'integer'}}}, 'example': {'neurons': 16, 'steps': 5}, 'handler': _handle_structural_neurogenesis},
     'motivation.homeostasis': {'id': 'motivation.homeostasis', 'family': 'motivation', 'name': 'Supermix Homeostatic Drive Engine', 'description': 'Interoceptive vital regulation tracking Energy, Stamina, Health, Threat, Exposure, and Hunger with dynamic neuromodulatory drive coupling.', 'scope': 'vital regulation and dynamic neuromodulatory drive coupling', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'action': {'type': 'array'}, 'reward': {'type': 'number'}}}, 'example': {'action': [0.8, 0.2, 0.1, 0.0, 0.0], 'reward': 0.1}, 'handler': _handle_homeostasis_engine},
     'reasoning.mimomix': {'id': 'reasoning.mimomix', 'family': 'reasoning', 'name': 'MiMoMix Dual-Process Cognitive Reasoner', 'description': 'Dual-process deliberative reasoning combining fast reflexive System 1 intuition with adaptive computation time (ACT) System 2 mental rollouts.', 'scope': 'dual-process fast/slow cognitive reasoning with ACT mental search', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'max_ponder': {'type': 'integer'}}}, 'example': {'max_ponder': 3}, 'handler': _handle_mimomix_deliberation},

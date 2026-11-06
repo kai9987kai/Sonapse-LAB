@@ -13,9 +13,11 @@ tags:
 license: apache-2.0
 ---
 
-# SYNAPSE: Developmental Connectome Intelligence & Weight-Space Lab
+# SYNAPSE: Developmental Connectome Intelligence & Weight-Space Lab (SAIL Edition)
 
 A unified, CPU-first embodied cognitive research platform combining signed recurrent neural graphs, a frozen Poseidon Tidal MoE DAgger controller, continuous online connectome neurogenesis, interoceptive homeostatic drive regulation, MiMoMix dual-process cognitive deliberation, experience-grounded prediction, and direct weight-space programming with inherited recursive self-improvement (RSI).
+
+Now featuring the **Sonapse Adaptive Intelligence Laboratory (SAIL)** research track: utility-driven continual backpropagation, trainable student-teacher sleep consolidation, universal fast-weight memory (uTTT & Titans associative learning), recurrent multi-step world models with MPC planning ($H \in \{1, 3, 5, 10\}$), verifiable ReLIFT curriculum challenges, and causal connectome structural evolution.
 
 Live telemetry, real-time 3D anatomical connectome visualization, and zero-warping virtual world observatory are served via a local web interface and audited CLI tools.
 
@@ -74,6 +76,13 @@ flowchart TD
 | **Weight-Space Programming** | Safe transactional parameter editing | Bounded edit packets, parent hash validation, candidate evaluation, exact state rollback, and closed-loop automated diagnosis/repair. |
 | **Recursive Self-Improvement (RSI)** | Meta-level learning of learning | Versioned improvement policies $\phi_g$, support/query task isolation, shared archive controls, candidate meta-validation, and fresh-learner held-out evaluations. |
 | **Zero-Warping Observatory & HUD** | Real-time scientific visualization | Isotropic 3D isometric and top-down radar views with mathematical aspect ratio locking; real-time 3D anatomical connectome observatory with OrbitControls; direct WASD teleoperation; real-time Vitals HUD meters. |
+| **Continual Backpropagation** | Utility-guided plasticity & replacement | Continuous utility tracking $u_i(t) = \beta u_i(t-1) + (1-\beta)|r_i|\sum_j |W_{ji}|$; resets mature stagnant units while clearing Adam moments and preserving Dale's law. |
+| **Trainable Sleep Engine** | Student-teacher consolidation | Minimizes $\mathcal{L}_{\text{sleep}} = \lambda_1\mathcal{L}_{\text{task}} + \lambda_2\mathcal{L}_{\text{distill}} + \lambda_3\mathcal{L}_{\text{replay}} + \lambda_4\mathcal{L}_{\text{reg}}$ with SHY synaptic downscaling and evaluation rollback gating. |
+| **Universal Fast-Weight Memory** | Test-time associative learning | Shared associative matrix $M \in \mathbb{R}^{d_k \times d_v}$ with self-supervised inner loss $\mathcal{L}_{\text{inner}}$, surprise-gated outer-product updates, and surprise gating. |
+| **Recurrent Multistep Planner** | Learned dynamics & MPC control | Recurrent GRU state transition, reward, observation, and uncertainty heads; MPC action trajectory optimization over horizons $H \in \{1, 3, 5, 10\}$ with penalty for epistemic variance. |
+| **Verifiable Curriculum Engine** | Verifiable progression & ReLIFT | Procedural sequential subgoals (`CUE_DISCOVERED`, `GATE_TRIGGERED`, `BARRIER_PASSED`, `TARGET_REACHED`) with cryptographic SHA-256 process receipts. |
+| **Causal Connectome Evolution** | Interventional structural changes | Paired counterfactual rollouts measuring $\Delta J(m) = \mathbb{E}[R \mid do(m)] - \mathbb{E}[R \mid do(m_0)]$ penalized by wiring, compute, and catastrophic forgetting costs. |
+
 
 ## Run Locally
 
@@ -111,11 +120,22 @@ python -m synapse.cli --nodes 16 homeostasis
 python -m synapse.cli --nodes 16 mimomix --ponder 4
 python -m synapse.cli --nodes 16 ecology --task ecosystem
 
-# Audited Upstream Capabilities (126 audited capabilities across 47 families)
+# Audited Upstream Capabilities (132 audited capabilities across 47 families)
 python -m synapse.cli capabilities --id structural.neurogenesis
 python -m synapse.cli capabilities --id motivation.homeostasis
 python -m synapse.cli capabilities --id reasoning.mimomix
 python -m synapse.cli capabilities --id world.complex_ecology
+python -m synapse.cli capabilities --id learning.continual_backprop
+python -m synapse.cli capabilities --id memory.fast_weights
+
+# SAIL 6-Upgrade Research & Development Suite
+python -m synapse.cli continual-backprop --steps 50
+python -m synapse.cli sleep-train --sleep-steps 10
+python -m synapse.cli fast-memory --steps 30
+python -m synapse.cli multistep-plan --horizons 1 3 5 10 --trials 3
+python -m synapse.cli curriculum-verify --stages 3 --trials-per-stage 3
+python -m synapse.cli causal-growth --candidates 3
+python -m synapse.cli flagship-milestone --steps-per-task 20
 
 # Automated Weight-Space Programming & Closed-Loop Repair
 python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 3 --eval-episodes 3 --save repaired_agent
