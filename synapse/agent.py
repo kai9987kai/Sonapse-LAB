@@ -28,6 +28,7 @@ from .dormant_lifecycle import DormantLifecycleManager
 from .fast_weight_memory import UniversalFastWeightMemory
 from .latent_reasoner import ContinuousLatentReasoner
 from .actions import TURN, govern_action
+from .self_model import EfferenceCopyComparator
 
 class AcquiringMushroomBody(MushroomBody):
     def forward(self,cue_vec,adapt=True):
@@ -89,6 +90,8 @@ class IntegratedAgent:
             self.continual_backprop=ContinualBackpropEngine(num_neurons=self.brain.n,seed=config.seed)
         else:
             self.continual_backprop=None
+        self.self_model=(EfferenceCopyComparator(sensory_dim=155,action_dim=5,seed=config.seed)
+                         if getattr(config,'self_model',False) else None)
         self.fast_weight_memory=(UniversalFastWeightMemory(in_dim=32,out_dim=32,seed=config.seed)
                                  if getattr(config,'fast_weight_memory',False) else None)
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
@@ -296,6 +299,7 @@ class IntegratedAgent:
         self.last_telemetry['surprise_memory']=self.surprise_memory.summary()
         if hasattr(self, 'homeostasis'): self.last_telemetry['homeostasis']=self.homeostasis.summary()
         if hasattr(self, 'neurogenesis'): self.last_telemetry['neurogenesis']=self.neurogenesis.summary()
+        if getattr(self, 'self_model', None) is not None: self.last_telemetry['self_model']=self.self_model.summary()
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 
@@ -322,6 +326,9 @@ class IntegratedAgent:
         diagnostics=self.experience_model.update(state,executed,next_state,float(reward),done=bool(done))
         if self.config.surprise_memory:
             diagnostics={**diagnostics,'memory':self.surprise_memory.update(state,executed,float(reward),float(diagnostics['prediction_error']))}
+        if getattr(self, 'self_model', None) is not None and getattr(self, 'last_obs', None) is not None:
+            self_receipt = self.self_model.process_transition(self.last_obs, executed, observation, learn=True)
+            diagnostics['self_model'] = self_receipt.to_dict()
         if self.fast_weight_memory is not None:
             pooled_f = torch.as_tensor(self.last_features[:32], dtype=torch.float32).unsqueeze(0)
             self.fast_weight_memory.inner_update(pooled_f, surprisal=float(abs(diagnostics['prediction_error'])))
@@ -458,7 +465,7 @@ class IntegratedAgent:
                     value[indices]=0
 
     def export_state(self):
-        return deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None})
+        return deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
     def import_state(self,state):
         backup=self.export_state()
         try:
@@ -532,6 +539,8 @@ class IntegratedAgent:
             self.fast_weight_memory.import_state(state['fast_weight_memory'])
         if hasattr(self, 'latent_reasoner') and self.latent_reasoner is not None and state.get('latent_reasoner'):
             self.latent_reasoner.load_state_dict(state['latent_reasoner'])
+        if hasattr(self, 'self_model') and self.self_model is not None and state.get('self_model'):
+            self.self_model.import_state(state['self_model'])
 
     def status(self):
         return {'feature_schema':self.feature_schema,'graph':self.graph.describe(),'tidal_parameters':sum(p.numel() for p in self.tidal.parameters()),'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','motor_preparation_updates':self.preparation_updates,'camera':'active; visual encoder fused' if getattr(self, '_camera_consumed_any', False) else 'inactive; image not consumed','experience_planning':self.config.experience_planning,'experience_model':self.experience_model.summary(),'surprise_memory':self.surprise_memory.summary(),'evidence_scope':'synthetic graph and heuristic resource adapter; no integrated performance claim','telemetry':deepcopy(self.last_telemetry)}

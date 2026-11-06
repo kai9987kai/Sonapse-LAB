@@ -103,6 +103,14 @@ class Workbench:
             if path=='/api/fast_weight/status':
                 agent=self.runtime.agent
                 return agent.fast_weight_memory.get_metrics() if (hasattr(agent, 'fast_weight_memory') and agent.fast_weight_memory) else {'enabled': False}
+            if path=='/api/self_model/status':
+                agent=self.runtime.agent
+                return agent.self_model.summary() if (hasattr(agent, 'self_model') and agent.self_model) else {'enabled': False}
+            if path=='/api/uncertainty/status':
+                return {'status': 'active', 'tripartite_decomposer': True}
+            if path=='/api/reusable_skills':
+                from .reusable_skills import ReusableSkillLibrary
+                return ReusableSkillLibrary().summary()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/studies': return self.start_study(data.get('config',{}))
@@ -234,6 +242,14 @@ class Workbench:
             if path=='/api/atlas':
                 from .circuit_atlas import CausalCircuitAtlas
                 return CausalCircuitAtlas(self.runtime.agent).build_full_atlas()
+            if path=='/api/controlled_study':
+                from .controlled_study import ControlledSixArmStudy
+                study = ControlledSixArmStudy(
+                    steps_per_stage=integer(data.get('steps_per_stage', 15), 'steps_per_stage', 5, 200),
+                    eval_episodes_per_task=integer(data.get('eval_episodes_per_task', 1), 'eval_episodes_per_task', 1, 5),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                return study.run_study()
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):

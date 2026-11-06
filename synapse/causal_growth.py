@@ -15,6 +15,7 @@ from typing import Dict, Any, List, Optional, Tuple, Callable
 import numpy as np
 import torch
 from .agent import IntegratedAgent
+from .complex_world import ComplexWorld
 
 @dataclass
 class CausalMutationProposal:
@@ -84,6 +85,8 @@ class CausalConnectomeEvolutionEngine:
         mutation: CausalMutationProposal,
         test_episodes: int = 3,
         horizon: int = 30,
+        task: str = 'forage',
+        use_real_environment: bool = True,
         baseline_task_eval_fn: Optional[Callable[[IntegratedAgent], float]] = None
     ) -> CausalEvaluationReceipt:
         """Evaluate Delta J(m) = E[R | do(m)] - E[R | do(m_0)] on cloned agents in matched worlds."""
@@ -99,19 +102,30 @@ class CausalConnectomeEvolutionEngine:
         base_compute = []
         for ep in range(test_episodes):
             ep_seed = 1000 + ep
-            rng_ep = np.random.default_rng(ep_seed)
             agent.import_state(base_state)
             agent.reset_episode()
             ep_ret = 0.0
             act_norms = []
-            for t in range(horizon):
-                obs = rng_ep.uniform(0.0, 1.0, size=155).astype(np.float32)
-                res = agent.act(obs, learn=False)
-                rew = float(res['action'][0] - 0.2 * abs(res['action'][1]))
-                ep_ret += rew
-                act_norms.append(float(agent.brain.r.abs().mean().item()))
+            if use_real_environment:
+                world = ComplexWorld(seed=ep_seed)
+                obs = world.reset(task=task)
+                for t in range(horizon):
+                    res = agent.act(obs, learn=False)
+                    obs, rew, done, info = world.step(res['action'])
+                    ep_ret += float(rew)
+                    act_norms.append(float(agent.brain.r.abs().mean().item()))
+                    if done:
+                        break
+            else:
+                rng_ep = np.random.default_rng(ep_seed)
+                for t in range(horizon):
+                    obs = rng_ep.uniform(0.0, 1.0, size=155).astype(np.float32)
+                    res = agent.act(obs, learn=False)
+                    rew = float(res['action'][0] - 0.2 * abs(res['action'][1]))
+                    ep_ret += rew
+                    act_norms.append(float(agent.brain.r.abs().mean().item()))
             base_returns.append(ep_ret)
-            base_compute.append(float(np.mean(act_norms)))
+            base_compute.append(float(np.mean(act_norms)) if act_norms else 0.0)
 
         # 2. Mutated rollouts (do(m))
         agent.import_state(base_state)
@@ -133,17 +147,29 @@ class CausalConnectomeEvolutionEngine:
         mut_compute = []
         for ep in range(test_episodes):
             ep_seed = 1000 + ep
-            rng_ep = np.random.default_rng(ep_seed)
             ep_ret = 0.0
             act_norms = []
-            for t in range(horizon):
-                obs = rng_ep.uniform(0.0, 1.0, size=155).astype(np.float32)
-                res = agent.act(obs, learn=False)
-                rew = float(res['action'][0] - 0.2 * abs(res['action'][1]))
-                ep_ret += rew
-                act_norms.append(float(agent.brain.r.abs().mean().item()))
+            if use_real_environment:
+                world = ComplexWorld(seed=ep_seed)
+                obs = world.reset(task=task)
+                agent.reset_episode()
+                for t in range(horizon):
+                    res = agent.act(obs, learn=False)
+                    obs, rew, done, info = world.step(res['action'])
+                    ep_ret += float(rew)
+                    act_norms.append(float(agent.brain.r.abs().mean().item()))
+                    if done:
+                        break
+            else:
+                rng_ep = np.random.default_rng(ep_seed)
+                for t in range(horizon):
+                    obs = rng_ep.uniform(0.0, 1.0, size=155).astype(np.float32)
+                    res = agent.act(obs, learn=False)
+                    rew = float(res['action'][0] - 0.2 * abs(res['action'][1]))
+                    ep_ret += rew
+                    act_norms.append(float(agent.brain.r.abs().mean().item()))
             mut_returns.append(ep_ret)
-            mut_compute.append(float(np.mean(act_norms)))
+            mut_compute.append(float(np.mean(act_norms)) if act_norms else 0.0)
 
         # 3. Assess forgetting on established baseline
         old_perf_after = old_perf_before

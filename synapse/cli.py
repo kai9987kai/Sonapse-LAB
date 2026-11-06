@@ -55,6 +55,10 @@ def main(argv=None):
     p=sub.add_parser('dpo-align'); p.add_argument('--pairs', type=int, default=5)
     p=sub.add_parser('unified-eval'); p.add_argument('--eval-task', default='forage')
     p=sub.add_parser('flagship-milestone'); p.add_argument('--milestone-steps',type=int,default=20)
+    p=sub.add_parser('controlled-study'); p.add_argument('--steps-per-stage',type=int,default=15); p.add_argument('--eval-episodes',type=int,default=1)
+    sub.add_parser('uncertainty-calibrate')
+    sub.add_parser('self-model-audit')
+    sub.add_parser('reusable-skills')
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
     p.add_argument('--seeds',type=int,nargs='+',default=[7,11,19])
@@ -304,6 +308,31 @@ def main(argv=None):
                 from .flagship_benchmark import FlagshipContinualBenchmark
                 bench=FlagshipContinualBenchmark(steps_per_stage=args.milestone_steps, seed=args.seed)
                 result=bench.run_benchmark()
+            elif args.command=='controlled-study':
+                from .controlled_study import ControlledSixArmStudy
+                study = ControlledSixArmStudy(steps_per_stage=args.steps_per_stage, eval_episodes_per_task=args.eval_episodes, seed=args.seed)
+                result = study.run_study()
+            elif args.command=='uncertainty-calibrate':
+                from .uncertainty_calibration import TripartiteUncertaintyDecomposer
+                import numpy as np
+                dec = TripartiteUncertaintyDecomposer(state_dim=16, action_dim=5, seed=args.seed)
+                z_val = np.random.randn(20, 16).astype(np.float32)
+                a_val = np.random.uniform(-1, 1, (20, 5)).astype(np.float32)
+                r_val = np.random.randn(20).astype(np.float32)
+                result = dec.calibrate_on_held_out(z_val, a_val, r_val)
+            elif args.command=='self-model-audit':
+                from .self_model import EfferenceCopyComparator, ControlMode
+                import numpy as np
+                comp = EfferenceCopyComparator(sensory_dim=155, action_dim=5, seed=args.seed)
+                s0 = np.random.randn(155).astype(np.float32)
+                a0 = np.random.uniform(-0.5, 0.5, 5).astype(np.float32)
+                s1 = s0 + 0.1 * np.pad(a0, (0, 150))
+                rec = comp.process_transition(s0, a0, s1, learn=True)
+                result = {'receipt': rec.to_dict(), 'summary': comp.summary()}
+            elif args.command=='reusable-skills':
+                from .reusable_skills import ReusableSkillLibrary
+                lib = ReusableSkillLibrary(seed=args.seed)
+                result = lib.summary()
         if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}

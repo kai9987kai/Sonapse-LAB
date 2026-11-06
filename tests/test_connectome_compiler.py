@@ -36,3 +36,20 @@ def test_biological_connectome_compiler_and_null():
     assert 'degree_preserving_null' in res
     assert 'biological_signal_advantage' in res
     assert isinstance(res['biological']['spectral_radius'], float)
+
+
+def test_sparse_biological_connectome_module():
+    from synapse.connectome_compiler import BiologicalConnectomeCompiler, SparseBiologicalConnectomeModule
+    compiler = BiologicalConnectomeCompiler()
+    sparse_module = compiler.compile_sparse_subcircuit(query='visual', max_neurons=48)
+    assert isinstance(sparse_module, SparseBiologicalConnectomeModule)
+    assert sparse_module.num_nodes <= 48
+    assert sparse_module.num_nodes > 0
+    assert sparse_module.sparse_weight.is_sparse
+
+    sparse_module.reset_state()
+    x = torch.ones(len(sparse_module.sensory_indices))
+    out = sparse_module(x)
+    assert out.shape == (sparse_module.num_nodes,)
+    assert torch.isfinite(out).all()
+    assert isinstance(sparse_module.spectral_radius, float)

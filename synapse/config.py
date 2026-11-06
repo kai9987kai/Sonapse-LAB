@@ -25,6 +25,7 @@ class SynapseConfig:
     dormant_lifecycle: bool = True
     latent_reasoning: bool = False
     value_guided_planning: bool = False
+    self_model: bool = False
     planner_algorithm: str = 'experience_mpc'
     connectome_sources: Tuple[str, ...] = ('flywire', 'manc', 'optic-lobe')
     total_neurons: int | None = None
@@ -32,7 +33,7 @@ class SynapseConfig:
     def __post_init__(self):
         for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
                     'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
-                    'latent_reasoning', 'value_guided_planning'):
+                    'latent_reasoning', 'value_guided_planning', 'self_model'):
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:

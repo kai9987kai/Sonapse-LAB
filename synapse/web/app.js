@@ -1129,6 +1129,49 @@ function render(s) {
     }));
   }
 
+  const selfMod = s.telemetry?.self_model || {};
+  if ($('self-model-badge')) {
+    const authorActive = (selfMod.mean_self_authorship || 0) > 0.4;
+    $('self-model-badge').textContent = authorActive ? 'High authorship' : 'Low / Exogenous';
+    $('self-model-badge').style.color = authorActive ? '#00ffb4' : '#ffaa00';
+  }
+  if ($('self-model-hud')) {
+    const selfMetrics = [
+      ['Authorship Index A_t', `${Number(selfMod.mean_self_authorship || 0).toFixed(3)}`],
+      ['Disturbance E_t', `${Number(selfMod.mean_external_disturbance || 0).toFixed(3)}`],
+      ['Actuator Slip F_t', `${Number(selfMod.mean_actuator_fault || 0).toFixed(3)}`],
+      ['Self-Caused Ratio', `${Number((selfMod.self_caused_ratio || 0) * 100).toFixed(1)}%`],
+      ['Comparator Mode', selfMod.control_mode || 'active']
+    ];
+    $('self-model-hud').replaceChildren(...selfMetrics.map(([k, val]) => {
+      const d = document.createElement('div');
+      d.className = 'kv';
+      const name = document.createElement('span'), v = document.createElement('b');
+      name.textContent = k;
+      v.textContent = val;
+      d.append(name, v);
+      return d;
+    }));
+  }
+  if ($('uncertainty-hud')) {
+    const uncertMetrics = [
+      ['Epistemic Disagreement', 'Ensemble active · 4 members'],
+      ['Aleatoric Variance', 'Heteroscedastic Gaussian NLL'],
+      ['OOD Support', 'Mahalanobis empirical buffer'],
+      ['Supermix Fabric', 'v2026.11 · Dale-compliant'],
+      ['Representation Rank', 'Plasticity monitor healthy']
+    ];
+    $('uncertainty-hud').replaceChildren(...uncertMetrics.map(([k, val]) => {
+      const d = document.createElement('div');
+      d.className = 'kv';
+      const name = document.createElement('span'), v = document.createElement('b');
+      name.textContent = k;
+      v.textContent = val;
+      d.append(name, v);
+      return d;
+    }));
+  }
+
   if (s.telemetry && signalHistory.at(-1)?.ticks !== s.telemetry.ticks) signalHistory.push(s.telemetry);
   signalHistory = signalHistory.slice(-100);
 
