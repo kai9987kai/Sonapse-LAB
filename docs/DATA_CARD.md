@@ -24,6 +24,25 @@ SYNAPSE supports both the 9 native GraftBrain simulation tasks and 4 advanced fr
 13. `puzzle_chamber`: Multi-stage logic environment where the agent must press interactive floor triggers/buttons to open pressure-locked security gates protecting high-yield food caches.
 
 
+
+#### Deep Research 9-Arm Connectome Control Topologies (`synapse.connectome_controls`)
+1. `bio`: True biological Janelia Drosophila male-CNS subcircuit with signed Dale synapses.
+2. `degree_rewired`: Maslov-Sneppen degree-preserving directed rewiring.
+3. `sign_rewired`: Sign-preserving rewiring testing Dale's law constraints.
+4. `community_rewired`: 4-cluster modular community-preserving rewiring.
+5. `random_sparse`: Erdős-Rényi random sparse graph with identical edge count and density.
+6. `learned_sparse`: Learned sparse weight matrix with equal compute/parameter budget.
+7. `unsigned`: Real graph with neurotransmitter signs removed.
+8. `local_only`: Real graph with long-range edges pruned.
+9. `brain_cord_motif`: Local sensory-motor loops with central supervisory hub (2026 brain-cord abstraction).
+
+#### Deep Research Machine-Verifiable Preference Corpus (`synapse.preference_dpo`)
+- Automatic first-party preference pairs $(x, y_w, y_l)$ generated from machine-checkable outcomes:
+  - Safety: Surviving vs. fatal trajectory actions.
+  - Return: High-return vs. low-return planner rollouts.
+  - Calibration: Well-calibrated vs. overconfident forecasts.
+  - Code/Patch: Invariant test-passing vs. failing patch proposals.
+
 #### SAIL Verifiable Curriculum & ReLIFT Tasks (`synapse.verified_curriculum`)
 14. `verifiable_relift`: Procedurally generated sequential challenge stages with strictly verifiable intermediate subgoals:
     - `CUE_DISCOVERED`: Visual recognition and approach toward target color cues.

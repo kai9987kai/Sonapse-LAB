@@ -7,6 +7,20 @@
 - **Architecture**:
   - **Sensory Encoder**: Linear projection mapping 173 input dimensions (155-d observation + 16-d compass bump + 2-d mushroom body valence) to connectome sensory nodes.
   - **Neural Connectome Substrate**: Signed recurrent rate graph (`GraftedBrain`) combining three source families (`flywire`, `manc`, `optic-lobe`), signed Dale synapses, homeostatic balance, and 8 inter-module graft sites.
+    - **Deep Research Verifier-Gated Bounded RSI Engine**:
+    - AIDE² / DGM / AlphaEvolve pattern: Schema/AST checking, deterministic tests, support/query world isolation, LCB dominance ($LCB(\Delta) > \epsilon$), canary regression gating ($\le 1\%$), and dual Promoted Lineage vs. Failure Archive.
+  - **Deep Research World Model v2 with CEM & Fallback Shield**:
+    - $M=3$ latent dynamics ensemble with JEPA representation loss, Cross-Entropy Method (CEM) trajectory optimization across horizons $H \in \{1, 3, 5, 10\}$, invariant Fallback Shield to frozen Tidal controller, and model exploitation tracking ($G_{\text{exploit}} = R_{\text{predicted}} - R_{\text{realised}}$).
+  - **Deep Research 9-Arm Connectome Causal Controls**:
+    - Causal assay evaluating real biological Drosophila connectome wiring against 8 matched control topologies (degree-preserving, sign-preserving, community-preserving, random sparse, learned sparse, unsigned, local-only, brain-cord motif) calculating formal Cohen's $d$ effect sizes.
+  - **Deep Research Coconut Continuous Latent Deliberation**:
+    - Continuous hidden-state thought recurrence without token bottleneck ($h^{\text{think}}_{i+1} = F(h^{\text{think}}_i, z_t)$), dynamic ponder halting, and anytime compute-depth curves.
+  - **Deep Research Masked Diffusion Repair & Infilling Sidecar**:
+    - Iterative non-autoregressive masked diffusion repair of failing code, configuration, or action trajectory constraints with executable verifier in the loop.
+  - **Deep Research Machine-Verifiable DPO Engine**:
+    - First-party machine-checked preference pairs (safety, return, unit tests) optimized via Direct Preference Optimization.
+  - **Deep Research Unified Evaluation Scorecard**:
+    - Joint deployment score $S = R - \alpha C - \beta U - \gamma F$ balancing task return, compute cost, calibration (Brier / ECE), and safety failures.
   - **SAIL Continual Backpropagation & Utility Replacement**:
     - Utility metric: $u_i(t) = \beta u_i(t-1) + (1-\beta)|r_i|\sum_j |W_{ji}|$
     - Resets low-utility mature units, zeros corresponding Adam first (`exp_avg`) and second (`exp_avg_sq`) moments, and reinitializes with Dale's law sign preservation.

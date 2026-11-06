@@ -1657,6 +1657,129 @@ def _handle_complex_ecology(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 
+
+def _handle_rsi_verifier_bounded(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .rsi_verifier import BoundedRSIEngine
+    engine = BoundedRSIEngine(seed=int(payload.get('seed', 42)))
+    cand = engine.generate_candidate(patch_type=str(payload.get('patch_type', 'config')))
+    receipt = engine.verify_and_eval(cand, num_support_trials=3, num_query_trials=3)
+    return {
+        'status': 'ok',
+        'scope': 'verifier-gated bounded recursive self-improvement and failure archive',
+        'consumer': 'aide2 and alphaevolve inspired safe autonomous self-improvement loop',
+        'candidate_digest': cand.digest,
+        'passed_all': receipt.passed_all,
+        'final_stage': receipt.final_stage.value,
+        'receipt_hash': receipt.receipt_hash,
+        'summary': engine.get_summary(),
+    }
+
+
+def _handle_world_model_ensemble_cem(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .world_model_v2 import RecurrentLatentWorldModelEnsemble, CrossEntropyMethodPlanner
+    wm = RecurrentLatentWorldModelEnsemble(num_members=3, state_dim=32, action_dim=5, obs_dim=155, seed=int(payload.get('seed', 42)))
+    planner = CrossEntropyMethodPlanner(wm, action_dim=5, default_horizon=int(payload.get('horizon', 5)), num_samples=8, num_elites=2, cem_iterations=2, seed=int(payload.get('seed', 42)))
+    obs = np.random.uniform(0.0, 1.0, size=155).astype(np.float32)
+    base_act = np.zeros(5, dtype=np.float32)
+    res = planner.plan(obs, base_act)
+    planner.record_realized_outcome(predicted_return=res['best_score'], actual_return=res['best_score'] * 0.95)
+    return {
+        'status': 'ok',
+        'scope': 'recurrent latent dynamics ensemble, cem mpc planning, and fallback shield',
+        'consumer': 'risk-aware predictive world modeling and model exploitation tracking',
+        'plan_mode': res['plan_mode'],
+        'shield_triggered': res['shield_triggered'],
+        'best_score': res['best_score'],
+        'exploitation_metrics': planner.get_exploitation_metric(),
+    }
+
+
+def _handle_connectome_causal_assay_9arm(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .connectome_compiler import BiologicalConnectomeCompiler
+    from .connectome_controls import ControlledConnectomeAssay
+    compiler = BiologicalConnectomeCompiler()
+    bio_mod = compiler.compile_subcircuit(max_neurons=16, min_weight=1.0)
+    assay = ControlledConnectomeAssay(compiler=compiler, seed=int(payload.get('seed', 42)))
+    res = assay.run_causal_assay(bio_mod, steps=10, trials=2)
+    return {
+        'status': 'ok',
+        'scope': '9-arm connectome causal controls and inductive bias assay',
+        'consumer': 'rigorous hypothesis testing of biological vs degree/community/random null models',
+        'num_arms': res['num_arms'],
+        'bio_advantage': res['bio_advantage'],
+        'cohens_d_effect_size': res['cohens_d_effect_size'],
+    }
+
+
+def _handle_reasoning_coconut_latent(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .latent_reasoner import ContinuousLatentReasoner
+    reasoner = ContinuousLatentReasoner(latent_dim=32, action_dim=5, max_depth=4)
+    z = torch.randn(32)
+    act, trace = reasoner.forward_continuous_thinking(z)
+    return {
+        'status': 'ok',
+        'scope': 'coconut-style continuous latent recurrent deliberation and adaptive depth',
+        'consumer': 'tokenless continuous mental search and anytime compute curve',
+        'recurrent_depth': trace.recurrent_depth,
+        'ponder_cost': trace.ponder_cost,
+        'latent_thought_norm': trace.latent_thought_norm,
+        'action': act.squeeze(0).tolist(),
+    }
+
+
+def _handle_diffusion_repair_sidecar(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .diffusion_repair import DiffusionRepairSidecar
+    sidecar = DiffusionRepairSidecar(feature_dim=8, max_repair_iterations=3, diffusion_timesteps=5)
+    candidate = np.array([1.5, -2.0, 0.5, 0.2, -0.8, 1.2, 0.1, -0.4], dtype=np.float32)
+    def dummy_verifier(vec):
+        failing = [i for i, v in enumerate(vec) if abs(v) > 1.0]
+        return len(failing) == 0, failing, {}
+    receipt = sidecar.repair_candidate_vector(candidate, [0, 1, 5], dummy_verifier, item_id="cap_demo")
+    return {
+        'status': 'ok',
+        'scope': 'masked diffusion repair and iterative infilling sidecar',
+        'consumer': 'verifier-in-the-loop repair of failing code, config, or action trajectories',
+        'iterations_used': receipt.iterations_used,
+        'final_valid': receipt.final_valid,
+        'repaired_diff_count': len(receipt.repaired_diff),
+    }
+
+
+def _handle_alignment_verifiable_dpo(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .preference_dpo import MachineVerifiableDPOEngine
+    engine = MachineVerifiableDPOEngine(obs_dim=32, action_dim=5, beta=0.1)
+    for _ in range(5):
+        obs = np.random.randn(32).astype(np.float32)
+        w = np.random.uniform(-0.5, 0.5, size=5).astype(np.float32)
+        l = np.random.uniform(-1.0, 1.0, size=5).astype(np.float32)
+        engine.record_preference(obs, w, l, criterion="safety", delta_utility=1.2)
+    train_res = engine.train_dpo_step(batch_size=4)
+    return {
+        'status': 'ok',
+        'scope': 'direct preference optimization over machine-verifiable outcome pairs',
+        'consumer': 'safe policy alignment without ungrounded self-judging loops',
+        'loss_dpo': train_res.get('loss_dpo', 0.0),
+        'implicit_reward_margin': train_res.get('implicit_reward_margin', 0.0),
+        'buffer_size': train_res.get('buffer_size', 0),
+    }
+
+
+def _handle_eval_unified_scorecard(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .unified_eval import UnifiedEvaluator
+    evaluator = UnifiedEvaluator()
+    preds = np.array([0.9, 0.8, 0.2, 0.1, 0.85])
+    targets = np.array([1, 1, 0, 0, 1])
+    card = evaluator.evaluate_task_run("demo_task", returns=[12.5, 14.0], execution_times=[0.1, 0.12], predictions=preds, ground_truth=targets, failures=0)
+    return {
+        'status': 'ok',
+        'scope': 'unified evaluation scorecard and calibrated deployment scoring',
+        'consumer': 'joint multi-dimensional evaluation balancing return, compute, uncertainty, and safety',
+        'task': card.task_name,
+        'joint_deployment_score': card.joint_deployment_score,
+        'brier_score': card.brier_score,
+        'ece_score': card.ece_score,
+    }
+
 def _handle_learning_continual_backprop(payload: Dict[str, Any]) -> Dict[str, Any]:
     from .continual_backprop import ContinualBackpropEngine
     n_neurons = int(payload.get('neurons', 16))
@@ -1750,6 +1873,13 @@ def _handle_structural_causal_evolution(payload: Dict[str, Any]) -> Dict[str, An
 # ---------------------------------------------------------------------------
 
 _REGISTRY: Dict[str, Dict[str, Any]] = {
+        'rsi.verifier_bounded': {'id': 'rsi.verifier_bounded', 'family': 'reasoning', 'name': 'Verifier-Gated Bounded RSI Engine', 'description': 'AIDE2 and AlphaEvolve inspired bounded evolutionary self-improvement with multi-stage verification and failure archive.', 'scope': 'verifier-gated bounded recursive self-improvement and failure archive', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'patch_type': {'type': 'string'}}}, 'example': {'patch_type': 'config'}, 'handler': _handle_rsi_verifier_bounded},
+    'world_model.ensemble_cem': {'id': 'world_model.ensemble_cem', 'family': 'planning', 'name': 'Recurrent World Model v2 with CEM & Fallback Shield', 'description': 'M=3 latent dynamics ensemble with JEPA representation loss, CEM multi-step trajectory planning, and frozen fallback shield.', 'scope': 'recurrent latent dynamics ensemble, cem mpc planning, and fallback shield', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'horizon': {'type': 'integer'}}}, 'example': {'horizon': 5}, 'handler': _handle_world_model_ensemble_cem},
+    'connectome.causal_assay_9arm': {'id': 'connectome.causal_assay_9arm', 'family': 'structural', 'name': '9-Arm Connectome Causal Controls Assay', 'description': 'Formal causal assay comparing biological wiring against 8 matched nulls (degree-, sign-, community-rewired, random, learned).', 'scope': '9-arm connectome causal controls and inductive bias assay', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'seed': {'type': 'integer'}}}, 'example': {'seed': 42}, 'handler': _handle_connectome_causal_assay_9arm},
+    'reasoning.coconut_latent': {'id': 'reasoning.coconut_latent', 'family': 'reasoning', 'name': 'Coconut Continuous Latent Reasoner', 'description': 'Tokenless continuous hidden-state recurrence with dynamic ponder halting and anytime compute depth evaluation.', 'scope': 'coconut-style continuous latent recurrent deliberation and adaptive depth', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_reasoning_coconut_latent},
+    'diffusion.repair_sidecar': {'id': 'diffusion.repair_sidecar', 'family': 'robustness', 'name': 'Masked Diffusion Repair & Infilling Sidecar', 'description': 'Iterative masked discrete/continuous diffusion for verifier-in-the-loop repair of failing programs and trajectories.', 'scope': 'masked diffusion repair and iterative infilling sidecar', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_diffusion_repair_sidecar},
+    'alignment.verifiable_dpo': {'id': 'alignment.verifiable_dpo', 'family': 'learning', 'name': 'Machine-Verifiable Direct Preference Optimization', 'description': 'DPO policy optimization over first-party machine-checked outcome pairs (safety, return, unit tests).', 'scope': 'direct preference optimization over machine-verifiable outcome pairs', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_alignment_verifiable_dpo},
+    'eval.unified_scorecard': {'id': 'eval.unified_scorecard', 'family': 'evidence', 'name': 'Unified Multi-Dimensional Scorecard', 'description': 'Calculates S = R - alpha*C - beta*U - gamma*F balancing task return, compute cost, calibration ECE/Brier, and safety.', 'scope': 'unified evaluation scorecard and calibrated deployment scoring', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_eval_unified_scorecard},
     'learning.continual_backprop': {'id': 'learning.continual_backprop', 'family': 'learning', 'name': 'Continual Backpropagation Engine', 'description': 'Utility-driven mature neuron replacement, zeroing stale Adam moments and preserving Dale constraints.', 'scope': 'continual backpropagation and utility-guided neuron replacement', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neurons': {'type': 'integer'}}}, 'example': {'neurons': 16}, 'handler': _handle_learning_continual_backprop},
     'learning.trainable_sleep': {'id': 'learning.trainable_sleep', 'family': 'learning', 'name': 'Trainable Sleep Consolidation', 'description': 'Multi-objective offline student-teacher distillation with task, replay, and parameter regularization losses.', 'scope': 'trainable sleep consolidation with multi-objective student distillation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'memories': {'type': 'integer'}}}, 'example': {'memories': 8}, 'handler': _handle_learning_trainable_sleep},
     'memory.fast_weights': {'id': 'memory.fast_weights', 'family': 'memory', 'name': 'Universal Fast-Weight Memory (uTTT & Titans)', 'description': 'Shared associative fast-weight memory matrix with self-supervised test-time gradient adaptation.', 'scope': 'shared neural fast-weight memory with universal test-time training', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'surprisal': {'type': 'number'}}}, 'example': {'surprisal': 0.5}, 'handler': _handle_memory_fast_weights},

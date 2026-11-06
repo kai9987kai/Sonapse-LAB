@@ -42,6 +42,13 @@ def main(argv=None):
     p=sub.add_parser('multistep-plan'); p.add_argument('--horizon',type=int,default=5)
     sub.add_parser('curriculum-verify')
     sub.add_parser('causal-growth')
+    p=sub.add_parser('rsi-verify'); p.add_argument('--patch-type', default='config')
+    p=sub.add_parser('world-model-cem'); p.add_argument('--cem-horizon', type=int, default=5)
+    p=sub.add_parser('connectome-assay'); p.add_argument('--assay-trials', type=int, default=2)
+    p=sub.add_parser('coconut-think'); p.add_argument('--think-depth', type=int, default=4)
+    p=sub.add_parser('diffusion-repair'); p.add_argument('--repair-iters', type=int, default=3)
+    p=sub.add_parser('dpo-align'); p.add_argument('--pairs', type=int, default=5)
+    p=sub.add_parser('unified-eval'); p.add_argument('--eval-task', default='forage')
     p=sub.add_parser('flagship-milestone'); p.add_argument('--milestone-steps',type=int,default=20)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
@@ -200,6 +207,64 @@ def main(argv=None):
                 mut=c_eng.generate_candidate_mutation(runtime.agent)
                 rec=c_eng.evaluate_interventional_mutation(runtime.agent, mut, test_episodes=2, horizon=15)
                 result={'mutation': mut.description, 'causal_delta': rec.causal_delta, 'net_fitness': rec.net_fitness, 'accepted': rec.accepted}
+            elif args.command=='rsi-verify':
+                from .rsi_verifier import BoundedRSIEngine
+                rsi_eng = BoundedRSIEngine(seed=args.seed)
+                cand = rsi_eng.generate_candidate(patch_type=args.patch_type)
+                rec = rsi_eng.verify_and_eval(cand, num_support_trials=3, num_query_trials=3)
+                result = {'candidate': cand.patch_id, 'passed_all': rec.passed_all, 'final_stage': rec.final_stage.value, 'lcb_score': rec.lcb_score, 'receipt_hash': rec.receipt_hash, 'summary': rsi_eng.get_summary()}
+            elif args.command=='world-model-cem':
+                from .world_model_v2 import RecurrentLatentWorldModelEnsemble, CrossEntropyMethodPlanner
+                wm = RecurrentLatentWorldModelEnsemble(num_members=3, state_dim=32, action_dim=5, obs_dim=155, seed=args.seed)
+                planner = CrossEntropyMethodPlanner(wm, action_dim=5, default_horizon=args.cem_horizon, num_samples=8, num_elites=2, cem_iterations=2, seed=args.seed)
+                import numpy as np
+                obs = np.random.uniform(0, 1, 155).astype(np.float32)
+                plan_res = planner.plan(obs, np.zeros(5, dtype=np.float32))
+                planner.record_realized_outcome(plan_res['best_score'], plan_res['best_score'] * 0.95)
+                result = {'plan_mode': plan_res['plan_mode'], 'shield_triggered': plan_res['shield_triggered'], 'best_score': plan_res['best_score'], 'exploitation': planner.get_exploitation_metric()}
+            elif args.command=='connectome-assay':
+                from .connectome_compiler import BiologicalConnectomeCompiler
+                from .connectome_controls import ControlledConnectomeAssay
+                comp = BiologicalConnectomeCompiler()
+                bio = comp.compile_subcircuit(max_neurons=16, min_weight=1.0)
+                assay = ControlledConnectomeAssay(compiler=comp, seed=args.seed)
+                result = assay.run_causal_assay(bio, steps=10, trials=args.assay_trials)
+            elif args.command=='coconut-think':
+                from .latent_reasoner import ContinuousLatentReasoner
+                import torch
+                reasoner = ContinuousLatentReasoner(latent_dim=32, action_dim=5, max_depth=args.think_depth)
+                z = torch.randn(32)
+                act, trace = reasoner.forward_continuous_thinking(z)
+                result = {'recurrent_depth': trace.recurrent_depth, 'ponder_cost': trace.ponder_cost, 'thought_norm': trace.latent_thought_norm, 'action': act.squeeze(0).tolist()}
+            elif args.command=='diffusion-repair':
+                from .diffusion_repair import DiffusionRepairSidecar
+                import numpy as np
+                sidecar = DiffusionRepairSidecar(feature_dim=8, max_repair_iterations=args.repair_iters, diffusion_timesteps=5)
+                cand = np.array([1.5, -2.0, 0.5, 0.2, -0.8, 1.2, 0.1, -0.4], dtype=np.float32)
+                def verifier(vec):
+                    failing = [i for i, v in enumerate(vec) if abs(v) > 1.0]
+                    return len(failing) == 0, failing, {}
+                rec = sidecar.repair_candidate_vector(cand, [0, 1, 5], verifier)
+                result = {'initial_valid': rec.initial_valid, 'final_valid': rec.final_valid, 'iterations_used': rec.iterations_used, 'repaired_diff': rec.repaired_diff}
+            elif args.command=='dpo-align':
+                from .preference_dpo import MachineVerifiableDPOEngine
+                import numpy as np
+                dpo_eng = MachineVerifiableDPOEngine(obs_dim=32, action_dim=5, beta=0.1)
+                for _ in range(args.pairs):
+                    obs = np.random.randn(32).astype(np.float32)
+                    w = np.random.uniform(-0.5, 0.5, size=5).astype(np.float32)
+                    l = np.random.uniform(-1.0, 1.0, size=5).astype(np.float32)
+                    dpo_eng.record_preference(obs, w, l, criterion="safety", delta_utility=1.5)
+                train_out = dpo_eng.train_dpo_step(batch_size=4)
+                result = {'loss_dpo': train_out.get('loss_dpo', 0.0), 'implicit_reward_margin': train_out.get('implicit_reward_margin', 0.0), 'buffer_size': train_out.get('buffer_size', 0)}
+            elif args.command=='unified-eval':
+                from .unified_eval import UnifiedEvaluator
+                import numpy as np
+                evaluator = UnifiedEvaluator()
+                preds = np.array([0.9, 0.8, 0.2, 0.1, 0.85])
+                targets = np.array([1, 1, 0, 0, 1])
+                card = evaluator.evaluate_task_run(args.eval_task, returns=[15.0, 18.0], execution_times=[0.05, 0.06], predictions=preds, ground_truth=targets, failures=0)
+                result = card.to_dict()
             elif args.command=='flagship-milestone':
                 from .flagship_benchmark import FlagshipContinualBenchmark
                 bench=FlagshipContinualBenchmark(steps_per_stage=args.milestone_steps, seed=args.seed)

@@ -82,6 +82,13 @@ flowchart TD
 | **Recurrent Multistep Planner** | Learned dynamics & MPC control | Recurrent GRU state transition, reward, observation, and uncertainty heads; MPC action trajectory optimization over horizons $H \in \{1, 3, 5, 10\}$ with penalty for epistemic variance. |
 | **Verifiable Curriculum Engine** | Verifiable progression & ReLIFT | Procedural sequential subgoals (`CUE_DISCOVERED`, `GATE_TRIGGERED`, `BARRIER_PASSED`, `TARGET_REACHED`) with cryptographic SHA-256 process receipts. |
 | **Causal Connectome Evolution** | Interventional structural changes | Paired counterfactual rollouts measuring $\Delta J(m) = \mathbb{E}[R \mid do(m)] - \mathbb{E}[R \mid do(m_0)]$ penalized by wiring, compute, and catastrophic forgetting costs. |
+| **Verifier-Gated Bounded RSI** | Bounded self-improvement & failure archive | AIDE² / DGM / AlphaEvolve pattern: AST range checks, deterministic tests, support/query evaluation, LCB dominance ($LCB(\Delta) > \epsilon$), canary regression gating ($\le 1\%$), and immutable Failure Archive. |
+| **World Model v2 & CEM Planner** | Recurrent dynamics ensemble & CEM | $M=3$ latent dynamics ensemble with JEPA loss, CEM trajectory optimization across horizons $H \in \{1, 3, 5, 10\}$, fallback shield to frozen Tidal, and exploitation tracking ($G_{\text{exploit}} = R_{\text{pred}} - R_{\text{real}}$). |
+| **9-Arm Connectome Causal Assay** | Biological vs matched controls | Causal benchmark evaluating real Drosophila wiring against 8 matched nulls (degree-, sign-, community-rewired, random, learned, unsigned, local-only, brain-cord motif) calculating formal Cohen's $d$. |
+| **Coconut Latent Deliberation** | Tokenless continuous recurrence | Continuous hidden-state thought recurrence ($h^{\text{think}}_{i+1} = F(h^{\text{think}}_i, z_t)$), dynamic ponder halting, and anytime compute-depth curves. |
+| **Masked Diffusion Repair Sidecar** | Non-autoregressive repair & infill | Iterative masked diffusion repair of failing code, configuration, or action trajectory constraints with executable verifier in the loop. |
+| **Machine-Verifiable DPO Engine** | Direct preference optimization | First-party machine-checked preference pairs (safety, return, unit tests) optimized via DPO without ungrounded self-judging loops. |
+| **Unified Evaluation Scorecard** | Calibrated multi-dimensional scoring | Joint deployment score $S = R - \alpha C - \beta U - \gamma F$ balancing task return, compute cost, calibration (Brier / ECE), and safety failures. |
 
 
 ## Run Locally
@@ -120,7 +127,7 @@ python -m synapse.cli --nodes 16 homeostasis
 python -m synapse.cli --nodes 16 mimomix --ponder 4
 python -m synapse.cli --nodes 16 ecology --task ecosystem
 
-# Audited Upstream Capabilities (132 audited capabilities across 47 families)
+# Audited Upstream Capabilities (139 audited capabilities across 47 families)
 python -m synapse.cli capabilities --id structural.neurogenesis
 python -m synapse.cli capabilities --id motivation.homeostasis
 python -m synapse.cli capabilities --id reasoning.mimomix
@@ -136,6 +143,15 @@ python -m synapse.cli multistep-plan --horizons 1 3 5 10 --trials 3
 python -m synapse.cli curriculum-verify --stages 3 --trials-per-stage 3
 python -m synapse.cli causal-growth --candidates 3
 python -m synapse.cli flagship-milestone --steps-per-task 20
+
+# Deep Research Architecture & Control Experiments
+python -m synapse.cli rsi-verify --patch-type config
+python -m synapse.cli world-model-cem --cem-horizon 5
+python -m synapse.cli connectome-assay --assay-trials 3
+python -m synapse.cli coconut-think --think-depth 4
+python -m synapse.cli diffusion-repair --repair-iters 3
+python -m synapse.cli dpo-align --pairs 5
+python -m synapse.cli unified-eval --eval-task forage
 
 # Automated Weight-Space Programming & Closed-Loop Repair
 python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 3 --eval-episodes 3 --save repaired_agent
