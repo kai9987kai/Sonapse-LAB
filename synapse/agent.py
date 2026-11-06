@@ -18,6 +18,7 @@ from poseidon.core import load_checkpoint
 from .neuromodulation import NeuromodulatoryEngine, NeuromodulatorState
 from .astrocyte import AstrocyteNetwork
 from .predictive_coding import PredictiveCodingEngine
+from .vision_encoder import TrainableVisualEncoder
 
 class AcquiringMushroomBody(MushroomBody):
     def forward(self,cue_vec,adapt=True):
@@ -47,6 +48,9 @@ class IntegratedAgent:
             self.neuromod=NeuromodulatoryEngine()
             self.astrocytes=AstrocyteNetwork(num_domains=3)
             self.predictive=PredictiveCodingEngine()
+            self.vision_encoder=TrainableVisualEncoder(seed=config.seed)
+            self.vis_to_sensory=nn.Linear(32,len(self.brain.sensory_idx),bias=False)
+            nn.init.zeros_(self.vis_to_sensory.weight)
             self.tidal,self.receipt=load_checkpoint(ARTIFACTS/'tidal_core.pt')
             h=self.tidal.config.hidden_size
             self.encoder=nn.Linear(155+16+2,len(self.brain.sensory_idx))
@@ -61,12 +65,14 @@ class IntegratedAgent:
         self.opt=torch.optim.Adam(list(self.encoder.parameters())+list(self.motor.parameters())+list(self.donor_to_graph.parameters())+list(self.graph_to_resource.parameters())+[self.brain.graft_w]+list(self.plasticity.router.parameters()),lr=3e-4)
         self.rng=np.random.default_rng(config.seed)
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
+        self._camera_consumed_any=False
         self.reset_episode()
     def reset_episode(self):
         self.brain.reset_state(); self.mb.elig.zero_(); self.mb.kc_act.zero_(); self.compass.reset()
         if hasattr(self, 'neuromod'): self.neuromod.reset()
         if hasattr(self, 'astrocytes'): self.astrocytes.reset()
         if hasattr(self, 'predictive'): self.predictive.reset()
+        self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
         self.last_features=np.zeros(64,np.float32); self.last_telemetry={}; self.last_obs=np.zeros(155,np.float32)
@@ -88,6 +94,16 @@ class IntegratedAgent:
         obs=np.asarray(obs,dtype=np.float32)
         if obs.shape!=(155,) or not np.isfinite(obs).all(): raise ValueError('observation must be finite shape (155,)')
         if camera is not None and not np.isfinite(camera).all(): raise ValueError('camera must be finite')
+        
+        vis_latent=None
+        vis_info={}
+        camera_consumed=False
+        if camera is not None and hasattr(self, 'vision_encoder'):
+            vis_info=self.vision_encoder.encode_frame(camera)
+            vis_latent=vis_info['latent']
+            camera_consumed=True
+            self._camera_consumed_any=True
+            
         o=torch.from_numpy(obs.copy())
         with torch.no_grad():
             compass=self.compass.step(float(obs[137])*2.5,obs[:132]); self.last_compass=compass
@@ -98,6 +114,8 @@ class IntegratedAgent:
                 out=self.tidal(torch.zeros(1,self.tidal.config.hash_buckets),frame[None],memory=self.hidden)
                 self.hidden=out['memory'].detach(); self.intent=out['action'][0].softmax(-1).detach(); self.routing=out['routing'][0].tolist()
             current=2*torch.tanh(self.encoder(torch.cat([o,compass,mbon]))+.3*self.donor_to_graph(torch.cat([self.hidden[0],self.intent])))
+            if vis_latent is not None and hasattr(self, 'vis_to_sensory'):
+                current = current + 0.3 * torch.tanh(self.vis_to_sensory(vis_latent.to(current.device)))
             pred_info=self.predictive.step(o,self.hidden,acetylcholine=self.neuromod.state.acetylcholine if hasattr(self,'neuromod') else 0.5) if hasattr(self,'predictive') else {'steer_bias':0.0}
             gates=self.plasticity.gates(o); effective=self.plasticity.effective_weights(self.brain.graft_w,gates)
             if hasattr(self,'astrocytes'):
@@ -140,7 +158,7 @@ class IntegratedAgent:
                 action[1]=torch.clamp(action[1]+pred_info['steer_bias'],-1.0,1.0)
         bonus=self.curiosity.compute_bonus(o,train=learn)
         self.ticks+=1; self.last_obs=obs.copy(); self.last_features=features.numpy().copy()
-        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':False,'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
+        self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':camera_consumed,'visual_latents':vis_latent.tolist() if vis_latent is not None else [],'visual_brightness':vis_info.get('mean_brightness',0.0),'visual_contrast':vis_info.get('contrast',0.0),'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
         return {'action':action.numpy().copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
     def feedback(self,reward,done=False):
         self.mb.dopaminergic_update(float(reward)); self.brain.hebbian(float(reward)); self.brain.apply_hebbian()
@@ -225,4 +243,4 @@ class IntegratedAgent:
         if hasattr(self, 'predictive') and state.get('predictive'):
             self.predictive.import_state(state['predictive'])
     def status(self):
-        return {'feature_schema':self.feature_schema,'graph':self.graph.describe(),'tidal_parameters':sum(p.numel() for p in self.tidal.parameters()),'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','motor_preparation_updates':self.preparation_updates,'camera':'inactive; image not consumed','evidence_scope':'synthetic graph and heuristic resource adapter; no integrated performance claim','telemetry':deepcopy(self.last_telemetry)}
+        return {'feature_schema':self.feature_schema,'graph':self.graph.describe(),'tidal_parameters':sum(p.numel() for p in self.tidal.parameters()),'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','motor_preparation_updates':self.preparation_updates,'camera':'active; visual encoder fused' if getattr(self, '_camera_consumed_any', False) else 'inactive; image not consumed','evidence_scope':'synthetic graph and heuristic resource adapter; no integrated performance claim','telemetry':deepcopy(self.last_telemetry)}
