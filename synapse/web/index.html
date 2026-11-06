@@ -65,8 +65,12 @@
           <option value="predator_evasion">predator_evasion (Predator Drone Evasion)</option>
           <option value="dynamic_arena">dynamic_arena (Oscillating Gates)</option>
           <option value="puzzle_chamber">puzzle_chamber (Button Unlock Puzzle)</option>
+          <option value="apex_megasite">apex_megasite (River Currents &amp; Pack Hunters)</option>
+          <option value="stealth_labyrinth">stealth_labyrinth (Sentinels &amp; Tripwires)</option>
+          <option value="kinetic_foundry">kinetic_foundry (Conveyors &amp; Blast Doors)</option>
         </select>
       </label>
+      <button id="btn-omnibus-run" style="background:#2d1b4e; border:1px solid #9d4edd; color:#e0aaff; border-radius:4px; font-weight:600; padding:4px 10px; cursor:pointer;" title="Run the full 11-stage 2,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
       <span class="muted" id="runstatus">Paused</span>
     </div>
 
@@ -249,6 +253,18 @@
         </div>
         <div id="uncertainty-hud" class="keyvalues cognition-values">
           <!-- Real-time decomposed uncertainty and fabric status -->
+        </div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Frontier Apex Omnibus &amp; Curriculum</h2>
+            <span class="tag">11 EMBODIED TASKS · 2,000 NEURONS</span>
+          </div>
+          <span id="omnibus-badge" class="tag" style="background:#2d1b4e; color:#c77dff;">Apex Standby</span>
+        </div>
+        <div id="omnibus-hud" class="keyvalues cognition-values">
+          <!-- Real-time stage progression, retention, and cryptographic receipt status -->
         </div>
       </article>
     </div>

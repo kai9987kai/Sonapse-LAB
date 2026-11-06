@@ -26,6 +26,7 @@ class SynapseConfig:
     latent_reasoning: bool = False
     value_guided_planning: bool = False
     self_model: bool = False
+    frontier_all: bool = False
     planner_algorithm: str = 'experience_mpc'
     connectome_sources: Tuple[str, ...] = ('flywire', 'manc', 'optic-lobe')
     total_neurons: int | None = None
@@ -33,12 +34,12 @@ class SynapseConfig:
     def __post_init__(self):
         for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
                     'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
-                    'latent_reasoning', 'value_guided_planning', 'self_model'):
+                    'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all'):
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
             raise ValueError('seed must be a nonnegative 31-bit integer')
-        for key, low, high in [('nodes_per_source', 16, 5000), ('microsteps', 1, 8), ('cognition_interval', 1, 128), ('experience_horizon', 1, 5)]:
+        for key, low, high in [('nodes_per_source', 16, 10000), ('microsteps', 1, 8), ('cognition_interval', 1, 128), ('experience_horizon', 1, 5)]:
             value = getattr(self, key)
             if type(value) is not int or not low <= value <= high:
                 raise ValueError(f'{key} must be an integer in [{low},{high}]')
@@ -46,14 +47,15 @@ class SynapseConfig:
             raise ValueError('unsupported graph readout')
         if self.planner_algorithm not in {'experience_mpc', 'recurrent_latent', 'hybrid'}:
             raise ValueError('unsupported planner algorithm')
-        if self.task not in {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber'}:
+        valid_tasks = {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber', 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry'}
+        if self.task not in valid_tasks:
             raise ValueError('unknown task')
         if not isinstance(self.connectome_sources, tuple) or len(self.connectome_sources) == 0:
             raise ValueError('connectome_sources must be a non-empty tuple of dataset names')
         if self.total_neurons is not None:
             count=len(self.connectome_sources)
-            if type(self.total_neurons) is not int or not 16*count <= self.total_neurons <= 5000*count:
-                raise ValueError(f'total_neurons must be an integer in [{16*count},{5000*count}]')
+            if type(self.total_neurons) is not int or not 16*count <= self.total_neurons <= 10000*count:
+                raise ValueError(f'total_neurons must be an integer in [{16*count},{10000*count}]')
 
     def source_node_counts(self):
         """Allocate an exact total while preserving legacy per-source configs."""
@@ -62,6 +64,30 @@ class SynapseConfig:
             return (self.nodes_per_source,)*count
         base,remainder=divmod(self.total_neurons,count)
         return tuple(base+(index<remainder) for index in range(count))
+
+    @classmethod
+    def frontier_apex(cls, total_neurons: int = 2000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
+        """Omnibus configuration activating all frontier cognitive and neuromorphic features."""
+        cfg_dict = dict(
+            seed=seed,
+            total_neurons=total_neurons,
+            task=task,
+            frontier_all=True,
+            experience_planning=True,
+            surprise_memory=True,
+            experience_horizon=2,
+            experimental_cognition=True,
+            continual_backprop=True,
+            fast_weight_memory=True,
+            dormant_lifecycle=True,
+            latent_reasoning=True,
+            value_guided_planning=True,
+            self_model=True,
+            planner_algorithm='experience_mpc',
+            readout='absolute',
+        )
+        cfg_dict.update(kwargs)
+        return cls(**cfg_dict)
 
     def to_dict(self):
         d = asdict(self)
@@ -76,6 +102,8 @@ class SynapseConfig:
                       'experimental_cognition': False, 'continual_backprop': False,
                       'fast_weight_memory': False, 'dormant_lifecycle': True,
                       'latent_reasoning': False, 'value_guided_planning': False,
+                      'self_model': False,
+                      'frontier_all': False,
                       'planner_algorithm': 'experience_mpc',
                       'total_neurons': None,
                       'connectome_sources': ('flywire', 'manc', 'optic-lobe'), **saved}

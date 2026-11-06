@@ -31,9 +31,9 @@ class Workbench:
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(total_neurons=1000),output_root=self.root)
+            runtime=LabRuntime(config or SynapseConfig(total_neurons=2000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
-        self.jobs={}; self.cancel={}; self.receipts={}
+        self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
             try:
@@ -111,6 +111,10 @@ class Workbench:
             if path=='/api/reusable_skills':
                 from .reusable_skills import ReusableSkillLibrary
                 return ReusableSkillLibrary().summary()
+            if path=='/api/omnibus/status':
+                if getattr(self, 'omnibus_runner', None) is not None:
+                    return self.omnibus_runner.summary()
+                return {'status': 'idle', 'total_neurons': 2000}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/studies': return self.start_study(data.get('config',{}))
@@ -148,6 +152,26 @@ class Workbench:
                 config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model',experience_horizon=horizon,value_guided_planning=value_guided)
                 self.runtime.config=config; self.runtime.agent.config=config
                 return self.runtime.snapshot()
+            if path=='/api/omnibus/run':
+                from .omnibus_mode import OmnibusRunner
+                steps = integer(data.get('steps_per_task', 25), 'steps_per_task', 1, 1000)
+                neurons = integer(data.get('total_neurons', 2000), 'total_neurons', 48, 30000)
+                tasks = data.get('tasks')
+                self.omnibus_runner = OmnibusRunner(total_neurons=neurons, seed=self.runtime.config.seed, steps_per_task=steps, curriculum_tasks=tasks, output_dir=self.root)
+                receipt = self.omnibus_runner.run_full_curriculum()
+                return {'status': 'completed', 'receipt': receipt.to_dict()}
+            if path=='/api/omnibus/step':
+                from .omnibus_mode import OmnibusRunner
+                if getattr(self, 'omnibus_runner', None) is None:
+                    steps = integer(data.get('steps_per_task', 25), 'steps_per_task', 1, 1000)
+                    neurons = integer(data.get('total_neurons', 2000), 'total_neurons', 48, 30000)
+                    tasks = data.get('tasks')
+                    self.omnibus_runner = OmnibusRunner(total_neurons=neurons, seed=self.runtime.config.seed, steps_per_task=steps, curriculum_tasks=tasks, output_dir=self.root)
+                out = self.omnibus_runner.step()
+                return {'step_result': out, 'summary': self.omnibus_runner.summary()}
+            if path=='/api/omnibus/reset':
+                self.omnibus_runner = None
+                return {'status': 'reset'}
             if path=='/api/step':
                 learn=data.get('learn',False)
                 if type(learn) is not bool: raise ValueError('learn must be boolean')

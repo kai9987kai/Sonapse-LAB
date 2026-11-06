@@ -102,17 +102,19 @@ flowchart TD
 | **Unified Evaluation Scorecard** | Standalone metric calculations | Combines supplied returns, compute, Brier/ECE and failure inputs. Its CLI fixture is explicitly illustrative; it does not measure deployment performance. |
 | **Landmark Connectome Catalog (8 Datasets)** | Whole-animal multi-connectome substrate | Full integration of 8 datasets: MaleCNS v1.0, BANC, FlyEM Optic Lobe, FANC, FlyWire FAFB v783, MANC, Larval Drosophila, and Hemibrain with regional neuromodulation. |
 | **Multi-Connectome Hub** | Scalable cross-region routing | Unifies brain, optic, and cord neuropils with 93 biological interface sites, high-capacity scaling (>40,000 neurons/sec on CPU), and transactional weight-space editing. |
+| **Frontier Apex Omnibus Mode** | Full architectural & environmental integration | Single unified command `python -m synapse.cli omnibus` running all 11 complex environments (`forage`, `maze`, `push`, `delayed_match`, `ecosystem`, `predator_evasion`, `dynamic_arena`, `puzzle_chamber`, `apex_megasite`, `stealth_labyrinth`, `kinetic_foundry`) across 2,000 neurons (667/667/666) with efference self-model, uncertainty calibration, plasticity rank monitoring, and cryptographic SHA-256 evaluation receipts. |
 
 
 ## Run Locally
 
 Requires Python 3.10+ with PyTorch CPU, NumPy, and SciPy:
 
-New workbench sessions use **1,000 total neurons**, allocated 334/333/333 across
-the three default sources. The graph view includes all 1,000. Use
-`python -m synapse --total-neurons 1000 serve` or set **Total neurons** in the
+New workbench sessions use **2,000 total neurons**, allocated 667/667/666 across
+the three default sources (FlyWire, MANC, Optic Lobe). The graph view includes all 2,000. Use
+`python -m synapse --total-neurons 2000 serve` or set **Total neurons** in the
 session controls. The older `--nodes 16` option still selects 16 per source for
-small experiments and compatible checkpoints.
+small experiments and compatible checkpoints. Run the 11-stage omnibus curriculum with
+`python -m synapse.cli omnibus`.
 
 ```powershell
 python -m pip install -e .

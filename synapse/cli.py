@@ -8,9 +8,10 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description='SYNAPSE integrated connectome research lab')
     parser.add_argument('--output',type=Path,default=ARTIFACTS)
     parser.add_argument('--seed',type=int,default=7)
+    parser.add_argument('--frontier-all',action='store_true',help='activate all frontier cognitive, planning, self-modeling, and neuromorphic features')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 1000)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 2000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -59,6 +60,7 @@ def main(argv=None):
     sub.add_parser('uncertainty-calibrate')
     sub.add_parser('self-model-audit')
     sub.add_parser('reusable-skills')
+    p=sub.add_parser('omnibus'); p.add_argument('--steps-per-task',type=int,default=30); p.add_argument('--tasks',nargs='+',default=None); p.add_argument('--save-report',type=Path)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
     p.add_argument('--seeds',type=int,nargs='+',default=[7,11,19])
@@ -77,8 +79,11 @@ def main(argv=None):
     p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        total=args.total_neurons if args.total_neurons is not None else (1000 if args.nodes is None else None)
-        config=SynapseConfig(seed=args.seed,nodes_per_source=100 if args.nodes is None else args.nodes,total_neurons=total,task=args.task)
+        total=args.total_neurons if args.total_neurons is not None else (2000 if args.nodes is None else None)
+        if getattr(args, 'frontier_all', False):
+            config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
+        else:
+            config=SynapseConfig(seed=args.seed,nodes_per_source=100 if args.nodes is None else args.nodes,total_neurons=total,task=args.task)
         demo_nodes=config.total_neurons or config.nodes_per_source
         if args.command=='serve':
             from .server import serve
@@ -333,6 +338,19 @@ def main(argv=None):
                 from .reusable_skills import ReusableSkillLibrary
                 lib = ReusableSkillLibrary(seed=args.seed)
                 result = lib.summary()
+            elif args.command=='omnibus':
+                from .omnibus_mode import OmnibusRunner
+                runner = OmnibusRunner(
+                    total_neurons=total or 2000,
+                    seed=args.seed,
+                    steps_per_task=args.steps_per_task,
+                    curriculum_tasks=args.tasks,
+                    output_dir=args.output
+                )
+                receipt = runner.run_full_curriculum()
+                result = receipt.to_dict()
+                if args.save_report:
+                    args.save_report.write_text(json.dumps(result, indent=2), encoding='utf-8')
         if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}

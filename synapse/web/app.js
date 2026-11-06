@@ -496,7 +496,10 @@ function world() {
       const colMap = {
         ice: { fill: 'rgba(0, 220, 255, 0.22)', stroke: '#00e5ff', label: 'ICE [μ=0.25]' },
         sand: { fill: 'rgba(237, 188, 117, 0.25)', stroke: '#edbc75', label: 'SAND [μ=2.4]' },
-        mud: { fill: 'rgba(100, 75, 55, 0.35)', stroke: '#8c6b4f', label: 'MUD [μ=1.8]' }
+        mud: { fill: 'rgba(100, 75, 55, 0.35)', stroke: '#8c6b4f', label: 'MUD [μ=1.8]' },
+        river: { fill: 'rgba(30, 144, 255, 0.30)', stroke: '#1e90ff', label: 'RIVER CURRENT' },
+        conveyor: { fill: 'rgba(255, 140, 0, 0.30)', stroke: '#ff8c00', label: 'CONVEYOR BELT' },
+        shadow: { fill: 'rgba(80, 50, 120, 0.35)', stroke: '#b388ff', label: 'SHADOW CLOAK' }
       };
       const info = colMap[tz.kind] || { fill: 'rgba(120, 150, 180, 0.2)', stroke: '#8fa5b8', label: tz.kind };
 
@@ -515,6 +518,91 @@ function world() {
       x.fillStyle = info.stroke;
       x.font = '9px Consolas, monospace';
       x.fillText(info.label, p[0] - 24, p[1] + 3);
+
+      // Flow direction arrow for river / conveyor
+      if (tz.vx || tz.vy) {
+        const arrowLen = 18;
+        const ang = Math.atan2(tz.vy || 0, tz.vx || 0);
+        x.strokeStyle = info.stroke;
+        x.lineWidth = 1.8;
+        x.beginPath();
+        x.moveTo(p[0], p[1]);
+        x.lineTo(p[0] + Math.cos(ang) * arrowLen, p[1] + Math.sin(ang) * arrowLen);
+        x.stroke();
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Topographic Elevation Hill Contours
+    // -----------------------------------------------------------------------
+    (s.elevation_hills || []).forEach(hill => {
+      const p = project(hill.x, hill.y, 0);
+      const isPlateau = hill.height > 0;
+      const strokeColor = isPlateau ? 'rgba(255, 215, 0, 0.5)' : 'rgba(0, 180, 255, 0.5)';
+      const rings = [0.6, 1.0, 1.4];
+      rings.forEach(mult => {
+        const r = (hill.sigma || 1.3) * mult * worldScale;
+        x.strokeStyle = strokeColor;
+        x.lineWidth = 1.0;
+        x.setLineDash([3, 3]);
+        x.beginPath();
+        if (worldMode === 'iso') {
+          x.ellipse(p[0], p[1], r, r * 0.58, 0, 0, Math.PI * 2);
+        } else {
+          x.arc(p[0], p[1], r, 0, Math.PI * 2);
+        }
+        x.stroke();
+      });
+      x.setLineDash([]);
+      x.fillStyle = strokeColor;
+      x.font = '8px Consolas, monospace';
+      x.fillText(isPlateau ? `PLATEAU [+${hill.height}m]` : `BASIN [${hill.height}m]`, p[0] - 28, p[1] + 3);
+    });
+
+    // -----------------------------------------------------------------------
+    // Rotating Sentinel Searchlights & Stealth Cones
+    // -----------------------------------------------------------------------
+    (s.sentinels || []).forEach(sent => {
+      const p = project(sent.x, sent.y, 0);
+      const beamLen = (sent.range || 2.8) * worldScale;
+      const halfAngle = sent.cone_half_angle || 0.42;
+      const ang = sent.angle || 0;
+
+      // Draw searchlight beam cone
+      x.fillStyle = sent.alerted ? 'rgba(255, 50, 50, 0.28)' : 'rgba(255, 170, 0, 0.18)';
+      x.strokeStyle = sent.alerted ? '#ff3333' : '#ffaa00';
+      x.lineWidth = 1.2;
+      x.beginPath();
+      x.moveTo(p[0], p[1]);
+      x.arc(p[0], p[1], beamLen, ang - halfAngle, ang + halfAngle);
+      x.closePath();
+      x.fill();
+      x.stroke();
+
+      // Sentinel drone body
+      x.fillStyle = sent.alerted ? '#ff2222' : '#ff9900';
+      x.beginPath();
+      x.arc(p[0], p[1], 4, 0, Math.PI * 2);
+      x.fill();
+    });
+
+    // -----------------------------------------------------------------------
+    // Acoustic Sound Tripwires
+    // -----------------------------------------------------------------------
+    (s.sound_tripwires || []).forEach(trip => {
+      const p1 = project(trip.x1, trip.y1, 0);
+      const p2 = project(trip.x2, trip.y2, 0);
+      x.strokeStyle = '#ff00aa';
+      x.lineWidth = 1.6;
+      x.setLineDash([2, 4]);
+      x.beginPath();
+      x.moveTo(p1[0], p1[1]);
+      x.lineTo(p2[0], p2[1]);
+      x.stroke();
+      x.setLineDash([]);
+      x.fillStyle = '#ff00aa';
+      x.font = '7px Consolas, monospace';
+      x.fillText('TRIPWIRE [v<0.28]', (p1[0] + p2[0]) / 2 - 25, (p1[1] + p2[1]) / 2 - 3);
     });
 
     // -----------------------------------------------------------------------
@@ -929,7 +1017,7 @@ function render(s) {
   const sourceCount = s.config?.connectome_sources?.length || 3;
   const sizeKey = JSON.stringify([s.config?.total_neurons, s.config?.nodes_per_source, sourceCount]);
   if (neuronInput && neuronInput.dataset.sizeKey !== sizeKey) {
-    neuronInput.value = String(s.config?.total_neurons ?? s.graph?.neurons ?? 1000);
+    neuronInput.value = String(s.config?.total_neurons ?? s.graph?.neurons ?? 2000);
     neuronInput.min = String(16 * sourceCount);
     neuronInput.max = String(5000 * sourceCount);
     neuronInput.dataset.sizeKey = sizeKey;
@@ -1170,6 +1258,72 @@ function render(s) {
       d.append(name, v);
       return d;
     }));
+  }
+
+  // -----------------------------------------------------------------------
+  // Frontier Apex Omnibus HUD Status
+  // -----------------------------------------------------------------------
+  if ($('omnibus-hud')) {
+    fetch('/api/omnibus/status')
+      .then(r => r.json())
+      .then(omnibusStatus => {
+        if ($('omnibus-badge')) {
+          if (omnibusStatus.is_completed) {
+            $('omnibus-badge').textContent = 'Curriculum Complete';
+            $('omnibus-badge').style.color = '#00ffb4';
+          } else if (omnibusStatus.current_stage_idx > 0 || omnibusStatus.total_steps > 0) {
+            $('omnibus-badge').textContent = `Stage ${omnibusStatus.current_stage_idx + 1}/${omnibusStatus.total_stages}: ${omnibusStatus.current_task}`;
+            $('omnibus-badge').style.color = '#ffd166';
+          } else {
+            $('omnibus-badge').textContent = 'Apex Standby (2,000 N)';
+            $('omnibus-badge').style.color = '#c77dff';
+          }
+        }
+        const stagesDone = (omnibusStatus.stages_completed || []).length;
+        const lastReceipt = omnibusStatus.receipt;
+        const items = [
+          ['Connectome Scale', `${omnibusStatus.total_neurons || 2000} Neurons (667/667/666)`],
+          ['Active Curriculum Stage', `${stagesDone}/${omnibusStatus.total_stages || 11} Completed`],
+          ['Current Task', omnibusStatus.current_task || 'forage'],
+          ['Retention Score', lastReceipt ? `${(lastReceipt.final_backward_retention * 100).toFixed(1)}%` : 'Pending final probe'],
+          ['Catastrophic Forgetting', lastReceipt ? `${(lastReceipt.catastrophic_forgetting * 100).toFixed(1)}%` : 'Target < 5%'],
+          ['SHA-256 Receipt', lastReceipt ? lastReceipt.cryptographic_sha256.slice(0, 16) + '...' : 'Signed upon completion']
+        ];
+        $('omnibus-hud').replaceChildren(...items.map(([k, val]) => {
+          const d = document.createElement('div');
+          d.className = 'kv';
+          const name = document.createElement('span'), v = document.createElement('b');
+          name.textContent = k;
+          v.textContent = val;
+          d.append(name, v);
+          return d;
+        }));
+      })
+      .catch(() => {});
+  }
+
+  const btnOmnibus = $('btn-omnibus-run');
+  if (btnOmnibus && !btnOmnibus.dataset.bound) {
+    btnOmnibus.dataset.bound = 'true';
+    btnOmnibus.addEventListener('click', async () => {
+      btnOmnibus.disabled = true;
+      btnOmnibus.textContent = 'Running Omnibus Curriculum...';
+      try {
+        const res = await fetch('/api/omnibus/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ steps_per_task: 15, total_neurons: 2000 })
+        });
+        const data = await res.json();
+        alert(`Omnibus Complete! Stages: ${data.receipt?.stages?.length}, Backward Retention: ${(data.receipt?.final_backward_retention * 100).toFixed(1)}%`);
+      } catch (err) {
+        alert('Omnibus run error: ' + err.message);
+      } finally {
+        btnOmnibus.disabled = false;
+        btnOmnibus.textContent = '✦ Frontier Apex Omnibus';
+        poll();
+      }
+    });
   }
 
   if (s.telemetry && signalHistory.at(-1)?.ticks !== s.telemetry.ticks) signalHistory.push(s.telemetry);
