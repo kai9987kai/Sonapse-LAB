@@ -32,6 +32,10 @@ def main(argv=None):
     sub.add_parser('atlas')
     sub.add_parser('efficiency')
     p=sub.add_parser('connectome'); p.add_argument('--query',default='motor')
+    sub.add_parser('neurogenesis')
+    sub.add_parser('homeostasis')
+    p=sub.add_parser('mimomix'); p.add_argument('--ponder',type=int,default=4)
+    p=sub.add_parser('ecology'); p.add_argument('--task',default='ecosystem')
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
     p.add_argument('--seeds',type=int,nargs='+',default=[7,11,19])
@@ -137,6 +141,23 @@ def main(argv=None):
                 m=comp.compile_subcircuit(query=args.query,max_neurons=args.nodes)
                 null=comp.generate_degree_preserving_null(m)
                 result=comp.benchmark_biological_vs_null(m,null)
+            elif args.command=='neurogenesis':
+                result=runtime.agent.neurogenesis.summary()
+            elif args.command=='homeostasis':
+                result=runtime.agent.homeostasis.summary()
+            elif args.command=='mimomix':
+                import torch
+                latent = torch.randn(64)
+                mod, trace = runtime.agent.mimomix.deliberate(latent, free_energy=0.8, surprisal=0.6, threat=0.2)
+                import dataclasses
+                result={'modification': mod.tolist(), 'trace': dataclasses.asdict(trace)}
+            elif args.command=='ecology':
+                from .complex_world import ComplexWorld
+                world = ComplexWorld(seed=args.seed)
+                obs = world.reset(task=args.task)
+                import numpy as np
+                next_obs, reward, done, info = world.step(np.array([0.5, 0.0, 0.0, 0.0, 0.0], dtype=np.float32))
+                result={'task': world.task, 'predators': len(world.predators), 'friction_zones': len(world.terrain_zones), 'gates': len(world.dynamic_gates), 'ambient_light': info.get('ambient_light', 1.0), 'reward': float(reward)}
         print(json.dumps(result,indent=2,allow_nan=False,default=str))
         return 1 if args.command in ('verify','adaptation-verify') and not result.get('ok',False) else 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:

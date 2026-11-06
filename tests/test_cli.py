@@ -46,3 +46,21 @@ def test_cli_metamorphic_and_spectral(tmp_path,capsys):
     data_spec=json.loads(capsys.readouterr().out)
     assert 'eigenvalues' in data_spec
     assert 'projection' in data_spec
+
+def test_cli_supermix_commands(tmp_path, capsys):
+    assert main(['--output', str(tmp_path), '--nodes', '16', 'neurogenesis']) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert 'active_synapses' in data
+
+    assert main(['--output', str(tmp_path), '--nodes', '16', 'homeostasis']) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert 'vitals' in data
+
+    assert main(['--output', str(tmp_path), '--nodes', '16', 'mimomix']) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert 'modification' in data and 'trace' in data
+
+    assert main(['--output', str(tmp_path), '--nodes', '16', 'ecology', '--task', 'ecosystem']) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data['task'] == 'ecosystem'
+    assert 'ambient_light' in data

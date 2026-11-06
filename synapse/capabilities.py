@@ -1579,10 +1579,92 @@ def _handle_evidence_research_benchmark(payload: Dict[str, Any]) -> Dict[str, An
     return {'status': 'ok', 'evidence_kind': 'native_world_development_study', 'receipt': result,
             'scope': 'measured small native-world development pilot; no confirmed performance advantage'}
 
+
+def _handle_structural_neurogenesis(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .neurogenesis import ConnectomeNeurogenesisEngine
+    num_neurons = int(payload.get('neurons', 16))
+    engine = ConnectomeNeurogenesisEngine(num_neurons=num_neurons, seed=int(payload.get('seed', 42)))
+    for _ in range(int(payload.get('steps', 5))):
+        rates = np.random.uniform(0.1, 0.9, size=num_neurons).astype(np.float32)
+        engine.record_activity(rates)
+    return {
+        'status': 'ok',
+        'scope': 'online covariance-driven synaptogenesis and apoptosis under Dale constraints',
+        'consumer': 'Connectome neurogenesis runtime and structural plasticity loop',
+        'summary': engine.summary(),
+        'mean_covariance': float(np.mean(np.abs(engine.rate_cov))),
+    }
+
+
+def _handle_homeostasis_engine(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .homeostasis import HomeostaticEngine
+    engine = HomeostaticEngine(seed=int(payload.get('seed', 42)))
+    action = np.array(payload.get('action', [0.8, 0.2, 0.1, 0.0, 0.0]), dtype=np.float32)
+    state = engine.step(action, reward=float(payload.get('reward', 0.0)), hazard_dist=float(payload.get('hazard_dist', 10.0)))
+    max_thrust = engine.get_max_allowed_thrust()
+    da, ser, octo, ach = engine.modulate_neuromodulators(1.0, 1.0, 1.0, 1.0)
+    return {
+        'status': 'ok',
+        'scope': 'vital regulation and dynamic neuromodulatory drive coupling',
+        'consumer': 'Homeostatic drive substrate and neuromodulatory feedback',
+        'vitals': state.to_dict(),
+        'max_allowed_thrust': max_thrust,
+        'modulated_neuromodulators': {'dopamine': da, 'serotonin': ser, 'octopamine': octo, 'acetylcholine': ach},
+    }
+
+
+def _handle_mimomix_deliberation(payload: Dict[str, Any]) -> Dict[str, Any]:
+    import dataclasses
+    from .mimomix_reasoner import MiMoMixCognitiveCore
+    core = MiMoMixCognitiveCore(latent_dim=64, action_dim=5, max_ponder_steps=int(payload.get('max_ponder', 4)))
+    latent = torch.randn(64)
+    action_mod, trace = core.deliberate(
+        latent,
+        free_energy=float(payload.get('free_energy', 0.6)),
+        surprisal=float(payload.get('surprisal', 0.5)),
+        threat=float(payload.get('threat', 0.1))
+    )
+    return {
+        'status': 'ok',
+        'scope': 'dual-process fast/slow cognitive reasoning with ACT mental search',
+        'consumer': 'Cognitive deliberation loop and action refinement',
+        'action_modification': action_mod.tolist(),
+        'trace': dataclasses.asdict(trace),
+    }
+
+
+def _handle_complex_ecology(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .complex_world import ComplexWorld
+    task = payload.get('task', 'ecosystem')
+    world = ComplexWorld(seed=int(payload.get('seed', 42)))
+    obs = world.reset(task=task)
+    action = np.array([0.5, 0.1, 0.0, 0.0, 0.0], dtype=np.float32)
+    next_obs, reward, done, info = world.step(action)
+    return {
+        'status': 'ok',
+        'scope': 'embodied ecosystem with dynamic predator drones, terrain friction, and diurnal cycles',
+        'consumer': 'Complex virtual ecology simulation and embodied observation stream',
+        'task': world.task,
+        'predator_count': len(world.predators),
+        'friction_zones': len(world.terrain_zones),
+        'gate_count': len(world.dynamic_gates),
+        'ambient_light': info.get('ambient_light', 1.0),
+        'threat_level': info.get('threat_level', 0.0),
+        'terrain_friction': info.get('terrain_friction', 1.0),
+        'reward': float(reward),
+        'done': bool(done),
+    }
+
+
 # Master Registry of all 47 Audited Capabilities across 19 Families
 # ---------------------------------------------------------------------------
 
 _REGISTRY: Dict[str, Dict[str, Any]] = {
+    'structural.neurogenesis': {'id': 'structural.neurogenesis', 'family': 'structural', 'name': 'Archimedes Connectome Neurogenesis Engine', 'description': 'Online covariance-driven synaptogenesis, apoptosis under Dale constraints, and neuromodulator/glial gating.', 'scope': 'online covariance-driven synaptogenesis and apoptosis under Dale constraints', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neurons': {'type': 'integer'}, 'steps': {'type': 'integer'}}}, 'example': {'neurons': 16, 'steps': 5}, 'handler': _handle_structural_neurogenesis},
+    'motivation.homeostasis': {'id': 'motivation.homeostasis', 'family': 'motivation', 'name': 'Supermix Homeostatic Drive Engine', 'description': 'Interoceptive vital regulation tracking Energy, Stamina, Health, Threat, Exposure, and Hunger with dynamic neuromodulatory drive coupling.', 'scope': 'vital regulation and dynamic neuromodulatory drive coupling', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'action': {'type': 'array'}, 'reward': {'type': 'number'}}}, 'example': {'action': [0.8, 0.2, 0.1, 0.0, 0.0], 'reward': 0.1}, 'handler': _handle_homeostasis_engine},
+    'reasoning.mimomix': {'id': 'reasoning.mimomix', 'family': 'reasoning', 'name': 'MiMoMix Dual-Process Cognitive Reasoner', 'description': 'Dual-process deliberative reasoning combining fast reflexive System 1 intuition with adaptive computation time (ACT) System 2 mental rollouts.', 'scope': 'dual-process fast/slow cognitive reasoning with ACT mental search', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'max_ponder': {'type': 'integer'}}}, 'example': {'max_ponder': 3}, 'handler': _handle_mimomix_deliberation},
+    'world.complex_ecology': {'id': 'world.complex_ecology', 'family': 'world', 'name': 'Complex Virtual Ecology & Dynamic Physics Engine', 'description': 'Embodied continuous ecosystem featuring autonomous predator drones, variable-friction terrain zones (ice, mud, sand), oscillating puzzle gates, and diurnal ambient lighting.', 'scope': 'embodied ecosystem with dynamic predator drones, terrain friction, and diurnal cycles', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'task': {'type': 'string'}}}, 'example': {'task': 'ecosystem'}, 'handler': _handle_complex_ecology},
+
     # 1. Reasoning
     'reasoning.solve': {'id': 'reasoning.solve', 'family': 'reasoning', 'name': 'Problem Forge Solver', 'description': 'Exact arithmetic, symbolic and state-space problem solver.', 'scope': 'exact verified arithmetic and problem solving', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': ['expression']}, 'example': {'expression': '12 + 30'}, 'handler': _handle_reasoning_solve},
     'reasoning.cartan': {'id': 'reasoning.cartan', 'family': 'reasoning', 'name': 'Cartan Exterior System Solver', 'description': 'Exterior differential systems and differential forms involutivity solver.', 'scope': 'Cartan exterior differential systems solver', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'dim': {'type': 'integer'}}}, 'example': {'dim': 4}, 'handler': _handle_reasoning_cartan},

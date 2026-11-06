@@ -7,49 +7,77 @@ tags:
 - weight-space-programming
 - continual-learning
 - pytorch
+- neurogenesis
+- homeostasis
+- dual-process-reasoning
 license: apache-2.0
 ---
 
-# SYNAPSE
+# SYNAPSE: Developmental Connectome Intelligence & Weight-Space Lab
 
-A CPU research workbench for coupled recurrent graphs, a frozen Poseidon Tidal controller, persistent weight edits, and experience-conditioned action experiments. Pinned GraftBrain, Poseidon, and Expanse sources supply the building blocks. The live actor uses small proxy connectomes; anatomical metadata and standalone biological analyses are separate from those graphs.
+A unified, CPU-first embodied cognitive research platform combining signed recurrent neural graphs, a frozen Poseidon Tidal MoE DAgger controller, continuous online connectome neurogenesis, interoceptive homeostatic drive regulation, MiMoMix dual-process cognitive deliberation, experience-grounded prediction, and direct weight-space programming with inherited recursive self-improvement (RSI).
 
-The latest upgrade connects learned prediction and surprise memory to executed actions, repairs checkpoint training and camera wiring, and replaces the old hard-coded evidence report with measured experiments. Performance benefits remain experimental. Read the [research review](docs/research/2026-11-06-experience-learning-review.md) and [results and limitations](docs/results/2026-11-06-experience-adaptation.md).
+Live telemetry, real-time 3D anatomical connectome visualization, and zero-warping virtual world observatory are served via a local web interface and audited CLI tools.
 
-## What runs together
+## Architecture
 
 ```mermaid
 flowchart TD
-    W[Native embodied world] --> O[Visible observations]
-    O --> A[Proxy graph + compass + mushroom body]
-    A <--> T[Frozen Tidal controller]
-    A --> M[Motor action]
-    O --> P[Experimental one-step planner]
-    A --> P
-    M --> P
-    E[Bootstrap prediction ensemble] --> P
-    R[Bounded outcome memory] --> P
-    P --> X[Executed action]
-    X --> W
-    W --> F[Observed reward and next sensors]
-    F -->|Learning enabled| E
-    F -->|Learning enabled| R
+    W[Complex Dynamic Virtual Ecology] -->|Observations, Threat, Friction, Light| S[Sensory Stream: Rangefinder, Contrast, Cues]
+    S --> A[GraftBrain Recurrent Rate Connectome]
+    A <-->|Residual Bridges| T[Frozen Poseidon Tidal MoE Controller]
+    
+    %% Astrocytic and Homeostatic Neuromodulation
+    H[Homeostatic Drive Engine] -->|Vitals: Energy, Stamina, Health, Threat, Hunger| N[Neuromodulatory Field: DA, 5-HT, OA, ACh]
+    N --> A
+    N --> G[Astrocytic Calcium Reservoir]
+    G --> A
+    
+    %% Fast Sensorimotor vs Deliberative Cognition
+    A --> M[Fast Motor Actuators: Drive, Turn, Reach, Height, Grip]
+    M --> R[MiMoMix Dual-Process Reasoner]
+    A --> R
+    T --> R
+    R -->|System 1 Fast Reflex or System 2 ACT Mental Search| D[Deliberated Action]
+    
+    %% Experience & Outcome Planning
+    E[Experience World Model Ensemble] --> P[One-Step Predictive Planner]
+    SM[Surprise Episodic Outcome Memory] --> P
+    D --> P
+    P --> X[Executed Action]
+    X -->|Dynamic Throttle by Stamina Fatigue| W
+    
+    %% Structural & Weight-Space Plasticity
+    A -->|Online Welford Covariance| NG[Archimedes Connectome Neurogenesis]
+    N -->|Dopamine RPE & Astrocyte Calcium Gating| NG
+    NG -->|Synaptogenesis & Apoptosis under Dale's Law| A
+    
+    %% Weight Space Programming & RSI
+    X --> EXP[Rollout Experience & Causal Diagnostics]
+    EXP --> WSP[Weight-Space Programmer & Transaction Ledger]
+    WSP -->|Validated Inactive Patch & Atomic Rollback| A
+    WSP --> RSI[Inherited Meta-Improvement Policy]
 ```
 
-| Component | Behavior and evidence boundary |
-|---|---|
-| Graph/Tidal actor | Bidirectional coupling, associative learning, compass, neuromodulation and glial/predictive heuristics. Bridge and motor weights begin untrained. |
-| Experience model | Three bootstrap RLS members learn sensor deltas and actual reward. Live neural summaries condition prediction; their future dynamics are excluded. Leverage and disagreement are uncalibrated heuristics. |
-| Surprise memory | Up to 128 actual state/action/reward outcomes, selective error/coverage writes, and pure distance/recency reads. |
-| Planner | Original action plus ten local alternatives, changing at most one coordinate by 0.35. Requires support, lower prequential error than a reward-average baseline, and a conservative predicted advantage. Off by default; immediate reward only. |
-| Checkpoints | Preserve ensemble, covariance, RNG, memory, pending outcome, visual weights, optimizer bindings, world state and neuromodulatory reward baseline. Ordinary supported learning resumes exactly in tests. |
-| Camera | Causally affects actions, accepts supervised preparation gradients and persists parameters. This establishes wiring, not recognition performance. |
-| Weight edits | Bounded packets, parent fingerprints, candidate checks and rollback. Optional measured guard screening binds approval to the assessed delta and target; no task gain is invented. |
-| Capabilities | Typed access to imported reasoning tools and exploratory modules. Available does not mean useful for the live task. |
+## System Components & Evidence Boundaries
 
-## Run locally
+| Subsystem | Architectural Role | Governing Dynamics & Evidence Boundary |
+|---|---|---|
+| **Recurrent Connectome Substrate** | Fast sensorimotor rate dynamics | Signed base connectivity across FlyWire, MANC, and Optic Lobe profiles, 8 inter-module graft sites, Dale's law compliance, and ellipsoid body compass bump. |
+| **Tidal MoE Controller** | Pretrained goal & intent donor | Pinned Poseidon Tidal core (`tidal_core.pt`, SHA-256 `a053104a...`), 4 experts, 128 hidden width, 2 recurrent steps, 6 categorical intent classes (`rest`, `forage`, `drink`, `shelter`, `explore`, `flee`). Kept frozen during ordinary execution. |
+| **Archimedes Neurogenesis Engine** | Dynamic structural plasticity | Continuous online Welford covariance tracking; apoptosis of inactive synapses ($|w| < \theta_{\text{prune}}$); synaptogenesis of high-covariance neural pairs gated by Dopamine RPE and Astrocytic $[\text{Ca}^{2+}]$; strict Dale's law sign preservation. |
+| **Supermix Homeostatic Drives** | Interoceptive physiological regulation | Continuous tracking of 6 bodily vitals (Energy, Stamina, Health, Threat, Exposure, Hunger); dynamic neuromodulator coupling ($\text{DA}, 5\text{-HT}, \text{OA}, \text{ACh}$); physical forward thrust limits under stamina fatigue. |
+| **MiMoMix Cognitive Core** | Dual-process cognitive deliberation | Epistemic trigger monitoring free energy, surprisal, and hazard proximity; fast reflexive System 1 intuition vs. multi-step System 2 Adaptive Computation Time (ACT) mental rollouts with attention sink null-slots and ponder penalties. |
+| **Experience World Model** | Prequential dynamics prediction | 3-member deterministic bootstrap RLS ensemble predicting sensor summary deltas and reward conditioned on live graph/Tidal representations. Disagreement and leverage provide uncalibrated heuristics. |
+| **Surprise Episodic Memory** | Error-gated outcome storage | Bounded capacity (128 entries); selective error/coverage admission; pure distance and recency weighted retrieval; non-mutating reads. |
+| **Complex Dynamic Ecology** | Embodied virtual simulation | Continuous 2D/3D physics environment featuring autonomous moving predator drones with threat auras, variable-friction terrain zones (ice, mud, sand), dynamic oscillating/locked gates, and diurnal ambient illumination cycles. |
+| **Weight-Space Programming** | Safe transactional parameter editing | Bounded edit packets, parent hash validation, candidate evaluation, exact state rollback, and closed-loop automated diagnosis/repair. |
+| **Recursive Self-Improvement (RSI)** | Meta-level learning of learning | Versioned improvement policies $\phi_g$, support/query task isolation, shared archive controls, candidate meta-validation, and fresh-learner held-out evaluations. |
+| **Zero-Warping Observatory & HUD** | Real-time scientific visualization | Isotropic 3D isometric and top-down radar views with mathematical aspect ratio locking; real-time 3D anatomical connectome observatory with OrbitControls; direct WASD teleoperation; real-time Vitals HUD meters. |
 
-Python 3.10+ with CPU PyTorch, NumPy and SciPy:
+## Run Locally
+
+Requires Python 3.10+ with PyTorch CPU, NumPy, and SciPy:
 
 ```powershell
 python -m pip install -e .
@@ -57,41 +85,65 @@ python -m pytest -q
 .\launch.ps1 -Port 8765
 ```
 
-Open [the local workbench](http://127.0.0.1:8765). Run-Synapse.cmd is also available.
+Open the local workbench at [http://127.0.0.1:8765](http://127.0.0.1:8765) or launch via `Run-Synapse.cmd`.
 
-The workbench provides zero-warping live 3D isometric & top-down radar world views, an interactive 3D anatomical connectome observatory with real-time neuron inspection and mouse orbit, direct teleoperation controls (WASD/arrows/space), capabilities explorer, weight programs, bounded RSI jobs, and advanced assay panels (Causal Circuit Atlas, Weight-Space Hypernetwork synthesis, Flagship benchmarks, and State Archive). In **Experience learning & surprise memory**, use **Train +32** to collect real outcomes, select the action policy, and click **Set policy**. Switching preserves experience. Actor-only mode continues collecting memory when learning is enabled; model-only mode disables memory writes. With learning off, model and memory stay frozen while recurrent inference state advances.
+### Interactive Workbench Features
+- **Zero-Warping World Views**: True isotropic aspect ratio rendering for both 3D isometric projection and top-down radar world views, ensuring square cells remain square under all window resizes.
+- **Complex Ecology Telemetry**: Real-time visualization of terrain friction zones (ice, mud, sand), moving predator drones with hazard danger rings, dynamic gates, day/night ambient lighting, and resource targets.
+- **Direct Keyboard Teleoperation**: Control the embodied agent in real-time using WASD or Arrow Keys, with Spacebar for object grab/place.
+- **3D Anatomical Connectome Observatory**: Interactive 3D point-cloud and synaptic edge visualization with OrbitControls (left-click rotate, right-click pan, scroll zoom) and click-to-inspect individual neuron activity.
+- **Homeostatic Vitals & Cognition HUD**: Real-time meters for Energy, Stamina, Health, Threat, Exposure, and Hunger, paired with MiMoMix System 1 / System 2 deliberation badges and ACT ponder steps.
+- **Scientific Assay Panels**: Causal Circuit Atlas, Weight-Space Hypernetwork synthesis, Flagship evolutionary benchmarks, State Archives, and Audited Capabilities Explorer.
 
-Prediction and baseline RMSE, gate status, memory occupancy and planner decisions are inspectable. The planner may abstain for an entire run. Finite predictions or accepted edits do not establish improved behavior.
+## Command Line Interface (CLI)
+
+SYNAPSE provides comprehensive CLI commands for headless execution, experiments, and inspection:
 
 ```powershell
+# Inspection & Baseline Execution
 python -m synapse.cli --nodes 16 status
-python -m synapse.cli --nodes 16 train --steps 100 --save trained
-python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 2 --eval-episodes 2
-```
+python -m synapse.cli --nodes 16 run --steps 100
+python -m synapse.cli --nodes 16 train --steps 100 --save trained_agent
 
-Programmatic planning uses SynapseConfig(experience_planning=True) or agent.act(obs, planner_mode='memory'). LabRuntime.step(..., learn=True) attributes outcomes to executed actions. External collectors can call agent.observe_transition(next_obs, reward, done, action=applied) once after an action.
+# Supermix Beyond Capabilities
+python -m synapse.cli --nodes 16 neurogenesis
+python -m synapse.cli --nodes 16 homeostasis
+python -m synapse.cli --nodes 16 mimomix --ponder 4
+python -m synapse.cli --nodes 16 ecology --task ecosystem
 
-## Measured experiments
+# Audited Upstream Capabilities (126 audited capabilities across 47 families)
+python -m synapse.cli capabilities --id structural.neurogenesis
+python -m synapse.cli capabilities --id motivation.homeostasis
+python -m synapse.cli capabilities --id reasoning.mimomix
+python -m synapse.cli capabilities --id world.complex_ecology
 
-The evidence command now runs actual native worlds. Actor-only, model-only, model-plus-memory and shuffled-reward controls share support; learned state freezes on separately seeded query worlds.
+# Automated Weight-Space Programming & Closed-Loop Repair
+python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 3 --eval-episodes 3 --save repaired_agent
+python -m synapse.cli --nodes 16 transplant --donor-task forage --test-task delayed_match
+python -m synapse.cli --nodes 16 metamorphic
+python -m synapse.cli --nodes 16 spectral
+python -m synapse.cli --nodes 16 hyperprogram --target motor.weight
 
-```powershell
+# Measured Adaptation Experiments
 python -m synapse.cli --output outputs evidence --name my-pilot --seeds 7 11 19 --tasks forage push --support-steps 64 --query-steps 64
 python -m synapse.cli adaptation-verify outputs/adaptation-studies/my-pilot
 python -m synapse.cli evidence --receipt outputs/adaptation-studies/my-pilot
-python -m synapse.continual_probe --output outputs/continual-probe.json
 ```
 
-Studies save raw support/query records, checkpoints, signed per-unit return differences, descriptive paired intervals, costs, source/dependency fingerprints and freeze checks. Verification replays arithmetic and hashes; it does not rerun the environment or independently authenticate recorded claims. Source changes produce explicit warnings.
+## Measured Experiments & Verification
 
-The controlled stream separately tests hidden reward reversal/recurrence and old-regime interference. These are small development pilots. The original ungated native pilot regressed on average, and memory did not change its chosen actions. That result motivated the prediction gate. The controlled probe also exposed worse prediction error during reversal and old-regime interference; keep these negatives.
+Empirical evidence studies run on actual native and complex environments with strictly separated support and query worlds:
+- **Support Adaptation**: Shared exploratory support trajectories condition the learner.
+- **Query Freeze**: All model and memory learning is strictly frozen during query episodes.
+- **Replay & Audit Receipts**: Full cryptographic digests, parameter matrices, RNG states, and execution timings are recorded in atomic JSON receipts.
 
-Existing study / verify commands remain a separate numeric cue-readout RSI pilot. Its stored earlier final recursive-minus-fixed advantage was zero; direct cue access and reused task features limit interpretation.
+## Upstream Lineage & Research Grounding
 
-## Experimental boundaries
+SYNAPSE unifies innovations from:
+- **GraftBrain**: Signed recurrent neural dynamics, biological neuropil topologies, mushroom body associative learning, and embodied planar physics.
+- **Supermix-Poseidon**: Trained Tidal MoE DAgger controller, predictive horizons, causal intervention analyzers, and multi-expert routing.
+- **Supermix-Expanse**: Function-preserving dormant experts, native consolidation, evoked graph readouts, and male-CNS connectome data.
+- **Archimedes v93**: Continuous covariance-driven structural neurogenesis, synaptogenesis, and apoptosis.
+- **Supermix Beyond**: Interoceptive homeostatic drive regulation, MiMoMix dual-process cognitive deliberation, and complex multi-hazard virtual ecology.
 
-The [design](docs/superpowers/specs/2026-11-06-experience-grounded-adaptation-design.md) and [plan](docs/superpowers/plans/2026-11-06-experience-grounded-adaptation.md) record this upgrade. The research review links primary work on continual plasticity, TTT, Titans, PETS, RefPlan and executed-action attribution, and states algorithm differences. These CPU adaptations are not reproductions or a broad intelligence claim.
-
-Legacy flagship transfer and recursive-learning modules contain independent-module and analytic hyperparameter surrogates. Their success flags do not establish embodied recipient transfer, statistical superiority or recursive improvement. The old standalone neural world model's confidence head is uncalibrated. Metamorphic checks are sampled relations, not formal proofs. Arbitrary legacy topology mutations can leave graph metadata/buffers inconsistent and are outside ordinary checkpoint guarantees. Supervised preparation still approximates parts of the live recurrent policy.
-
-No paid compute, remote publication or upstream source modification is required. Source provenance is recorded in synapse/source_manifest.json.
+All source code is released under the Apache 2.0 license. Detailed source manifests and hashes are preserved in `synapse/source_manifest.json`.

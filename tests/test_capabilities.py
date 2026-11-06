@@ -58,6 +58,30 @@ def test_frontier_capabilities():
     assert struct['status'] == 'ok'
     assert struct['neurons'] > 0
 
+
+
+def test_supermix_capabilities():
+    neuro = invoke('structural.neurogenesis', {'neurons': 16, 'steps': 5})
+    assert neuro['status'] == 'ok'
+    assert 'summary' in neuro
+    assert 'mean_covariance' in neuro
+
+    homeo = invoke('motivation.homeostasis', {'action': [0.8, 0.2, 0.1, 0.0, 0.0], 'reward': 0.1})
+    assert homeo['status'] == 'ok'
+    assert 'vitals' in homeo
+    assert 'max_allowed_thrust' in homeo
+    assert 'modulated_neuromodulators' in homeo
+
+    mimo = invoke('reasoning.mimomix', {'max_ponder': 3})
+    assert mimo['status'] == 'ok'
+    assert 'action_modification' in mimo
+    assert 'trace' in mimo
+
+    eco = invoke('world.complex_ecology', {'task': 'ecosystem'})
+    assert eco['status'] == 'ok'
+    assert 'ambient_light' in eco
+    assert 'predator_count' in eco
+
 def test_coverage_sweep():
     sweep = coverage_sweep()
     assert sweep['total'] >= 70
