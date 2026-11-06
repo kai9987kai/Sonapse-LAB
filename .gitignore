@@ -5,7 +5,8 @@ __pycache__/
 .sources/
 .superpowers/
 outputs/
-artifacts/
+artifacts/*
+!artifacts/tidal_core.pt
 build/
 dist/
 *.egg-info/
