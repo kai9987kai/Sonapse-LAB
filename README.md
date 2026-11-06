@@ -5,181 +5,93 @@ tags:
 - connectome
 - neuromorphic
 - weight-space-programming
-- biological-neural-networks
-- recursive-self-improvement
-- drosophila
+- continual-learning
 - pytorch
 license: apache-2.0
 ---
 
-# SYNAPSE: Developmental Connectome Intelligence
+# SYNAPSE
 
-**SYNAPSE** is an integrated cognitive, neuromorphic, and weight-space research system combining:
-1. **GraftBrain** (`kai9987kai/Graft-brain`) — multi-source recurrent rate connectomes, signed Dale-law synaptic dynamics, adaptive graft plasticity, ellipsoid body heading compass, and sparse Kenyon cell associative memory.
-2. **Supermix-Poseidon** (`kai9987kai/Supermix-Poseidon`) — trained Tidal DAgger MoE expert controller (327,230 parameters), recurrent memory state, and verified symbolic problem solving.
-3. **Supermix-Expanse-v2** (`kai9987kai/Supermix-Expanse-v2`) — function-preserving dormant expert slots, native latent consolidation blocks, input-dependent graph gates, and evoked zero-subtracted connectome readouts.
-4. **Weight-Space Programming & Autonomous Repair** — transaction-safe, bounded numeric weight modifications with parent fingerprinting, atomic rollback, and closed-loop failure diagnosis with writer-disconnected confirmation.
-5. **Multi-Model Subcircuit Transplantation** — cross-model donor subcircuit extraction and ridge representation alignment evaluated across a full 6-arm factorial control suite (`correct`, `random`, `shuffled`, `irrelevant`, `disabled`, `permuted_host`).
-6. **Pearlian Causal Mediation Analysis** — counterfactual decomposition of Natural Direct (NDE) vs Natural Indirect (NIE) effects, determining whether weight programs act through recurrent connectome dynamics vs superficial motor biasing.
-7. **Biological Connectome Metabolic Sparsification** — models physical axonal distance, wiring costs, and homeostatic energy to sweep non-dominated Pareto frontiers.
-8. **Dale's Principle & Neurotransmitter Sign Projection** — sign compliance auditing and convex cone projection grounded in 11,751 cell types from the Janelia Male CNS v1.0 connectome.
-9. **Multi-Factor Biological Neuromodulation** — dynamic neurochemical fields for Dopamine (DA / RPE), Serotonin (5-HT / patience), Octopamine (OA / vigor), and Acetylcholine (ACh / sensory attention).
-10. **Spectral Connectomics & Harmonic Decomposition** — normalized graph Laplacian eigendecomposition, harmonic resonant modes, and live neural power spectra.
-11. **Weight-Space Hypernetwork Synthesis** — low-rank neural hypernetworks compiling behavioral diagnostic vectors directly into verified, bounded parameter patches.
-12. **Metamorphic Invariance Oracle** — formal stress-testing across rotational invariance (MR1), valence monotonicity (MR2), sensor fault tolerance (MR3), and Lipschitz stability (MR5).
-13. **Activity-Dependent Structural Plasticity** — Hebbian cross-neuropil synaptogenesis and metabolic dormant synapse pruning.
-14. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
-15. **Tripartite Neuro-Glia Astrocyte Metaplasticity** — regional astrocytic endfeet tracking $[Ca^{2+}]_i$ calcium waves and spillover, releasing gliotransmitters (ATP/D-serine) to dynamically adapt Bienenstock-Cooper-Munro (BCM) sliding thresholds and protect against hyperactive epileptiform synchrony.
-16. **Hierarchical Active Inference & Predictive Coding** — Karl Friston's Free Energy Principle (FEP) decomposed into top-down generative predictions from Tidal memory, precision-weighted prediction errors, and reflex motor action biases.
-17. **Gromov-Wasserstein Non-Euclidean Manifold Alignment** — unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies without requiring paired sensory-motor observations.
+A CPU research workbench for coupled recurrent graphs, a frozen Poseidon Tidal controller, persistent weight edits, and experience-conditioned action experiments. Pinned GraftBrain, Poseidon, and Expanse sources supply the building blocks. The live actor uses small proxy connectomes; anatomical metadata and standalone biological analyses are separate from those graphs.
 
----
+The latest upgrade connects learned prediction and surprise memory to executed actions, repairs checkpoint training and camera wiring, and replaces the old hard-coded evidence report with measured experiments. Performance benefits remain experimental. Read the [research review](docs/research/2026-11-06-experience-learning-review.md) and [results and limitations](docs/results/2026-11-06-experience-adaptation.md).
 
-## Architecture Overview
-
-SYNAPSE operates across coupled timescales:
+## What runs together
 
 ```mermaid
 flowchart TD
-    W[Embodied World: 9 Native Backends] -->|155-d sensory obs| S[Retina rays, proprioception, resource cues]
-    S --> B[Compass bump + Mushroom Body + Curiosity RND]
-    B --> G[Grafted Connectome: 300 Neurons across 8 Sites]
-    G --> A[Motor Decoder: 5 continuous commands] --> W
-    G <-->|bidirectional residual bridge| P[Poseidon Tidal MoE: 4 Experts, 128-d Memory]
-    P -->|Intent & routing| G
-    G & P --> E[Episodic & Tool Memory Trace]
-    E --> NM[Neuromodulatory Field Engine: DA, 5-HT, OA, ACh]
-    NM -->|Gains & Vigor| G & A
-    E --> C[Weight-Space Hypernetwork / RSI Meta-Policy]
-    C --> T[Inactive Candidate Checkpoint]
-    T --> V[Paired Retention & Metamorphic Screen]
-    V -->|accepted| G
-    V -->|accepted| P
+    W[Native embodied world] --> O[Visible observations]
+    O --> A[Proxy graph + compass + mushroom body]
+    A <--> T[Frozen Tidal controller]
+    A --> M[Motor action]
+    O --> P[Experimental one-step planner]
+    A --> P
+    M --> P
+    E[Bootstrap prediction ensemble] --> P
+    R[Bounded outcome memory] --> P
+    P --> X[Executed action]
+    X --> W
+    W --> F[Observed reward and next sensors]
+    F -->|Learning enabled| E
+    F -->|Learning enabled| R
 ```
 
----
+| Component | Behavior and evidence boundary |
+|---|---|
+| Graph/Tidal actor | Bidirectional coupling, associative learning, compass, neuromodulation and glial/predictive heuristics. Bridge and motor weights begin untrained. |
+| Experience model | Three bootstrap RLS members learn sensor deltas and actual reward. Live neural summaries condition prediction; their future dynamics are excluded. Leverage and disagreement are uncalibrated heuristics. |
+| Surprise memory | Up to 128 actual state/action/reward outcomes, selective error/coverage writes, and pure distance/recency reads. |
+| Planner | Original action plus ten local alternatives, changing at most one coordinate by 0.35. Requires support, lower prequential error than a reward-average baseline, and a conservative predicted advantage. Off by default; immediate reward only. |
+| Checkpoints | Preserve ensemble, covariance, RNG, memory, pending outcome, visual weights, optimizer bindings, world state and neuromodulatory reward baseline. Ordinary supported learning resumes exactly in tests. |
+| Camera | Causally affects actions, accepts supervised preparation gradients and persists parameters. This establishes wiring, not recognition performance. |
+| Weight edits | Bounded packets, parent fingerprints, candidate checks and rollback. Optional measured guard screening binds approval to the assessed delta and target; no task gain is invented. |
+| Capabilities | Typed access to imported reasoning tools and exploratory modules. Available does not mean useful for the live task. |
 
-## Master Capability Explorer
+## Run locally
 
-SYNAPSE exposes 72 typed, audited service capabilities across 17 architecture families:
+Python 3.10+ with CPU PyTorch, NumPy and SciPy:
 
-| Capability ID | Family | Name | Scope / Intended Role |
-|---|---|---|---|
-| `reasoning.solve` | reasoning | Problem Forge Solver | Exact verified arithmetic & AST problem solving |
-| `reasoning.cartan` | reasoning | Cartan Exterior Solver | Exterior differential systems & involutivity |
-| `reasoning.noether` | reasoning | Noether Symmetry Analyzer | Variational symmetries & conservation laws |
-| `reasoning.causal` | reasoning | Causal Do-Calculus Solver | Pearl do-calculus intervention estimation |
-| `memory.retrieve` | memory | Episodic Memory Retrieval | Query tool & episodic memory store |
-| `memory.store` | memory | Episodic Memory Storage | Explicit key/value record persistence |
-| `memory.mnemosyne` | memory | Mnemosyne Working Memory | Multi-timescale decaying trace buffer |
-| `memory.hologram` | memory | Holographic Vector Memory | HRR circular convolution binding |
-| `core.scene` | core | Poseidon Tidal Core | Tidal DAgger expert controller inference |
-| `core.tidal` | core | Tidal Core Metadata | MoE expert controller parameter inspection |
-| `graph.substrate` | graph | Connectome Substrate | Recurrent connectome rate graph simulation |
-| `graph.connectomes` | graph | Drosophila Neuropil Profiles | Connectome registry (flywire, manc, optic-lobe) |
-| `graph.successor` | graph | Successor Solver | Bounded successor representation matrix |
-| `embodiment.compass` | embodiment | Central Complex Compass | 16-wedge ring attractor heading bump |
-| `embodiment.mushroom_body`| embodiment | Mushroom Body Learner | Sparse Kenyon cell valence plasticity |
-| `embodiment.curiosity` | embodiment | RND Curiosity Bonus | Prediction error novelty bonus |
-| `planning.oracle` | planning | Oracle Trajectory Planner | Forward trajectory rollout predictor |
-| `nexus.phase_world` | nexus | NEXUS PhaseWorld POMDP | Discrete phase transition dynamics |
-| `reliability.crosswire` | reliability | Crosswire Hypothesis Pruner| Version-space hypothesis pruning |
-| `tools.archimedes` | tools | Archimedes Geometric Engine | Exact geometry & constraint evaluation |
-| `expanse.male_cns` | expanse | Male CNS Core | Janelia male CNS 11,751 cell-type real connectome |
-| `expanse.dormant_expert` | expanse | Dormant Expert Gate | Zero-initialized expert slot wake-up gate |
-| `expanse.donor_graft` | expanse | Donor Ridge Map | Cross-model representation alignment map |
-| `weightspace.causal_mediation` | weightspace | Causal Mediation Assay | Pearlian NDE/NIE decomposition of weight edits |
-| `weightspace.metabolic_pareto` | weightspace | Metabolic Pareto Optimizer | Biological wiring cost & Pareto sparsification |
-| `connectome.dales_law_audit` | connectome | Dale's Law Auditor | Janelia neurotransmitter sign compliance audit |
-| `neuromodulation.state` | neuromodulation | Neuromodulatory Field Engine | Dynamic DA, 5-HT, OA, ACh chemical tracking |
-| `spectral.harmonics` | spectral | Connectome Harmonic Analyzer | Laplacian eigenmode decomposition & power spectra |
-| `hypernetwork.synthesize` | hypernetwork | Hypernetwork Synthesizer | Low-rank learned patch compiler from telemetry |
-| `metamorphic.audit` | metamorphic | Metamorphic Invariance Oracle| Stress-testing MR1..MR5 invariant relations |
-| `structural.topology` | structural | Structural Topology Auditor | Synaptic density & synaptogenesis analysis |
-| `rsi.meta_evaluate` | rsi | RSI Meta-Evaluation Screen | Fresh-learner meta-policy benchmark |
-| `language.smollm2` | language | SmolLM2 Interface | Optional local instruct tokenization |
-
----
-
-## Quick Start
-
-### Installation
-SYNAPSE is built with Python 3.10+ (tested on Python 3.12) and PyTorch CPU:
-```bash
-python -m pip install -e .
-```
-
-### Launch Interactive Local Workbench
-Start the local HTTP workbench server:
 ```powershell
+python -m pip install -e .
+python -m pytest -q
 .\launch.ps1 -Port 8765
-# Or on Windows cmd:
-Run-Synapse.cmd
-```
-Then navigate in your browser to:
-```
-http://127.0.0.1:8765
 ```
 
-The workbench provides 5 interactive panes:
-- **01 Live Workbench**: Real-time canvas rendering of connectome activation graphs, 3D world projections, ray-cast visual sensors, neurochemical & astrocyte field gauges, predictive coding free energy, and routing telemetry. Engineered with high-DPI transform-safe rendering and dedicated backing fills that prevent canvas whiteout.
-- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 75 audited capabilities across 20 architecture families.
-- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, execute factorial donor transplantation assays, stress-test with the Metamorphic Oracle, compute Connectome Harmonics, align non-Euclidean manifolds via Gromov-Wasserstein optimal transport, and audit tripartite astrocyte metaplasticity.
-- **04 Experiments & RSI**: Configure and execute bounded background RSI studies with job monitoring and lineage graphs.
-- **05 State Archive**: Save, load, and inspect exact agent and world session checkpoints.
+Open [the local workbench](http://127.0.0.1:8765). Run-Synapse.cmd is also available.
 
-### CLI Usage
-```bash
-# Inspect agent and connectome status
-python -m synapse.cli status
+The workbench provides zero-warping live 3D isometric & top-down radar world views, an interactive 3D anatomical connectome observatory with real-time neuron inspection and mouse orbit, direct teleoperation controls (WASD/arrows/space), capabilities explorer, weight programs, bounded RSI jobs, and advanced assay panels (Causal Circuit Atlas, Weight-Space Hypernetwork synthesis, Flagship benchmarks, and State Archive). In **Experience learning & surprise memory**, use **Train +32** to collect real outcomes, select the action policy, and click **Set policy**. Switching preserves experience. Actor-only mode continues collecting memory when learning is enabled; model-only mode disables memory writes. With learning off, model and memory stay frozen while recurrent inference state advances.
 
-# Run 100 simulation steps in the forage environment
-python -m synapse.cli run --steps 100 --save my_checkpoint
+Prediction and baseline RMSE, gate status, memory occupancy and planner decisions are inspectable. The planner may abstain for an entire run. Finite predictions or accepted edits do not establish improved behavior.
 
-# Train with active plasticity for 500 steps
-python -m synapse.cli train --steps 500 --save trained_agent
-
-# Run closed-loop autonomous failure diagnosis and repair
-python -m synapse.cli autoprogram --diagnostic-episodes 2 --eval-episodes 2
-
-# Run full factorial donor transplantation assay across 6 control arms
-python -m synapse.cli transplant --donor-task forage --test-task delayed_match --episodes 2
-
-# Run metamorphic invariance verification suite
-python -m synapse.cli metamorphic
-
-# Compute connectome harmonics and spectral power distribution
-python -m synapse.cli spectral
-
-# Generate learned hypernetwork patch targeting motor weights
-python -m synapse.cli hyperprogram --target motor.weight --edits 16
+```powershell
+python -m synapse.cli --nodes 16 status
+python -m synapse.cli --nodes 16 train --steps 100 --save trained
+python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 2 --eval-episodes 2
 ```
 
----
+Programmatic planning uses SynapseConfig(experience_planning=True) or agent.act(obs, planner_mode='memory'). LabRuntime.step(..., learn=True) attributes outcomes to executed actions. External collectors can call agent.observe_transition(next_obs, reward, done, action=applied) once after an action.
 
-## Running the Verification Suite
+## Measured experiments
 
-Run the full pytest suite:
-```bash
-python -m pytest
+The evidence command now runs actual native worlds. Actor-only, model-only, model-plus-memory and shuffled-reward controls share support; learned state freezes on separately seeded query worlds.
+
+```powershell
+python -m synapse.cli --output outputs evidence --name my-pilot --seeds 7 11 19 --tasks forage push --support-steps 64 --query-steps 64
+python -m synapse.cli adaptation-verify outputs/adaptation-studies/my-pilot
+python -m synapse.cli evidence --receipt outputs/adaptation-studies/my-pilot
+python -m synapse.continual_probe --output outputs/continual-probe.json
 ```
 
-All 61 test suites pass with 100% verification across:
-- Bidirectional neural coupling & bridge preparation
-- Multi-factor biological neuromodulation (DA, 5-HT, OA, ACh)
-- Spectral connectomics & Laplacian harmonic decomposition
-- Learned hypernetwork low-rank patch compilation
-- Formal metamorphic relations (MR1..MR5)
-- Developmental structural synaptogenesis & pruning
-- Acquiring mushroom body learning and reversal
-- Exact checkpoint state round-trip & inference freeze
-- Bounded patch application, stale parent rejection, and atomic rollback
-- Autonomous closed-loop failure diagnosis, synthesis, screening, and confirmation
-- Factorial transplantation with all 6 experimental control arms
-- Pearlian causal mediation analysis of weight programs (NDE vs NIE)
-- Biological connectome metabolic cost and Pareto frontier sweeps
-- Dale's principle sign consistency auditing & neurotransmitter projection
-- Fresh-learner RSI policy inheritance & receipt verification
-- Multi-backend world simulation across all 9 native tasks
-- Loopback security, CSP headers, and input boundary validation
-- Upstream capability catalog coverage (72 endpoints) & memory consumer wiring
+Studies save raw support/query records, checkpoints, signed per-unit return differences, descriptive paired intervals, costs, source/dependency fingerprints and freeze checks. Verification replays arithmetic and hashes; it does not rerun the environment or independently authenticate recorded claims. Source changes produce explicit warnings.
+
+The controlled stream separately tests hidden reward reversal/recurrence and old-regime interference. These are small development pilots. The original ungated native pilot regressed on average, and memory did not change its chosen actions. That result motivated the prediction gate. The controlled probe also exposed worse prediction error during reversal and old-regime interference; keep these negatives.
+
+Existing study / verify commands remain a separate numeric cue-readout RSI pilot. Its stored earlier final recursive-minus-fixed advantage was zero; direct cue access and reused task features limit interpretation.
+
+## Experimental boundaries
+
+The [design](docs/superpowers/specs/2026-11-06-experience-grounded-adaptation-design.md) and [plan](docs/superpowers/plans/2026-11-06-experience-grounded-adaptation.md) record this upgrade. The research review links primary work on continual plasticity, TTT, Titans, PETS, RefPlan and executed-action attribution, and states algorithm differences. These CPU adaptations are not reproductions or a broad intelligence claim.
+
+Legacy flagship transfer and recursive-learning modules contain independent-module and analytic hyperparameter surrogates. Their success flags do not establish embodied recipient transfer, statistical superiority or recursive improvement. The old standalone neural world model's confidence head is uncalibrated. Metamorphic checks are sampled relations, not formal proofs. Arbitrary legacy topology mutations can leave graph metadata/buffers inconsistent and are outside ordinary checkpoint guarantees. Supervised preparation still approximates parts of the live recurrent policy.
+
+No paid compute, remote publication or upstream source modification is required. Source provenance is recorded in synapse/source_manifest.json.

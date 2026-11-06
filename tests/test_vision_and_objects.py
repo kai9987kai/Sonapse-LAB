@@ -127,7 +127,8 @@ def test_uncertainty_guard_safety_gating():
     assess_safe = guard.assess_ensemble_proposals(proposals_safe, target_layer)
     assert assess_safe.approved is True
     
-    applied = apply_safe_modification(target_layer.weight, assess_safe, w_safe)
+    approved_mean = torch.stack([proposal.delta_weights for proposal in proposals_safe]).mean(dim=0)
+    applied = apply_safe_modification(target_layer.weight, assess_safe, approved_mean)
     assert applied is True
     
     # 2. Conflicting/divergent proposals (high disagreement)

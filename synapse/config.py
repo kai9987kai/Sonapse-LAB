@@ -15,8 +15,13 @@ class SynapseConfig:
     cognition_interval: int = 8
     readout: str = 'absolute'
     task: str = 'forage'
+    experience_planning: bool = False
+    surprise_memory: bool = True
 
     def __post_init__(self):
+        for key in ('experience_planning', 'surprise_memory'):
+            if type(getattr(self, key)) is not bool:
+                raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
             raise ValueError('seed must be a nonnegative 31-bit integer')
         for key, low, high in [('nodes_per_source',16,1500),('microsteps',1,8),('cognition_interval',1,128)]:
@@ -29,3 +34,14 @@ class SynapseConfig:
             raise ValueError('unknown task')
 
     def to_dict(self): return asdict(self)
+
+    def matches_saved(self, saved):
+        """Only new optional settings may be omitted by legacy checkpoints."""
+        if not isinstance(saved, dict):
+            return False
+        normalized = {'experience_planning': False, 'surprise_memory': True, **saved}
+        try:
+            restored = type(self)(**normalized)
+        except (TypeError, ValueError):
+            return False
+        return restored.to_dict() == self.to_dict()

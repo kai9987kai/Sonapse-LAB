@@ -1,0 +1,3925 @@
+{
+  "date": "2026-11-06",
+  "scope": "development pilots only; no confirmed embodied advantage",
+  "native": {
+    "development-20261106": {
+      "config": {
+        "seeds": [
+          7,
+          11,
+          19
+        ],
+        "tasks": [
+          "forage",
+          "push"
+        ],
+        "support_steps": 64,
+        "query_steps": 64,
+        "nodes_per_source": 16
+      },
+      "scope": "measured CPU native-world development pilot; frozen untrained actor bridges; one-step heuristic planning; no confirmed general advantage",
+      "summary": {
+        "paired_units": [
+          {
+            "seed": 7,
+            "task": "forage"
+          },
+          {
+            "seed": 7,
+            "task": "push"
+          },
+          {
+            "seed": 11,
+            "task": "forage"
+          },
+          {
+            "seed": 11,
+            "task": "push"
+          },
+          {
+            "seed": 19,
+            "task": "forage"
+          },
+          {
+            "seed": 19,
+            "task": "push"
+          }
+        ],
+        "arms": {
+          "off": {
+            "mean_return": -0.602578083407631,
+            "returns": [
+              -0.6661291241435711,
+              -0.677379301793508,
+              -0.5375530847258781,
+              -0.7868533421474438,
+              -0.05731103140649407,
+              -0.8902426162288903
+            ],
+            "mean_reward_mse": 0.00020489840733907029,
+            "planner_use_fraction": 0.0,
+            "memory_use_fraction": 0.0
+          },
+          "model": {
+            "mean_return": -0.8420844750641464,
+            "returns": [
+              1.1572850484681658,
+              -0.08503366529488454,
+              -0.6223088477741182,
+              -1.2257880641657262,
+              -3.263380228798892,
+              -1.0132810928194238
+            ],
+            "mean_reward_mse": 0.00208996538905946,
+            "planner_use_fraction": 1.0,
+            "memory_use_fraction": 0.0
+          },
+          "memory": {
+            "mean_return": -0.8420844750641464,
+            "returns": [
+              1.1572850484681658,
+              -0.08503366529488454,
+              -0.6223088477741182,
+              -1.2257880641657262,
+              -3.263380228798892,
+              -1.0132810928194238
+            ],
+            "mean_reward_mse": 0.00208996538905946,
+            "planner_use_fraction": 1.0,
+            "memory_use_fraction": 1.0
+          },
+          "shuffled": {
+            "mean_return": -0.4088047307210069,
+            "returns": [
+              -0.6661291241435711,
+              -0.6879966364383238,
+              0.3332177558082146,
+              -0.5338033513623118,
+              -0.08751860936555411,
+              -0.8105984188244952
+            ],
+            "mean_reward_mse": 0.0006669105822452842,
+            "planner_use_fraction": 0.9869791666666666,
+            "memory_use_fraction": 1.0
+          }
+        },
+        "comparisons": {
+          "model_minus_off": {
+            "paired_differences": [
+              1.823414172611737,
+              0.5923456364986235,
+              -0.08475576304824006,
+              -0.4389347220182823,
+              -3.206069197392398,
+              -0.12303847659053346
+            ],
+            "mean_difference": -0.23950639165651552,
+            "paired_bootstrap_95": [
+              -1.5917515847639416,
+              0.864119785049545
+            ]
+          },
+          "memory_minus_off": {
+            "paired_differences": [
+              1.823414172611737,
+              0.5923456364986235,
+              -0.08475576304824006,
+              -0.4389347220182823,
+              -3.206069197392398,
+              -0.12303847659053346
+            ],
+            "mean_difference": -0.23950639165651552,
+            "paired_bootstrap_95": [
+              -1.5917515847639416,
+              0.864119785049545
+            ]
+          },
+          "memory_minus_model": {
+            "paired_differences": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_difference": 0.0,
+            "paired_bootstrap_95": [
+              0.0,
+              0.0
+            ]
+          },
+          "memory_minus_shuffled": {
+            "paired_differences": [
+              1.823414172611737,
+              0.6029629711434392,
+              -0.9555266035823329,
+              -0.6919847128034143,
+              -3.175861619433338,
+              -0.20268267399492856
+            ],
+            "mean_difference": -0.43327974434313954,
+            "paired_bootstrap_95": [
+              -1.7180985521272338,
+              0.7376156954321506
+            ]
+          }
+        },
+        "interpretation": "development pilot; no outcome-based model promotion; small finite native worlds and shared task types limit generalization",
+        "uncertainty": "percentile bootstrap over independent seed/task actor-world units; time steps are not independent replicates; one unit has no interval"
+      },
+      "costs": {
+        "support_world_steps": 384,
+        "shuffled_support_replay_steps": 384,
+        "query_world_steps": 1536,
+        "model_update_calls": 768,
+        "query_update_calls": 0,
+        "actor_calls": 2304
+      },
+      "environment": {
+        "python": "3.12.10",
+        "platform": "Windows-11-10.0.28120-SP0",
+        "numpy": "2.4.3",
+        "scipy": "1.17.1",
+        "torch": "2.11.0+cpu"
+      },
+      "source_fingerprints": {
+        "__init__.py": "6270c2ab3c8d1e6e35fa54f748284d3c2f0a82dd167d8df295a64362bc2290e9",
+        "__main__.py": "7c553ad38c59c5c872b956fb383fbae28a49fc39c16f8d284217fa55d519d96b",
+        "active_inference.py": "54507984b21904497aa2f70511afefac30007adc284b88b261cb1027c04dd798",
+        "adaptation_study.py": "9e705f9ced061357f5172e53dbca0007b1a6a8784ca55aaa1caa4b14f29f74dd",
+        "adaptive_compute.py": "850a5f5a3f718e50d72a38bfe088879bb4b0d4bee131c6eb17fb320b1b5c2cfa",
+        "agent.py": "142d301feb43ff3388dc3ce95d1576a869f1f2e56eec23eb86ac71ff8ae8effb",
+        "astrocyte.py": "10d3c52df939dd420a961b05449acbb5e1535f5bd07e27e4b0134982cb98ae28",
+        "auto_programmer.py": "af1a42abce9148e3143d75a037217b9d34f4ff9e069396c4a3326494afd9d183",
+        "capabilities.py": "30b74c207f8b4aad4d3b23e427ee577a64266b2c464106fa8ba84f86557c0e9b",
+        "causal_mediation.py": "bdc72695855794f3be3cef80aa26e16274901c21382dcec62ddf26df81b76624",
+        "circuit_atlas.py": "86a754ae89294a5543e3d8098a4a2901d024079691c0bb79bb6604dd4014f9a2",
+        "cli.py": "8f4ee6e6f4cc1993b98ad100145b566263772f2d185b556624b33aa5cc169b39",
+        "config.py": "a1cc1eb6fba85411448e084dba5f24c1d05bd588bb0caddac8c1941179e279ca",
+        "connectome_compiler.py": "f4d37156c6c41d4e0e20e15f76072db5fae8b7e86372d35bad8c9bfbc1d696e3",
+        "curriculum.py": "e74cc89967cf4237f81739342a1a02c72a52a2307dcefacb85444235423f4ff3",
+        "dales_law.py": "1243e1044cee9a5789a5e0940a59628c9f9957f5bb891c22ee8735448640b50b",
+        "efficiency.py": "4546011dbcda07cb9247cd3d615af4bacf5a981a4cc2c0d5b2c22bf989c1e805",
+        "eprop.py": "898476a3d9bf06b4159471c3c74c1458a23642d1d517aa07264eb44e4d306b13",
+        "evidence_engine.py": "aa35679b4b385fddd5e87673d9aad30d642cb00f912b00bff690330b7a3a18db",
+        "evolution.py": "257a5b9835a4c953a12ee0838d07c5e8b85c1b598e270d3f0c247791c37574ae",
+        "experience.py": "51b1def2ee4e80e785bd0f5113db719613f63061b90a650d69d83be5699edd61",
+        "experiments.py": "e0f9825cfaf6e43b5473e628696a5619e60d6a3a9e61dbbecbfcd42f0c1c5c7a",
+        "flagship.py": "b4890102fb3c0964fef45c749de0ff99ea6ab44c5a3443e571e75dbc36ca8703",
+        "genome.py": "74a83d48ef39377ba61d009e18705eb6dbed77926d591a212de99f22dbf9c0a6",
+        "hypernetwork.py": "da132a5544ad35479da9ce3e8491a6c343b023553391d49387b5275305800d0e",
+        "hypernetwork_trainer.py": "b895cd02bfab62f6868843dcad4625db60505e9f35571f4e72ce59de92258bba",
+        "imagination.py": "464b71598998ef15541354129103f6cf3763c02525c08a88721bcee2c4f78f6d",
+        "learning.py": "a0ea6363534245e77e0f26d1aaa2e4fd84d42097405b8b7428476bcb4c1040d6",
+        "manifold_alignment.py": "d9fd9ba98d7660cc5b4dacc5dadc09341034434ffdcdc358c53dc7f04a7662cc",
+        "metabolic.py": "bd73f49caac8919308f2db11dd048975692a3aba308e83d30922be8e8ac8e0f7",
+        "metamorphic.py": "412e928a0a7c1248d2f774431fc95b0754bac3fb65262baa58ce197ab7358dee",
+        "metaplasticity.py": "0e64a220795d08f5b68b227fe7ac62bf2e729c1a05c7cbf2d4ec445763cd8621",
+        "motivation.py": "69e883958c40f0744225fececefd07ea08fe4499e1720324a712e4c68076ede4",
+        "multiscale_memory.py": "7eebb018a5a8e653b9d692c5b9a0189468f631b633b8ba70efd040e51d4978fb",
+        "neuro_symbolic.py": "5babd88df4dccdb78b01b6d78baabe3faf39e5b756d877b5db68410aeb6cd1f6",
+        "neuromodulation.py": "17d216453b826a902a82cd73ccfdfd648d90b1b276f4ea4f9174eb949a2ad098",
+        "object_memory.py": "6e82771ee1ba1cefd953c2d91fba8ec6187b26e73fa03a934bbac939e424facb",
+        "observatory.py": "eaa2037b1594ddee1833ea50b6949033ffb014b997bd02ea56c50359d3e3cac2",
+        "patches.py": "db8bb9f84669b807b98ff64c78cd76acfb3389e42176928b3e43265c9fed080b",
+        "predictive_coding.py": "836df4a580372ab30bc0fc4c1f7415b17c7db2cf300970f4ae3cff68705da4f8",
+        "recursive_learning.py": "627a55d07e97ce695aaa5e13d7dad6ef2b157cf4ebd58df3131fc0a344c5090d",
+        "rsi.py": "009db0357c1eecc7e0e39d947fb040d52c953ea984c7f1e0b629258ad8e8fe7c",
+        "runtime.py": "622c5dd3a7be6f2e2e874ed14f20d53255f92bd110881cea93609db7da32ce84",
+        "server.py": "b0eef9132fb2d7c6a8cb4eb12cd0d65af62c51debf9035bbacada97d30eb6ee0",
+        "skill_hierarchy.py": "74033121c00cf85bf78252f40eddc5c71f68f77562ae89e17ab5b093dd3bd877",
+        "sleep.py": "605a3aa68b7ff5f82f82a1d73835552106fc72c698f751b863eb8e15d33a7597",
+        "sources.py": "df3dc3f1ad44adf12c2d285bd8e0dc5067f9bd7d5309bde2d56393e321484582",
+        "spatial_map.py": "8da3e1679e8ea9a2d78b169f10ae7e1fa3e31a683e577e1eca36368e1449b62c",
+        "spectral.py": "d1dc6ea76100196166990c76a3de9224a10e16c735b75daffde334b40b5e3bf4",
+        "spiking.py": "125d6a7bbc22a0d18bd8acc354139189fdf1f87078a7ffc4166a8790682e8810",
+        "stateio.py": "f70b447b1af26e3882467bd60853dd0488db0b077731ac83cc06da6a9d33f884",
+        "structural_plasticity.py": "1de641fa5ba2874e55cf0e8b514907627f4cd3cf80863a1772075a46c33dd669",
+        "surprise_memory.py": "3cafc0e1035d6d51b3691477dd009071618170e29266049d1e206ecf34e2dec4",
+        "transfer.py": "ad979ef1e6ee62cbee86ed102596a93c2f393347edf95477c83d5e19074bf7eb",
+        "transplantation.py": "e73c93e6fb2e1278f61e175f9bacecc7e584071097af458fb8c391c006e13505",
+        "twin.py": "d490a9ac49b332c65e5f0364ab4a27b46baa0af6c9779746cea4c26fe88ec7a1",
+        "uncertainty_guard.py": "28bde08a352361615ae3eddca631c3621f7e7df35ef2e783337e14d58ec15b58",
+        "vision_encoder.py": "b0860dd15910695a6f11251254b30c240921282792a29a5f91554a1cddb51165",
+        "world_model.py": "e7a417955c9cba247363f2e605c209512e420ace1d668f337735312d65f95d64",
+        "_vendor/graftbrain/graftbrain/brain.py": "ce5e973e93fae26906770e3c6fac66d993cc96af1c4239c5b1ec34a0dc37fa75",
+        "_vendor/graftbrain/graftbrain/plasticity.py": "c26184bd8d38670aa7ef1011289a4e9c3f4309cc8f7e8670ec6ae9307c006167",
+        "_vendor/graftbrain/graftbrain/neuro_modules.py": "d1237a929a9710ade3f7b7afd235bcea48d443a89f27c28617d89ad971466fb6",
+        "_vendor/graftbrain/graftbrain/world.py": "720a6a026e593adf37c280d1a3dffafa185899119f3eaf0f2a41cd478e833bf3",
+        "_vendor/graftbrain/graftbrain/connectomes.py": "329af282fafd26b0d0444291f4e53beae198d6f28f2bdfeb8eea6a62e73de3c1",
+        "_vendor/graftbrain/graftbrain/graft.py": "8663492e63645cd88669503c1c7a1ec051be2d736fe416c8f9d7128617e5df85",
+        "_vendor/poseidon/poseidon/core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "artifact:tidal_core.pt": "a053104ae63dc7f86baa15b4b34e46730e1ccb92117f221801fb21f90d2d6c27"
+      },
+      "integrity": "a11d787c6c277202e609aed6e7d139763b861414f54bf66028200eca34113358",
+      "wall_seconds": 50.0097928000032
+    },
+    "independent-20261106": {
+      "config": {
+        "seeds": [
+          23,
+          29,
+          31,
+          37,
+          41
+        ],
+        "tasks": [
+          "forage",
+          "push"
+        ],
+        "support_steps": 128,
+        "query_steps": 96,
+        "nodes_per_source": 16
+      },
+      "scope": "measured CPU native-world development pilot; frozen untrained actor bridges; one-step heuristic planning; no confirmed general advantage",
+      "summary": {
+        "paired_units": [
+          {
+            "seed": 23,
+            "task": "forage"
+          },
+          {
+            "seed": 23,
+            "task": "push"
+          },
+          {
+            "seed": 29,
+            "task": "forage"
+          },
+          {
+            "seed": 29,
+            "task": "push"
+          },
+          {
+            "seed": 31,
+            "task": "forage"
+          },
+          {
+            "seed": 31,
+            "task": "push"
+          },
+          {
+            "seed": 37,
+            "task": "forage"
+          },
+          {
+            "seed": 37,
+            "task": "push"
+          },
+          {
+            "seed": 41,
+            "task": "forage"
+          },
+          {
+            "seed": 41,
+            "task": "push"
+          }
+        ],
+        "arms": {
+          "off": {
+            "mean_return": -1.4244299252716313,
+            "returns": [
+              -1.2479561230851062,
+              -1.0772194680444036,
+              -2.0365802942623406,
+              -1.0135606050407537,
+              -1.359150180550956,
+              -0.613138591330194,
+              -1.1526173124834564,
+              -0.7162251099457954,
+              -3.8386039394083538,
+              -1.189247628564952
+            ],
+            "mean_reward_mse": 0.000227876092479212,
+            "planner_use_fraction": 0.0,
+            "memory_use_fraction": 0.0
+          },
+          "model": {
+            "mean_return": -1.5179168535743301,
+            "returns": [
+              -2.0936266510211023,
+              -1.1097840932142367,
+              -2.6406908022482303,
+              -0.992158930396978,
+              -1.5130871025322359,
+              -0.5962270751100497,
+              -0.5245593470721684,
+              -1.1521041009302433,
+              -3.397216815563631,
+              -1.1597136176544247
+            ],
+            "mean_reward_mse": 0.0004205528557017231,
+            "planner_use_fraction": 0.328125,
+            "memory_use_fraction": 0.0
+          },
+          "memory": {
+            "mean_return": -1.460402141970219,
+            "returns": [
+              -2.738366088114268,
+              -1.0959753029171422,
+              -2.658933967174373,
+              -0.992158930396978,
+              -1.3976003174354013,
+              -0.5704121608439962,
+              0.31014837856541344,
+              -0.9825058649060453,
+              -3.464364411628818,
+              -1.0138527548505811
+            ],
+            "mean_reward_mse": 0.000530121162374009,
+            "planner_use_fraction": 0.328125,
+            "memory_use_fraction": 1.0
+          },
+          "shuffled": {
+            "mean_return": -1.4244299252716313,
+            "returns": [
+              -1.2479561230851062,
+              -1.0772194680444036,
+              -2.0365802942623406,
+              -1.0135606050407537,
+              -1.359150180550956,
+              -0.613138591330194,
+              -1.1526173124834564,
+              -0.7162251099457954,
+              -3.8386039394083538,
+              -1.189247628564952
+            ],
+            "mean_reward_mse": 0.001160318195808155,
+            "planner_use_fraction": 0.0,
+            "memory_use_fraction": 0.0
+          }
+        },
+        "comparisons": {
+          "model_minus_off": {
+            "paired_differences": [
+              -0.8456705279359962,
+              -0.03256462516983305,
+              -0.6041105079858897,
+              0.021401674643775737,
+              -0.15393692198127984,
+              0.016911516220144307,
+              0.628057965411288,
+              -0.43587899098444793,
+              0.4413871238447227,
+              0.02953401091052732
+            ],
+            "mean_difference": -0.09348692830269886,
+            "paired_bootstrap_95": [
+              -0.3618669983676045,
+              0.1620041635788041
+            ]
+          },
+          "memory_minus_off": {
+            "paired_differences": [
+              -1.4904099650291618,
+              -0.018755834872738575,
+              -0.6223536729120323,
+              0.021401674643775737,
+              -0.03845013688444521,
+              0.04272643048619784,
+              1.4627656910488698,
+              -0.26628075496024994,
+              0.37423952777953584,
+              0.1753948737143709
+            ],
+            "mean_difference": -0.035972216698587765,
+            "paired_bootstrap_95": [
+              -0.4926170157396049,
+              0.39395091372493635
+            ]
+          },
+          "memory_minus_model": {
+            "paired_differences": [
+              -0.6447394370931656,
+              0.013808790297094475,
+              -0.01824316492614253,
+              0.0,
+              0.11548678509683463,
+              0.025814914266053535,
+              0.8347077256375819,
+              0.169598236024198,
+              -0.06714759606518683,
+              0.14586086280384358
+            ],
+            "mean_difference": 0.057514711604111125,
+            "paired_bootstrap_95": [
+              -0.160552052332344,
+              0.27942664086238633
+            ]
+          },
+          "memory_minus_shuffled": {
+            "paired_differences": [
+              -1.4904099650291618,
+              -0.018755834872738575,
+              -0.6223536729120323,
+              0.021401674643775737,
+              -0.03845013688444521,
+              0.04272643048619784,
+              1.4627656910488698,
+              -0.26628075496024994,
+              0.37423952777953584,
+              0.1753948737143709
+            ],
+            "mean_difference": -0.035972216698587765,
+            "paired_bootstrap_95": [
+              -0.4926170157396049,
+              0.39395091372493635
+            ]
+          }
+        },
+        "interpretation": "development pilot; no outcome-based model promotion; small finite native worlds and shared task types limit generalization",
+        "uncertainty": "percentile bootstrap over independent seed/task actor-world units; time steps are not independent replicates; one unit has no interval"
+      },
+      "costs": {
+        "support_world_steps": 1280,
+        "shuffled_support_replay_steps": 1280,
+        "query_world_steps": 3840,
+        "model_update_calls": 2560,
+        "query_update_calls": 0,
+        "actor_calls": 6400
+      },
+      "environment": {
+        "python": "3.12.10",
+        "platform": "Windows-11-10.0.28120-SP0",
+        "numpy": "2.4.3",
+        "scipy": "1.17.1",
+        "torch": "2.11.0+cpu"
+      },
+      "source_fingerprints": {
+        "__init__.py": "6270c2ab3c8d1e6e35fa54f748284d3c2f0a82dd167d8df295a64362bc2290e9",
+        "__main__.py": "7c553ad38c59c5c872b956fb383fbae28a49fc39c16f8d284217fa55d519d96b",
+        "active_inference.py": "54507984b21904497aa2f70511afefac30007adc284b88b261cb1027c04dd798",
+        "adaptation_study.py": "9e705f9ced061357f5172e53dbca0007b1a6a8784ca55aaa1caa4b14f29f74dd",
+        "adaptive_compute.py": "850a5f5a3f718e50d72a38bfe088879bb4b0d4bee131c6eb17fb320b1b5c2cfa",
+        "agent.py": "142d301feb43ff3388dc3ce95d1576a869f1f2e56eec23eb86ac71ff8ae8effb",
+        "astrocyte.py": "10d3c52df939dd420a961b05449acbb5e1535f5bd07e27e4b0134982cb98ae28",
+        "auto_programmer.py": "af1a42abce9148e3143d75a037217b9d34f4ff9e069396c4a3326494afd9d183",
+        "capabilities.py": "30b74c207f8b4aad4d3b23e427ee577a64266b2c464106fa8ba84f86557c0e9b",
+        "causal_mediation.py": "bdc72695855794f3be3cef80aa26e16274901c21382dcec62ddf26df81b76624",
+        "circuit_atlas.py": "86a754ae89294a5543e3d8098a4a2901d024079691c0bb79bb6604dd4014f9a2",
+        "cli.py": "8f4ee6e6f4cc1993b98ad100145b566263772f2d185b556624b33aa5cc169b39",
+        "config.py": "a1cc1eb6fba85411448e084dba5f24c1d05bd588bb0caddac8c1941179e279ca",
+        "connectome_compiler.py": "f4d37156c6c41d4e0e20e15f76072db5fae8b7e86372d35bad8c9bfbc1d696e3",
+        "continual_probe.py": "e2481b2413e11be0c90d02374f2d45d88201ed07a465d778363f536dc0e6af41",
+        "curriculum.py": "e74cc89967cf4237f81739342a1a02c72a52a2307dcefacb85444235423f4ff3",
+        "dales_law.py": "1243e1044cee9a5789a5e0940a59628c9f9957f5bb891c22ee8735448640b50b",
+        "efficiency.py": "4546011dbcda07cb9247cd3d615af4bacf5a981a4cc2c0d5b2c22bf989c1e805",
+        "eprop.py": "898476a3d9bf06b4159471c3c74c1458a23642d1d517aa07264eb44e4d306b13",
+        "evidence_engine.py": "aa35679b4b385fddd5e87673d9aad30d642cb00f912b00bff690330b7a3a18db",
+        "evolution.py": "257a5b9835a4c953a12ee0838d07c5e8b85c1b598e270d3f0c247791c37574ae",
+        "experience.py": "66eb08e47cadd8f13e6d3ae2e011ce8de877654bb64092f2309555dd1bbcc59a",
+        "experiments.py": "e0f9825cfaf6e43b5473e628696a5619e60d6a3a9e61dbbecbfcd42f0c1c5c7a",
+        "flagship.py": "b4890102fb3c0964fef45c749de0ff99ea6ab44c5a3443e571e75dbc36ca8703",
+        "genome.py": "74a83d48ef39377ba61d009e18705eb6dbed77926d591a212de99f22dbf9c0a6",
+        "hypernetwork.py": "da132a5544ad35479da9ce3e8491a6c343b023553391d49387b5275305800d0e",
+        "hypernetwork_trainer.py": "b895cd02bfab62f6868843dcad4625db60505e9f35571f4e72ce59de92258bba",
+        "imagination.py": "464b71598998ef15541354129103f6cf3763c02525c08a88721bcee2c4f78f6d",
+        "learning.py": "a0ea6363534245e77e0f26d1aaa2e4fd84d42097405b8b7428476bcb4c1040d6",
+        "manifold_alignment.py": "d9fd9ba98d7660cc5b4dacc5dadc09341034434ffdcdc358c53dc7f04a7662cc",
+        "metabolic.py": "bd73f49caac8919308f2db11dd048975692a3aba308e83d30922be8e8ac8e0f7",
+        "metamorphic.py": "412e928a0a7c1248d2f774431fc95b0754bac3fb65262baa58ce197ab7358dee",
+        "metaplasticity.py": "0e64a220795d08f5b68b227fe7ac62bf2e729c1a05c7cbf2d4ec445763cd8621",
+        "motivation.py": "69e883958c40f0744225fececefd07ea08fe4499e1720324a712e4c68076ede4",
+        "multiscale_memory.py": "7eebb018a5a8e653b9d692c5b9a0189468f631b633b8ba70efd040e51d4978fb",
+        "neuro_symbolic.py": "5babd88df4dccdb78b01b6d78baabe3faf39e5b756d877b5db68410aeb6cd1f6",
+        "neuromodulation.py": "17d216453b826a902a82cd73ccfdfd648d90b1b276f4ea4f9174eb949a2ad098",
+        "object_memory.py": "6e82771ee1ba1cefd953c2d91fba8ec6187b26e73fa03a934bbac939e424facb",
+        "observatory.py": "eaa2037b1594ddee1833ea50b6949033ffb014b997bd02ea56c50359d3e3cac2",
+        "patches.py": "db8bb9f84669b807b98ff64c78cd76acfb3389e42176928b3e43265c9fed080b",
+        "predictive_coding.py": "836df4a580372ab30bc0fc4c1f7415b17c7db2cf300970f4ae3cff68705da4f8",
+        "recursive_learning.py": "627a55d07e97ce695aaa5e13d7dad6ef2b157cf4ebd58df3131fc0a344c5090d",
+        "rsi.py": "009db0357c1eecc7e0e39d947fb040d52c953ea984c7f1e0b629258ad8e8fe7c",
+        "runtime.py": "622c5dd3a7be6f2e2e874ed14f20d53255f92bd110881cea93609db7da32ce84",
+        "server.py": "0925eb4deaf96c9f1789c1843ab30515e81fb889138b67ca7cc5c22f8e901e44",
+        "skill_hierarchy.py": "74033121c00cf85bf78252f40eddc5c71f68f77562ae89e17ab5b093dd3bd877",
+        "sleep.py": "605a3aa68b7ff5f82f82a1d73835552106fc72c698f751b863eb8e15d33a7597",
+        "sources.py": "df3dc3f1ad44adf12c2d285bd8e0dc5067f9bd7d5309bde2d56393e321484582",
+        "spatial_map.py": "8da3e1679e8ea9a2d78b169f10ae7e1fa3e31a683e577e1eca36368e1449b62c",
+        "spectral.py": "d1dc6ea76100196166990c76a3de9224a10e16c735b75daffde334b40b5e3bf4",
+        "spiking.py": "125d6a7bbc22a0d18bd8acc354139189fdf1f87078a7ffc4166a8790682e8810",
+        "stateio.py": "f70b447b1af26e3882467bd60853dd0488db0b077731ac83cc06da6a9d33f884",
+        "structural_plasticity.py": "1de641fa5ba2874e55cf0e8b514907627f4cd3cf80863a1772075a46c33dd669",
+        "surprise_memory.py": "3cafc0e1035d6d51b3691477dd009071618170e29266049d1e206ecf34e2dec4",
+        "transfer.py": "ad979ef1e6ee62cbee86ed102596a93c2f393347edf95477c83d5e19074bf7eb",
+        "transplantation.py": "e73c93e6fb2e1278f61e175f9bacecc7e584071097af458fb8c391c006e13505",
+        "twin.py": "d490a9ac49b332c65e5f0364ab4a27b46baa0af6c9779746cea4c26fe88ec7a1",
+        "uncertainty_guard.py": "11ad7eb6ce14322c3bc6db45b14fd68a78b57732371976a940c241d926dc5b5e",
+        "vision_encoder.py": "b0860dd15910695a6f11251254b30c240921282792a29a5f91554a1cddb51165",
+        "world_model.py": "e7a417955c9cba247363f2e605c209512e420ace1d668f337735312d65f95d64",
+        "_vendor/graftbrain/graftbrain/brain.py": "ce5e973e93fae26906770e3c6fac66d993cc96af1c4239c5b1ec34a0dc37fa75",
+        "_vendor/graftbrain/graftbrain/plasticity.py": "c26184bd8d38670aa7ef1011289a4e9c3f4309cc8f7e8670ec6ae9307c006167",
+        "_vendor/graftbrain/graftbrain/neuro_modules.py": "d1237a929a9710ade3f7b7afd235bcea48d443a89f27c28617d89ad971466fb6",
+        "_vendor/graftbrain/graftbrain/world.py": "720a6a026e593adf37c280d1a3dffafa185899119f3eaf0f2a41cd478e833bf3",
+        "_vendor/graftbrain/graftbrain/connectomes.py": "329af282fafd26b0d0444291f4e53beae198d6f28f2bdfeb8eea6a62e73de3c1",
+        "_vendor/graftbrain/graftbrain/graft.py": "8663492e63645cd88669503c1c7a1ec051be2d736fe416c8f9d7128617e5df85",
+        "_vendor/poseidon/poseidon/core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+        "artifact:tidal_core.pt": "a053104ae63dc7f86baa15b4b34e46730e1ccb92117f221801fb21f90d2d6c27"
+      },
+      "integrity": "ffde19295fe57917f8ff52bad32c967543b8d54c4710855abab58288bb0bf825",
+      "wall_seconds": 106.33206729998346
+    }
+  },
+  "controlled": {
+    "continual-probe-20261106.json": {
+      "config": {
+        "seeds": [
+          7,
+          11,
+          19
+        ],
+        "support_steps": 64,
+        "query_steps": 64,
+        "phases": [
+          {
+            "name": "stable",
+            "sign": 1
+          },
+          {
+            "name": "reversal",
+            "sign": -1
+          },
+          {
+            "name": "recurrence",
+            "sign": 1
+          }
+        ],
+        "reward": "sign*state[0]*action - 0.20*action**2 + 0.15*sin(3*action)",
+        "transition": "[0.8*state[0]+0.2*action, 0.9*state[1]]",
+        "sampling": "independent uniform[-1,1] state/action draws; phase sign is not given to learners",
+        "model_settings": {
+          "state_dim": 2,
+          "action_dim": 1,
+          "ensemble_size": 3,
+          "ridge": 0.25,
+          "forgetting": 0.995,
+          "min_samples": 24,
+          "action_radius": 0.35,
+          "uncertainty_penalty": 0.25,
+          "context_dim": 0
+        },
+        "memory_settings": {
+          "state_dim": 2,
+          "action_dim": 1,
+          "capacity": 128,
+          "initial_coverage": 8,
+          "neighbors": 4,
+          "error_decay": 0.95,
+          "error_floor": 0.001,
+          "surprise_multiplier": 1.0,
+          "match_distance": 0.1,
+          "novelty_distance": 0.45,
+          "bandwidth": 0.35,
+          "recency_half_life": 128.0,
+          "state_scale": 1.0,
+          "action_scale": 1.0
+        },
+        "arms": [
+          "off",
+          "model",
+          "memory",
+          "shuffled"
+        ],
+        "baseline_action": [
+          0.0
+        ],
+        "retention": "fixed independent old +1 regime probe after each phase; contradictory hidden task, not task-ID-conditioned retention",
+        "shuffled": "phase-local permutation of actual support rewards; state/action/next-state data unchanged; offline negative control",
+        "selection": "frozen protocol; no query-driven tuning or model promotion"
+      },
+      "scope": "synthetic hidden-regime outcome-learning mechanism probe; not embodied evidence or continual backpropagation",
+      "summary": {
+        "prequential": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1136706668630316
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.10351929130896384
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.10097355109094372
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.0857607616327333
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.14532043353032742
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.25603711157073317
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.2113819318666532
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.22402280159266916
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1244607654215301
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.021948483838234063
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.026467833750670713
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.07816957557554868
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.16823671512759464
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.15065888657731719
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.14519404257725993
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.19182778247657878
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.14035898038578123
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.2025397464024139
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.17731309218984426
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.15815503414384444
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.12019343744310473
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.03607131127840324
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.03715339410876316
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.1416544805018563
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1050589140483382
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.12185365548533238
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.10767121655411849
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.14452685888905137
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.16248809089231453
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.17291492218708512
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.14471136476777435
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.12661613647350212
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.13141368733509828
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.029148214674793255
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.030971782423644036
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.14602847679126954
+          }
+        ],
+        "frozen": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.12487135877301357,
+            "local_regret": 0.1543830777424055,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.13976114223550173,
+            "reward_mse": 0.07130120071708647,
+            "local_regret": 0.014621935506903772,
+            "planner_use_fraction": 0.828125
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.1261413567220682,
+            "reward_mse": 0.06764386777624753,
+            "local_regret": 0.028241721020337313,
+            "planner_use_fraction": 0.6875
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0704472646065421,
+            "reward_mse": 0.1014995677647268,
+            "local_regret": 0.0839358131358634,
+            "planner_use_fraction": 0.578125
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1744043194045075,
+            "reward_mse": 0.04709660782298806,
+            "local_regret": 0.007019946362852952,
+            "planner_use_fraction": 0.828125
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.17072612277432125,
+            "reward_mse": 0.04557179243572442,
+            "local_regret": 0.010698142993039192,
+            "planner_use_fraction": 0.765625
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.10399195337317102,
+            "reward_mse": 0.08950321294110945,
+            "local_regret": 0.07743231239418943,
+            "planner_use_fraction": 0.546875
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10935301360802643,
+            "local_regret": 0.1668344880310354,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.09593652119865922,
+            "reward_mse": 0.08047440714731545,
+            "local_regret": 0.07089796683237619,
+            "planner_use_fraction": 0.953125
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.12824492541926785,
+            "reward_mse": 0.06989651840744887,
+            "local_regret": 0.03858956261176759,
+            "planner_use_fraction": 0.65625
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.12889803539024985,
+            "reward_mse": 0.147648109266729,
+            "local_regret": 0.2957325234212853,
+            "planner_use_fraction": 0.65625
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.11952709577727914,
+            "reward_mse": 0.11033283640880405,
+            "local_regret": 0.06189716999008131,
+            "planner_use_fraction": 1.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": -0.005215703475173132,
+            "reward_mse": 0.1292748975406561,
+            "local_regret": 0.18663996924253362,
+            "planner_use_fraction": 0.640625
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.11374914993046004,
+            "reward_mse": 0.07840882581973507,
+            "local_regret": 0.06767511583690045,
+            "planner_use_fraction": 0.71875
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.16523666797976633,
+            "local_regret": 0.22309441492420928,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.2219103576778963,
+            "reward_mse": 0.005074889169845654,
+            "local_regret": 0.001184057246313014,
+            "planner_use_fraction": 0.984375
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.22257769121000592,
+            "reward_mse": 0.0074050273567753105,
+            "local_regret": 0.0005167237142033713,
+            "planner_use_fraction": 1.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.13078952638251704,
+            "reward_mse": 0.09987452406373551,
+            "local_regret": 0.09230488854169228,
+            "planner_use_fraction": 0.71875
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.17415872906681817,
+            "reward_mse": 0.0036440592568870458,
+            "local_regret": 0.0072655367005423094,
+            "planner_use_fraction": 0.96875
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.1742413221513842,
+            "reward_mse": 0.004208942729872207,
+            "local_regret": 0.007182943615976278,
+            "planner_use_fraction": 0.96875
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.05095682717210277,
+            "reward_mse": 0.07535135080354678,
+            "local_regret": 0.13046743859525767,
+            "planner_use_fraction": 0.765625
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.14263687902245242,
+            "local_regret": 0.20238896101162746,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1705753069391598,
+            "reward_mse": 0.06826346515137961,
+            "local_regret": 0.031813654072467695,
+            "planner_use_fraction": 0.78125
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.1509093063200525,
+            "reward_mse": 0.06637181672099732,
+            "local_regret": 0.05147965469157498,
+            "planner_use_fraction": 0.8125
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.04103516565390216,
+            "reward_mse": 0.1358798506948669,
+            "local_regret": 0.16135379535772532,
+            "planner_use_fraction": 0.890625
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1471111142510288,
+            "reward_mse": 0.052620003981489256,
+            "local_regret": 0.01770138124954322,
+            "planner_use_fraction": 0.859375
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.14325184094985627,
+            "reward_mse": 0.04561240304797767,
+            "local_regret": 0.021560654550715763,
+            "planner_use_fraction": 0.765625
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.013330543100712942,
+            "reward_mse": 0.1131522018389422,
+            "local_regret": 0.1514819523998591,
+            "planner_use_fraction": 0.8125
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1435113794524837,
+            "local_regret": 0.17969075077613966,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.13679450069807103,
+            "reward_mse": 0.11926632216715179,
+            "local_regret": 0.04289625007806862,
+            "planner_use_fraction": 0.734375
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.14182051469990953,
+            "reward_mse": 0.09126056072337768,
+            "local_regret": 0.03787023607623015,
+            "planner_use_fraction": 0.65625
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.11167651200001341,
+            "reward_mse": 0.17049198745795535,
+            "local_regret": 0.2913672627761531,
+            "planner_use_fraction": 0.96875
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": -0.020893529580319717,
+            "reward_mse": 0.15061322391534288,
+            "local_regret": 0.18570602508089173,
+            "planner_use_fraction": 0.6875
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": -0.010131344746984725,
+            "reward_mse": 0.15014567391830244,
+            "local_regret": 0.17494384024755677,
+            "planner_use_fraction": 0.703125
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.030316160083247255,
+            "reward_mse": 0.12671875116140993,
+            "local_regret": 0.1951286555838193,
+            "planner_use_fraction": 0.953125
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.13037536591963622,
+            "local_regret": 0.1745028119819714,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.16472209500213417,
+            "reward_mse": 0.0038707163774306195,
+            "local_regret": 0.00978071697983722,
+            "planner_use_fraction": 0.96875
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.16817238025652892,
+            "reward_mse": 0.00572451932005018,
+            "local_regret": 0.006330431725442462,
+            "planner_use_fraction": 0.984375
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.02155567093675384,
+            "reward_mse": 0.11832313725997003,
+            "local_regret": 0.15294714104521756,
+            "planner_use_fraction": 0.40625
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.15262326146843416,
+            "reward_mse": 0.004268920313617428,
+            "local_regret": 0.01218923403213788,
+            "planner_use_fraction": 0.96875
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.15391718964144105,
+            "reward_mse": 0.004615365940793067,
+            "local_regret": 0.010895305859130995,
+            "planner_use_fraction": 0.953125
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.019676721345427466,
+            "reward_mse": 0.11053476936096629,
+            "local_regret": 0.18448921684599948,
+            "planner_use_fraction": 0.4375
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.144638198671233,
+            "local_regret": 0.18346612678233673,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.13319630432401453,
+            "reward_mse": 0.07630985845757492,
+            "local_regret": 0.05026982245832222,
+            "planner_use_fraction": 0.515625
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.14800543009733946,
+            "reward_mse": 0.07364096180727313,
+            "local_regret": 0.03546069668499723,
+            "planner_use_fraction": 0.890625
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.023385868450549664,
+            "reward_mse": 0.13985325360230683,
+            "local_regret": 0.2068519952328864,
+            "planner_use_fraction": 0.953125
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1289369660482822,
+            "reward_mse": 0.07625104966876023,
+            "local_regret": 0.04669253035940023,
+            "planner_use_fraction": 0.453125
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.12507345941014872,
+            "reward_mse": 0.07914079283971086,
+            "local_regret": 0.05055603699753371,
+            "planner_use_fraction": 0.84375
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.049210320747547234,
+            "reward_mse": 0.17109540319467073,
+            "local_regret": 0.22483981715522966,
+            "planner_use_fraction": 0.90625
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.16594079016714242,
+            "local_regret": 0.18939960300128564,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1521695334850282,
+            "reward_mse": 0.07607883198777565,
+            "local_regret": 0.037230069516257416,
+            "planner_use_fraction": 0.515625
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.15337627654212466,
+            "reward_mse": 0.07554469715171178,
+            "local_regret": 0.03602332645916097,
+            "planner_use_fraction": 0.578125
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.005831581486327444,
+            "reward_mse": 0.1565496642429318,
+            "local_regret": 0.18356802151495819,
+            "planner_use_fraction": 0.734375
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": -0.06428846595884717,
+            "reward_mse": 0.21727488267295592,
+            "local_regret": 0.2399179623665296,
+            "planner_use_fraction": 0.53125
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": -0.05321492689731755,
+            "reward_mse": 0.22093540041604592,
+            "local_regret": 0.228844423305,
+            "planner_use_fraction": 0.6875
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.11326683050399627,
+            "reward_mse": 0.1801981476946362,
+            "local_regret": 0.2888963269116787,
+            "planner_use_fraction": 0.875
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11586250775056103,
+            "local_regret": 0.18274842914109524,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.17218151287939742,
+            "reward_mse": 0.0028730158838279046,
+            "local_regret": 0.010566916261697805,
+            "planner_use_fraction": 0.875
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.17684879947641385,
+            "reward_mse": 0.003988464278399221,
+            "local_regret": 0.005899629664681376,
+            "planner_use_fraction": 0.921875
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.032264021863237555,
+            "reward_mse": 0.1283013109137858,
+            "local_regret": 0.15048440727785767,
+            "planner_use_fraction": 0.90625
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.16655387368218721,
+            "reward_mse": 0.0037493674421766854,
+            "local_regret": 0.009075622725495218,
+            "planner_use_fraction": 0.90625
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.16764287215949392,
+            "reward_mse": 0.006440318187499211,
+            "local_regret": 0.00798662424818852,
+            "planner_use_fraction": 0.921875
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": -0.013778533036366194,
+            "reward_mse": 0.187511242558875,
+            "local_regret": 0.1894080294440486,
+            "planner_use_fraction": 0.9375
+          }
+        ],
+        "paired": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.13976114223550173,
+            "memory_minus_off": 0.1261413567220682,
+            "memory_minus_model": -0.013619785513433541,
+            "memory_minus_shuffled": 0.05569409211552609
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.1744043194045075,
+            "memory_minus_off": 0.17072612277432125,
+            "memory_minus_model": -0.003678196630186259,
+            "memory_minus_shuffled": 0.06673416940115023
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.09593652119865922,
+            "memory_minus_off": 0.12824492541926785,
+            "memory_minus_model": 0.03230840422060863,
+            "memory_minus_shuffled": 0.2571429608095177
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.11952709577727914,
+            "memory_minus_off": -0.005215703475173132,
+            "memory_minus_model": -0.12474279925245227,
+            "memory_minus_shuffled": -0.11896485340563318
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.2219103576778963,
+            "memory_minus_off": 0.22257769121000592,
+            "memory_minus_model": 0.0006673335321096263,
+            "memory_minus_shuffled": 0.09178816482748889
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.17415872906681817,
+            "memory_minus_off": 0.1742413221513842,
+            "memory_minus_model": 8.259308456601278e-05,
+            "memory_minus_shuffled": 0.12328449497928141
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.1705753069391598,
+            "memory_minus_off": 0.1509093063200525,
+            "memory_minus_model": -0.019666000619107282,
+            "memory_minus_shuffled": 0.10987414066615034
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.1471111142510288,
+            "memory_minus_off": 0.14325184094985627,
+            "memory_minus_model": -0.0038592733011725278,
+            "memory_minus_shuffled": 0.12992129784914333
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.13679450069807103,
+            "memory_minus_off": 0.14182051469990953,
+            "memory_minus_model": 0.005026014001838497,
+            "memory_minus_shuffled": 0.2534970266999229
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": -0.020893529580319717,
+            "memory_minus_off": -0.010131344746984725,
+            "memory_minus_model": 0.010762184833334992,
+            "memory_minus_shuffled": 0.02018481533626253
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.16472209500213417,
+            "memory_minus_off": 0.16817238025652892,
+            "memory_minus_model": 0.0034502852543947526,
+            "memory_minus_shuffled": 0.14661670931977508
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.15262326146843416,
+            "memory_minus_off": 0.15391718964144105,
+            "memory_minus_model": 0.0012939281730068863,
+            "memory_minus_shuffled": 0.17359391098686852
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.13319630432401453,
+            "memory_minus_off": 0.14800543009733946,
+            "memory_minus_model": 0.014809125773324938,
+            "memory_minus_shuffled": 0.17139129854788912
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.1289369660482822,
+            "memory_minus_off": 0.12507345941014872,
+            "memory_minus_model": -0.0038635066381334793,
+            "memory_minus_shuffled": 0.17428378015769597
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.1521695334850282,
+            "memory_minus_off": 0.15337627654212466,
+            "memory_minus_model": 0.0012067430570964488,
+            "memory_minus_shuffled": 0.1475446950557972
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": -0.06428846595884717,
+            "memory_minus_off": -0.05321492689731755,
+            "memory_minus_model": 0.011073539061529622,
+            "memory_minus_shuffled": 0.060051903606678725
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.17218151287939742,
+            "memory_minus_off": 0.17684879947641385,
+            "memory_minus_model": 0.004667286597016429,
+            "memory_minus_shuffled": 0.14458477761317629
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.16655387368218721,
+            "memory_minus_off": 0.16764287215949392,
+            "memory_minus_model": 0.0010889984773067019,
+            "memory_minus_shuffled": 0.1814214051958601
+          }
+        ],
+        "aggregate": [
+          {
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13738214548889968,
+                "local_regret": 0.18007938851212324,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.14784425116622535,
+                "reward_mse": 0.071958174775347,
+                "local_regret": 0.0322351373458979,
+                "planner_use_fraction": 0.7083333333333334
+              },
+              "memory": {
+                "mean_reward": 0.14168536437982004,
+                "reward_mse": 0.069218882101506,
+                "local_regret": 0.038394024132303174,
+                "planner_use_fraction": 0.796875
+              },
+              "shuffled": {
+                "mean_reward": 0.029365520603298206,
+                "reward_mse": 0.1257442240206335,
+                "local_regret": 0.15071386790882504,
+                "planner_use_fraction": 0.8072916666666666
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.14784425116622535,
+                "per_seed_differences": [
+                  0.13976114223550173,
+                  0.1705753069391598,
+                  0.13319630432401453
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.14168536437982004,
+                "per_seed_differences": [
+                  0.1261413567220682,
+                  0.1509093063200525,
+                  0.14800543009733946
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": -0.006158886786405295,
+                "per_seed_differences": [
+                  -0.013619785513433541,
+                  -0.019666000619107282,
+                  0.014809125773324938
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.11231984377652186,
+                "per_seed_differences": [
+                  0.05569409211552609,
+                  0.10987414066615034,
+                  0.17139129854788912
+                ]
+              }
+            }
+          },
+          {
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.15015079990127284,
+                "reward_mse": 0.058655887157745855,
+                "local_regret": 0.023804619323932134,
+                "planner_use_fraction": 0.7135416666666666
+              },
+              "memory": {
+                "mean_reward": 0.14635047437810875,
+                "reward_mse": 0.05677499610780432,
+                "local_regret": 0.02760494484709622,
+                "planner_use_fraction": 0.7916666666666666
+              },
+              "shuffled": {
+                "mean_reward": 0.022704058575445576,
+                "reward_mse": 0.12458360599157414,
+                "local_regret": 0.1512513606497594,
+                "planner_use_fraction": 0.7552083333333334
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.15015079990127284,
+                "per_seed_differences": [
+                  0.1744043194045075,
+                  0.1471111142510288,
+                  0.1289369660482822
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.14635047437810875,
+                "per_seed_differences": [
+                  0.17072612277432125,
+                  0.14325184094985627,
+                  0.12507345941014872
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": -0.0038003255231640887,
+                "per_seed_differences": [
+                  -0.003678196630186259,
+                  -0.0038592733011725278,
+                  -0.0038635066381334793
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.12364641580266318,
+                "per_seed_differences": [
+                  0.06673416940115023,
+                  0.12992129784914333,
+                  0.17428378015769597
+                ]
+              }
+            }
+          },
+          {
+            "phase": "reversal",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13960172774255084,
+                "local_regret": 0.17864161393615355,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.12830018512725283,
+                "reward_mse": 0.0919398537674143,
+                "local_regret": 0.050341428808900746,
+                "planner_use_fraction": 0.734375
+              },
+              "memory": {
+                "mean_reward": 0.14114723888710068,
+                "reward_mse": 0.07890059209417945,
+                "local_regret": 0.037494375049052904,
+                "planner_use_fraction": 0.6302083333333334
+              },
+              "shuffled": {
+                "mean_reward": -0.07824765530131193,
+                "reward_mse": 0.15822992032253871,
+                "local_regret": 0.2568892692374655,
+                "planner_use_fraction": 0.7864583333333334
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.12830018512725283,
+                "per_seed_differences": [
+                  0.09593652119865922,
+                  0.13679450069807103,
+                  0.1521695334850282
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.14114723888710068,
+                "per_seed_differences": [
+                  0.12824492541926785,
+                  0.14182051469990953,
+                  0.15337627654212466
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.012847053759847857,
+                "per_seed_differences": [
+                  0.03230840422060863,
+                  0.005026014001838497,
+                  0.0012067430570964488
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.2193948941884126,
+                "per_seed_differences": [
+                  0.2571429608095177,
+                  0.2534970266999229,
+                  0.1475446950557972
+                ]
+              }
+            }
+          },
+          {
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.011448366746037419,
+                "reward_mse": 0.15940698099903428,
+                "local_regret": 0.16250705247916755,
+                "planner_use_fraction": 0.7395833333333334
+              },
+              "memory": {
+                "mean_reward": -0.0228539917064918,
+                "reward_mse": 0.1667853239583348,
+                "local_regret": 0.1968094109316968,
+                "planner_use_fraction": 0.6770833333333334
+              },
+              "shuffled": {
+                "mean_reward": -0.009944613552261164,
+                "reward_mse": 0.1284419082252604,
+                "local_regret": 0.18390003277746617,
+                "planner_use_fraction": 0.8489583333333334
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.011448366746037419,
+                "per_seed_differences": [
+                  0.11952709577727914,
+                  -0.020893529580319717,
+                  -0.06428846595884717
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": -0.0228539917064918,
+                "per_seed_differences": [
+                  -0.005215703475173132,
+                  -0.010131344746984725,
+                  -0.05321492689731755
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": -0.03430235845252922,
+                "per_seed_differences": [
+                  -0.12474279925245227,
+                  0.010762184833334992,
+                  0.011073539061529622
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": -0.012909378154230641,
+                "per_seed_differences": [
+                  -0.11896485340563318,
+                  0.02018481533626253,
+                  0.060051903606678725
+                ]
+              }
+            }
+          },
+          {
+            "phase": "stable",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13715818054998785,
+                "local_regret": 0.19344855201575864,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.18627132185314263,
+                "reward_mse": 0.003939540477034726,
+                "local_regret": 0.007177230162616013,
+                "planner_use_fraction": 0.9427083333333334
+              },
+              "memory": {
+                "mean_reward": 0.18919962364764956,
+                "reward_mse": 0.005706003651741571,
+                "local_regret": 0.00424892836810907,
+                "planner_use_fraction": 0.96875
+              },
+              "shuffled": {
+                "mean_reward": 0.061536406394169484,
+                "reward_mse": 0.11549965741249713,
+                "local_regret": 0.13191214562158918,
+                "planner_use_fraction": 0.6770833333333334
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.18627132185314263,
+                "per_seed_differences": [
+                  0.2219103576778963,
+                  0.16472209500213417,
+                  0.17218151287939742
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.18919962364764956,
+                "per_seed_differences": [
+                  0.22257769121000592,
+                  0.16817238025652892,
+                  0.17684879947641385
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.002928301794506936,
+                "per_seed_differences": [
+                  0.0006673335321096263,
+                  0.0034502852543947526,
+                  0.004667286597016429
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.1276632172534801,
+                "per_seed_differences": [
+                  0.09178816482748889,
+                  0.14661670931977508,
+                  0.14458477761317629
+                ]
+              }
+            }
+          },
+          {
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.16444528807247985,
+                "reward_mse": 0.0038874490042270535,
+                "local_regret": 0.009510131152725136,
+                "planner_use_fraction": 0.9479166666666666
+              },
+              "memory": {
+                "mean_reward": 0.1652671279841064,
+                "reward_mse": 0.005088208952721495,
+                "local_regret": 0.008688291241098597,
+                "planner_use_fraction": 0.9479166666666666
+              },
+              "shuffled": {
+                "mean_reward": 0.005833857596769704,
+                "reward_mse": 0.1244657875744627,
+                "local_regret": 0.16812156162843528,
+                "planner_use_fraction": 0.7135416666666666
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.16444528807247985,
+                "per_seed_differences": [
+                  0.17415872906681817,
+                  0.15262326146843416,
+                  0.16655387368218721
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.1652671279841064,
+                "per_seed_differences": [
+                  0.1742413221513842,
+                  0.15391718964144105,
+                  0.16764287215949392
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.0008218399116265337,
+                "per_seed_differences": [
+                  8.259308456601278e-05,
+                  0.0012939281730068863,
+                  0.0010889984773067019
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.15943327038733668,
+                "per_seed_differences": [
+                  0.12328449497928141,
+                  0.17359391098686852,
+                  0.1814214051958601
+                ]
+              }
+            }
+          }
+        ],
+        "interpretation": "synthetic mechanism development probe; no tuning or promotion from query; negative differences retained; no inferential intervals from three seeds"
+      },
+      "source_hashes": {
+        "continual_probe.py": "e2481b2413e11be0c90d02374f2d45d88201ed07a465d778363f536dc0e6af41",
+        "experience.py": "51b1def2ee4e80e785bd0f5113db719613f63061b90a650d69d83be5699edd61",
+        "surprise_memory.py": "3cafc0e1035d6d51b3691477dd009071618170e29266049d1e206ecf34e2dec4"
+      },
+      "hashes": {
+        "config": "770ebb26a53e62bd72f01e65c0dd7027159b44872c33f768f20c545d3f597548",
+        "support": "6e2a6f2de14f4d9c62d00f6286cce725a3222a1dafc9956ac8d80fc76947987d",
+        "query": "1ee0155bcf54f34669d14b2b228f9679feb8553c832adfbe03ae5d47320a5b57",
+        "records": "9c8f11514fa2ce11b36a77c984df2b19ee05efb098d6185b182a141d81c86cf5"
+      }
+    },
+    "continual-probe-gated-20261106.json": {
+      "config": {
+        "seeds": [
+          7,
+          11,
+          19
+        ],
+        "support_steps": 64,
+        "query_steps": 64,
+        "phases": [
+          {
+            "name": "stable",
+            "sign": 1
+          },
+          {
+            "name": "reversal",
+            "sign": -1
+          },
+          {
+            "name": "recurrence",
+            "sign": 1
+          }
+        ],
+        "reward": "sign*state[0]*action - 0.20*action**2 + 0.15*sin(3*action)",
+        "transition": "[0.8*state[0]+0.2*action, 0.9*state[1]]",
+        "sampling": "independent uniform[-1,1] state/action draws; phase sign is not given to learners",
+        "model_settings": {
+          "state_dim": 2,
+          "action_dim": 1,
+          "ensemble_size": 3,
+          "ridge": 0.25,
+          "forgetting": 0.995,
+          "min_samples": 24,
+          "action_radius": 0.35,
+          "uncertainty_penalty": 0.25,
+          "context_dim": 0
+        },
+        "memory_settings": {
+          "state_dim": 2,
+          "action_dim": 1,
+          "capacity": 128,
+          "initial_coverage": 8,
+          "neighbors": 4,
+          "error_decay": 0.95,
+          "error_floor": 0.001,
+          "surprise_multiplier": 1.0,
+          "match_distance": 0.1,
+          "novelty_distance": 0.45,
+          "bandwidth": 0.35,
+          "recency_half_life": 128.0,
+          "state_scale": 1.0,
+          "action_scale": 1.0
+        },
+        "arms": [
+          "off",
+          "model",
+          "memory",
+          "shuffled"
+        ],
+        "baseline_action": [
+          0.0
+        ],
+        "retention": "fixed independent old +1 regime probe after each phase; contradictory hidden task, not task-ID-conditioned retention",
+        "shuffled": "phase-local permutation of actual support rewards; state/action/next-state data unchanged; offline negative control",
+        "selection": "frozen protocol; no query-driven tuning or model promotion"
+      },
+      "scope": "synthetic hidden-regime outcome-learning mechanism probe; not embodied evidence or continual backpropagation",
+      "summary": {
+        "prequential": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1136706668630316
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.10351929130896384
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.10097355109094372
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.0857607616327333
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.14532043353032742
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.25603711157073317
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.2113819318666532
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.22402280159266916
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1244607654215301
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.021948483838234063
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.026467833750670713
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.07816957557554868
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.16823671512759464
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.15065888657731719
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.14519404257725993
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.19182778247657878
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.14035898038578123
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.2025397464024139
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.17731309218984426
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.15815503414384444
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.12019343744310473
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.03607131127840324
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.03715339410876316
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.1416544805018563
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.1050589140483382
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.12185365548533238
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.10767121655411849
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.14452685888905137
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.16248809089231453
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.17291492218708512
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.14471136476777435
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.12661613647350212
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "off",
+            "steps": 64,
+            "reward_mse": 0.13141368733509828
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "model",
+            "steps": 64,
+            "reward_mse": 0.029148214674793255
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "memory",
+            "steps": 64,
+            "reward_mse": 0.030971782423644036
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "reward_mse": 0.14602847679126954
+          }
+        ],
+        "frozen": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.12487135877301357,
+            "local_regret": 0.1543830777424055,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07130120071708647,
+            "local_regret": 0.1543830777424055,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.06764386777624753,
+            "local_regret": 0.1543830777424055,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1014995677647268,
+            "local_regret": 0.1543830777424055,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.04709660782298806,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.002497876695488513,
+            "reward_mse": 0.04557179243572442,
+            "local_regret": 0.17892638907187197,
+            "planner_use_fraction": 0.015625
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.08950321294110945,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10935301360802643,
+            "local_regret": 0.1668344880310354,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.08047440714731545,
+            "local_regret": 0.1668344880310354,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.06989651840744887,
+            "local_regret": 0.1668344880310354,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.147648109266729,
+            "local_regret": 0.1668344880310354,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11033283640880405,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1292748975406561,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07840882581973507,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.16523666797976633,
+            "local_regret": 0.22309441492420928,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.20525169104465013,
+            "reward_mse": 0.005074889169845654,
+            "local_regret": 0.01784272387955917,
+            "planner_use_fraction": 0.78125
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.20685587566770502,
+            "reward_mse": 0.0074050273567753105,
+            "local_regret": 0.016238539256504286,
+            "planner_use_fraction": 0.8125
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.09987452406373551,
+            "local_regret": 0.22309441492420928,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.10978889684573406,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.16316475050360268,
+            "reward_mse": 0.0036440592568870458,
+            "local_regret": 0.01825951526375779,
+            "planner_use_fraction": 0.65625
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.16211134301798386,
+            "reward_mse": 0.004208942729872207,
+            "local_regret": 0.019312922749376633,
+            "planner_use_fraction": 0.671875
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07535135080354678,
+            "local_regret": 0.18142426576736048,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.14263687902245242,
+            "local_regret": 0.20238896101162746,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.013610747074448072,
+            "reward_mse": 0.06826346515137961,
+            "local_regret": 0.18877821393717936,
+            "planner_use_fraction": 0.03125
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.006959683210763588,
+            "reward_mse": 0.06637181672099732,
+            "local_regret": 0.19542927780086386,
+            "planner_use_fraction": 0.015625
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1358798506948669,
+            "local_regret": 0.20238896101162746,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.006931341227938278,
+            "reward_mse": 0.052620003981489256,
+            "local_regret": 0.15788115427263377,
+            "planner_use_fraction": 0.015625
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.013096003951118576,
+            "reward_mse": 0.04561240304797767,
+            "local_regret": 0.1517164915494535,
+            "planner_use_fraction": 0.03125
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1131522018389422,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1435113794524837,
+            "local_regret": 0.17969075077613966,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11926632216715179,
+            "local_regret": 0.17969075077613966,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.09126056072337768,
+            "local_regret": 0.17969075077613966,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.17049198745795535,
+            "local_regret": 0.17969075077613966,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15061322391534288,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15014567391830244,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.12671875116140993,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.13037536591963622,
+            "local_regret": 0.1745028119819714,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.15752739695782203,
+            "reward_mse": 0.0038707163774306195,
+            "local_regret": 0.016975415024149364,
+            "planner_use_fraction": 0.703125
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.16116883746359983,
+            "reward_mse": 0.00572451932005018,
+            "local_regret": 0.01333397451837156,
+            "planner_use_fraction": 0.6875
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11832313725997003,
+            "local_regret": 0.1745028119819714,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11129916115920842,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.1414279412142656,
+            "reward_mse": 0.004268920313617428,
+            "local_regret": 0.023384554286306425,
+            "planner_use_fraction": 0.609375
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.14567171777988164,
+            "reward_mse": 0.004615365940793067,
+            "local_regret": 0.0191407777206904,
+            "planner_use_fraction": 0.609375
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11053476936096629,
+            "local_regret": 0.16481249550057203,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.144638198671233,
+            "local_regret": 0.18346612678233673,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07630985845757492,
+            "local_regret": 0.18346612678233673,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.0434258730751419,
+            "reward_mse": 0.07364096180727313,
+            "local_regret": 0.1400402537071948,
+            "planner_use_fraction": 0.125
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.13985325360230683,
+            "local_regret": 0.18346612678233673,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07625104966876023,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.013383115618839566,
+            "reward_mse": 0.07914079283971086,
+            "local_regret": 0.16224638078884285,
+            "planner_use_fraction": 0.03125
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.17109540319467073,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.16594079016714242,
+            "local_regret": 0.18939960300128564,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.07607883198777565,
+            "local_regret": 0.18939960300128564,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.03199376135424055,
+            "reward_mse": 0.07554469715171178,
+            "local_regret": 0.15740584164704507,
+            "planner_use_fraction": 0.09375
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1565496642429318,
+            "local_regret": 0.18939960300128564,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.21727488267295592,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": -0.01335480739561147,
+            "reward_mse": 0.22093540041604592,
+            "local_regret": 0.1889843038032939,
+            "planner_use_fraction": 0.0625
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1801981476946362,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.11586250775056103,
+            "local_regret": 0.18274842914109524,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.16089974517677924,
+            "reward_mse": 0.0028730158838279046,
+            "local_regret": 0.021848683964316003,
+            "planner_use_fraction": 0.671875
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.15750545420718753,
+            "reward_mse": 0.003988464278399221,
+            "local_regret": 0.02524297493390769,
+            "planner_use_fraction": 0.625
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.1283013109137858,
+            "local_regret": 0.18274842914109524,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "off",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.15973728140912047,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "model",
+            "steps": 64,
+            "mean_reward": 0.15787743989136852,
+            "reward_mse": 0.0037493674421766854,
+            "local_regret": 0.017752056516313914,
+            "planner_use_fraction": 0.65625
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "memory",
+            "steps": 64,
+            "mean_reward": 0.15767273154093095,
+            "reward_mse": 0.006440318187499211,
+            "local_regret": 0.017956764866751466,
+            "planner_use_fraction": 0.625
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arm": "shuffled",
+            "steps": 64,
+            "mean_reward": 0.0,
+            "reward_mse": 0.187511242558875,
+            "local_regret": 0.1756294964076824,
+            "planner_use_fraction": 0.0
+          }
+        ],
+        "paired": [
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0,
+            "memory_minus_model": 0.0,
+            "memory_minus_shuffled": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.002497876695488513,
+            "memory_minus_model": 0.002497876695488513,
+            "memory_minus_shuffled": 0.002497876695488513
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0,
+            "memory_minus_model": 0.0,
+            "memory_minus_shuffled": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0,
+            "memory_minus_model": 0.0,
+            "memory_minus_shuffled": 0.0
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.20525169104465013,
+            "memory_minus_off": 0.20685587566770502,
+            "memory_minus_model": 0.001604184623054894,
+            "memory_minus_shuffled": 0.20685587566770502
+          },
+          {
+            "seed": 7,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.16316475050360268,
+            "memory_minus_off": 0.16211134301798386,
+            "memory_minus_model": -0.0010534074856188291,
+            "memory_minus_shuffled": 0.16211134301798386
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.013610747074448072,
+            "memory_minus_off": 0.006959683210763588,
+            "memory_minus_model": -0.006651063863684484,
+            "memory_minus_shuffled": 0.006959683210763588
+          },
+          {
+            "seed": 11,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.006931341227938278,
+            "memory_minus_off": 0.013096003951118576,
+            "memory_minus_model": 0.006164662723180298,
+            "memory_minus_shuffled": 0.013096003951118576
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0,
+            "memory_minus_model": 0.0,
+            "memory_minus_shuffled": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0,
+            "memory_minus_model": 0.0,
+            "memory_minus_shuffled": 0.0
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.15752739695782203,
+            "memory_minus_off": 0.16116883746359983,
+            "memory_minus_model": 0.0036414405057778043,
+            "memory_minus_shuffled": 0.16116883746359983
+          },
+          {
+            "seed": 11,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.1414279412142656,
+            "memory_minus_off": 0.14567171777988164,
+            "memory_minus_model": 0.004243776565616031,
+            "memory_minus_shuffled": 0.14567171777988164
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "current",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.0434258730751419,
+            "memory_minus_model": 0.0434258730751419,
+            "memory_minus_shuffled": 0.0434258730751419
+          },
+          {
+            "seed": 19,
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.013383115618839566,
+            "memory_minus_model": 0.013383115618839566,
+            "memory_minus_shuffled": 0.013383115618839566
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "current",
+            "model_minus_off": 0.0,
+            "memory_minus_off": 0.03199376135424055,
+            "memory_minus_model": 0.03199376135424055,
+            "memory_minus_shuffled": 0.03199376135424055
+          },
+          {
+            "seed": 19,
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.0,
+            "memory_minus_off": -0.01335480739561147,
+            "memory_minus_model": -0.01335480739561147,
+            "memory_minus_shuffled": -0.01335480739561147
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "current",
+            "model_minus_off": 0.16089974517677924,
+            "memory_minus_off": 0.15750545420718753,
+            "memory_minus_model": -0.0033942909695917067,
+            "memory_minus_shuffled": 0.15750545420718753
+          },
+          {
+            "seed": 19,
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "model_minus_off": 0.15787743989136852,
+            "memory_minus_off": 0.15767273154093095,
+            "memory_minus_model": -0.00020470835043756574,
+            "memory_minus_shuffled": 0.15767273154093095
+          }
+        ],
+        "aggregate": [
+          {
+            "phase": "recurrence",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13738214548889968,
+                "local_regret": 0.18007938851212324,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.00453691569148269,
+                "reward_mse": 0.071958174775347,
+                "local_regret": 0.17554247282064053,
+                "planner_use_fraction": 0.010416666666666666
+              },
+              "memory": {
+                "mean_reward": 0.016795185428635163,
+                "reward_mse": 0.069218882101506,
+                "local_regret": 0.16328420308348807,
+                "planner_use_fraction": 0.046875
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.1257442240206335,
+                "local_regret": 0.18007938851212324,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.00453691569148269,
+                "per_seed_differences": [
+                  0.0,
+                  0.013610747074448072,
+                  0.0
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.016795185428635163,
+                "per_seed_differences": [
+                  0.0,
+                  0.006959683210763588,
+                  0.0434258730751419
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.012258269737152473,
+                "per_seed_differences": [
+                  0.0,
+                  -0.006651063863684484,
+                  0.0434258730751419
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.016795185428635163,
+                "per_seed_differences": [
+                  0.0,
+                  0.006959683210763588,
+                  0.0434258730751419
+                ]
+              }
+            }
+          },
+          {
+            "phase": "recurrence",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.002310447075979426,
+                "reward_mse": 0.058655887157745855,
+                "local_regret": 0.17164497214922556,
+                "planner_use_fraction": 0.005208333333333333
+              },
+              "memory": {
+                "mean_reward": 0.009658998755148885,
+                "reward_mse": 0.05677499610780432,
+                "local_regret": 0.1642964204700561,
+                "planner_use_fraction": 0.026041666666666668
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12458360599157414,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.002310447075979426,
+                "per_seed_differences": [
+                  0.0,
+                  0.006931341227938278,
+                  0.0
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.009658998755148885,
+                "per_seed_differences": [
+                  0.002497876695488513,
+                  0.013096003951118576,
+                  0.013383115618839566
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.0073485516791694586,
+                "per_seed_differences": [
+                  0.002497876695488513,
+                  0.006164662723180298,
+                  0.013383115618839566
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.009658998755148885,
+                "per_seed_differences": [
+                  0.002497876695488513,
+                  0.013096003951118576,
+                  0.013383115618839566
+                ]
+              }
+            }
+          },
+          {
+            "phase": "reversal",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13960172774255084,
+                "local_regret": 0.17864161393615355,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.0919398537674143,
+                "local_regret": 0.17864161393615355,
+                "planner_use_fraction": 0.0
+              },
+              "memory": {
+                "mean_reward": 0.010664587118080182,
+                "reward_mse": 0.07890059209417945,
+                "local_regret": 0.16797702681807336,
+                "planner_use_fraction": 0.03125
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.15822992032253871,
+                "local_regret": 0.17864161393615355,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.0,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.010664587118080182,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  0.03199376135424055
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.010664587118080182,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  0.03199376135424055
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.010664587118080182,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  0.03199376135424055
+                ]
+              }
+            }
+          },
+          {
+            "phase": "reversal",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.15940698099903428,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "memory": {
+                "mean_reward": -0.004451602465203823,
+                "reward_mse": 0.1667853239583348,
+                "local_regret": 0.17840702169040878,
+                "planner_use_fraction": 0.020833333333333332
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.1284419082252604,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.0,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": -0.004451602465203823,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  -0.01335480739561147
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": -0.004451602465203823,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  -0.01335480739561147
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": -0.004451602465203823,
+                "per_seed_differences": [
+                  0.0,
+                  0.0,
+                  -0.01335480739561147
+                ]
+              }
+            }
+          },
+          {
+            "phase": "stable",
+            "evaluation": "current",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.13715818054998785,
+                "local_regret": 0.19344855201575864,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.17455961105975049,
+                "reward_mse": 0.003939540477034726,
+                "local_regret": 0.01888894095600818,
+                "planner_use_fraction": 0.71875
+              },
+              "memory": {
+                "mean_reward": 0.17517672244616414,
+                "reward_mse": 0.005706003651741571,
+                "local_regret": 0.01827182956959451,
+                "planner_use_fraction": 0.7083333333333334
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.11549965741249713,
+                "local_regret": 0.19344855201575864,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.17455961105975049,
+                "per_seed_differences": [
+                  0.20525169104465013,
+                  0.15752739695782203,
+                  0.16089974517677924
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.17517672244616414,
+                "per_seed_differences": [
+                  0.20685587566770502,
+                  0.16116883746359983,
+                  0.15750545420718753
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.0006171113864136638,
+                "per_seed_differences": [
+                  0.001604184623054894,
+                  0.0036414405057778043,
+                  -0.0033942909695917067
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.17517672244616414,
+                "per_seed_differences": [
+                  0.20685587566770502,
+                  0.16116883746359983,
+                  0.15750545420718753
+                ]
+              }
+            }
+          },
+          {
+            "phase": "stable",
+            "evaluation": "old_stable",
+            "arms": {
+              "off": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.12694177980468765,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              },
+              "model": {
+                "mean_reward": 0.15415671053641225,
+                "reward_mse": 0.0038874490042270535,
+                "local_regret": 0.019798708688792712,
+                "planner_use_fraction": 0.640625
+              },
+              "memory": {
+                "mean_reward": 0.1551519307795988,
+                "reward_mse": 0.005088208952721495,
+                "local_regret": 0.018803488445606167,
+                "planner_use_fraction": 0.6354166666666666
+              },
+              "shuffled": {
+                "mean_reward": 0.0,
+                "reward_mse": 0.1244657875744627,
+                "local_regret": 0.17395541922520497,
+                "planner_use_fraction": 0.0
+              }
+            },
+            "paired": {
+              "model_minus_off": {
+                "mean_difference": 0.15415671053641225,
+                "per_seed_differences": [
+                  0.16316475050360268,
+                  0.1414279412142656,
+                  0.15787743989136852
+                ]
+              },
+              "memory_minus_off": {
+                "mean_difference": 0.1551519307795988,
+                "per_seed_differences": [
+                  0.16211134301798386,
+                  0.14567171777988164,
+                  0.15767273154093095
+                ]
+              },
+              "memory_minus_model": {
+                "mean_difference": 0.0009952202431865453,
+                "per_seed_differences": [
+                  -0.0010534074856188291,
+                  0.004243776565616031,
+                  -0.00020470835043756574
+                ]
+              },
+              "memory_minus_shuffled": {
+                "mean_difference": 0.1551519307795988,
+                "per_seed_differences": [
+                  0.16211134301798386,
+                  0.14567171777988164,
+                  0.15767273154093095
+                ]
+              }
+            }
+          }
+        ],
+        "interpretation": "synthetic mechanism development probe; no tuning or promotion from query; negative differences retained; no inferential intervals from three seeds"
+      },
+      "source_hashes": {
+        "continual_probe.py": "e2481b2413e11be0c90d02374f2d45d88201ed07a465d778363f536dc0e6af41",
+        "experience.py": "66eb08e47cadd8f13e6d3ae2e011ce8de877654bb64092f2309555dd1bbcc59a",
+        "surprise_memory.py": "3cafc0e1035d6d51b3691477dd009071618170e29266049d1e206ecf34e2dec4"
+      },
+      "hashes": {
+        "config": "770ebb26a53e62bd72f01e65c0dd7027159b44872c33f768f20c545d3f597548",
+        "support": "6e2a6f2de14f4d9c62d00f6286cce725a3222a1dafc9956ac8d80fc76947987d",
+        "query": "feefd1f09516707497f0d89237b9059ad508761bfdb549e0bad580e4859eeeba",
+        "records": "ddffa180b9ce99060e68b82d49cd7ba2d16abbfd2ef2bc77b5364f0bd218f6f9"
+      }
+    }
+  }
+}

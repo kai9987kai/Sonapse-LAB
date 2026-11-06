@@ -1,112 +1,108 @@
-"""Reproducible scientific research evidence engine for SYNAPSE.
-
-Automates multi-seed benchmark suites, ablation assays, statistical hypothesis tests,
-effect sizes (Cohen's d), bootstrap confidence intervals, and publication-ready reporting.
-"""
+"""Paired statistics for supplied measurements; this module never invents scores."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+
 import hashlib
 import json
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+from scipy.stats import t as student_t
+
+
+def _scores(values, name='scores'):
+    try:
+        arr = np.asarray(values, dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{name} must be a nonempty finite numeric vector') from exc
+    if arr.ndim != 1 or not len(arr) or not np.isfinite(arr).all():
+        raise ValueError(f'{name} must be a nonempty finite numeric vector')
+    return arr
 
 
 def compute_cohens_d(group1: np.ndarray, group2: np.ndarray) -> float:
-    """Computes Cohen's d effect size between two independent or paired groups."""
-    g1 = np.asarray(group1, dtype=np.float64)
-    g2 = np.asarray(group2, dtype=np.float64)
+    """Pooled-SD standardized mean difference (not paired Cohen's dz)."""
+    g1, g2 = _scores(group1), _scores(group2)
     n1, n2 = len(g1), len(g2)
-    if n1 < 2 or n2 < 2:
+    if min(n1, n2) < 2:
         return 0.0
-    var1, var2 = np.var(g1, ddof=1), np.var(g2, ddof=1)
-    pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
-    if pooled_std < 1e-8:
-        return 0.0
-    return float((np.mean(g1) - np.mean(g2)) / pooled_std)
+    pooled = np.sqrt(((n1-1)*g1.var(ddof=1)+(n2-1)*g2.var(ddof=1))/(n1+n2-2))
+    return float((g1.mean()-g2.mean())/pooled) if pooled > 1e-12 else 0.0
 
 
-def bootstrap_confidence_interval(data: np.ndarray, num_bootstrap: int = 1000, alpha: float = 0.05, seed: int = 42) -> Tuple[float, float]:
-    """Computes non-parametric bootstrap (1 - alpha) confidence interval."""
+def bootstrap_confidence_interval(data: np.ndarray, num_bootstrap: int = 2000, alpha: float = .05, seed: int = 42) -> Tuple[float, float]:
+    """Percentile bootstrap of measurement units, not individual time steps."""
+    arr = _scores(data)
+    if type(num_bootstrap) is not int or not 1 <= num_bootstrap <= 100000 or not 0 < alpha < 1:
+        raise ValueError('invalid bootstrap configuration')
     rng = np.random.default_rng(seed)
-    arr = np.asarray(data, dtype=np.float64)
-    if len(arr) == 0:
-        return 0.0, 0.0
-    n = len(arr)
-    boot_means = [np.mean(rng.choice(arr, size=n, replace=True)) for _ in range(num_bootstrap)]
-    lower = float(np.percentile(boot_means, 100 * (alpha / 2.0)))
-    upper = float(np.percentile(boot_means, 100 * (1.0 - alpha / 2.0)))
-    return lower, upper
+    means = np.array([rng.choice(arr, size=len(arr), replace=True).mean() for _ in range(num_bootstrap)])
+    return tuple(float(x) for x in np.quantile(means, [alpha/2, 1-alpha/2]))
 
 
 class ResearchEvidenceEngine:
-    """Orchestrates comprehensive empirical benchmarks, statistical tests, and report generation."""
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = output_dir
         self.experiments: Dict[str, Any] = {}
 
-    def run_ablation_suite(self, baseline_scores: List[float], ablated_scores_dict: Dict[str, List[float]]) -> Dict[str, Any]:
-        """Runs ablation suite comparing full baseline system against various ablated configurations."""
-        base_arr = np.array(baseline_scores)
-        base_mean = float(np.mean(base_arr))
-        base_ci = bootstrap_confidence_interval(base_arr)
-        
-        ablation_results = {}
-        for condition_name, scores in ablated_scores_dict.items():
-            abl_arr = np.array(scores)
-            abl_mean = float(np.mean(abl_arr))
-            abl_ci = bootstrap_confidence_interval(abl_arr)
-            d = compute_cohens_d(base_arr, abl_arr)
-            
-            # Simple paired difference test
-            diffs = base_arr[:min(len(base_arr), len(abl_arr))] - abl_arr[:min(len(base_arr), len(abl_arr))]
-            t_stat = float(np.mean(diffs) / (np.std(diffs, ddof=1) / np.sqrt(len(diffs)) + 1e-8)) if len(diffs) > 1 else 0.0
-            
-            ablation_results[condition_name] = {
-                'mean_score': abl_mean,
-                'std_score': float(np.std(abl_arr)),
-                'ci_95': abl_ci,
-                'relative_performance_drop_pct': float(max(0.0, (base_mean - abl_mean) / max(1e-4, base_mean) * 100.0)),
-                'cohens_d': d,
-                't_stat': t_stat,
-                'statistically_significant': bool(abs(t_stat) > 2.0 and d > 0.5)
-            }
-            
-        suite_summary = {
-            'baseline': {
-                'mean_score': base_mean,
-                'std_score': float(np.std(base_arr)),
-                'ci_95': base_ci
-            },
-            'ablations': ablation_results,
-            'provenance_hash': hashlib.sha256(str(ablation_results).encode()).hexdigest()[:16]
-        }
-        self.experiments['ablation_suite'] = suite_summary
-        return suite_summary
+    def run_ablation_suite(self, baseline_scores: List[float], ablated_scores_dict: Dict[str, List[float]], source_label: str = 'caller-supplied measurements; provenance not independently verified') -> Dict[str, Any]:
+        """Compare exactly paired units supplied in identical order by the caller.
 
-    def generate_markdown_report(self, title: str = "SYNAPSE Scientific Evidence Report") -> str:
-        """Renders publication-ready Markdown report."""
-        lines = [
-            f"# {title}",
-            "",
-            "> Automated empirical benchmark report with non-parametric bootstrap 95% confidence intervals and Cohen's d effect sizes.",
-            "",
-            "## 1. Executive Summary",
-            ""
-        ]
-        
-        if 'ablation_suite' in self.experiments:
-            res = self.experiments['ablation_suite']
-            base = res['baseline']
-            lines.append(f"- **Baseline Performance**: {base['mean_score']:.3f} +/- {base['std_score']:.3f} (95% CI: [{base['ci_95'][0]:.3f}, {base['ci_95'][1]:.3f}])")
-            lines.append(f"- **Provenance Hash**: `0x{res['provenance_hash']}`")
-            lines.append("")
-            lines.append("## 2. Component Ablation Matrix")
-            lines.append("")
-            lines.append("| Component Ablated | Mean Score | Performance Drop (%) | Cohen's d | Significant (p < 0.05) |")
-            lines.append("|---|---|---|---|---|")
-            for name, data in res['ablations'].items():
-                sig = "YES" if data['statistically_significant'] else "NO"
-                lines.append(f"| `{name}` | {data['mean_score']:.3f} | {data['relative_performance_drop_pct']:.1f}% | {data['cohens_d']:.2f} | **{sig}** |")
-            lines.append("")
-            
-        return "\n".join(lines)
+        Positive differences mean baseline exceeds control. Bootstrap intervals are
+        descriptive with small samples. Two-sided paired t tests assume independent
+        units and approximately normal differences; p values are unadjusted.
+        """
+        base = _scores(baseline_scores, 'baseline')
+        if not isinstance(ablated_scores_dict, dict) or not ablated_scores_dict:
+            raise ValueError('at least one measured comparison is required')
+        if not isinstance(source_label, str) or not source_label.strip():
+            raise ValueError('source_label must be nonempty')
+        controls = {name: _scores(values, str(name)) for name, values in ablated_scores_dict.items()}
+        if any(not isinstance(name, str) or not name for name in controls):
+            raise ValueError('comparison names must be nonempty strings')
+        if any(len(arr) != len(base) for arr in controls.values()):
+            raise ValueError('paired measurements must have identical lengths and unit order')
+        rows = {}
+        for name, arr in controls.items():
+            diffs = base-arr
+            sd = float(diffs.std(ddof=1)) if len(diffs) > 1 else 0.
+            t_stat, p_value = None, None
+            if len(diffs) > 1 and sd > 1e-12:
+                t_stat = float(diffs.mean()/(sd/np.sqrt(len(diffs))))
+                p_value = float(2*student_t.sf(abs(t_stat), df=len(diffs)-1))
+            # Constant paired differences have no estimated variance. Do not turn
+            # that degeneracy into a claim of infinite statistical evidence.
+            rows[name] = {
+                'mean_score': float(arr.mean()), 'std_score': float(arr.std()),
+                'ci_95': list(bootstrap_confidence_interval(arr)),
+                'paired_mean_difference': float(diffs.mean()),
+                'paired_ci_95': list(bootstrap_confidence_interval(diffs)),
+                'relative_performance_drop_pct': float(diffs.mean()/abs(base.mean())*100) if abs(base.mean()) > 1e-12 else None,
+                'cohens_d': compute_cohens_d(base, arr),
+                't_stat': t_stat, 'p_value': p_value,
+                'statistically_significant': bool(p_value < .05) if p_value is not None else None,
+            }
+        raw = {'baseline': base.tolist(), 'comparisons': {k: v.tolist() for k, v in controls.items()}, 'source_label': source_label}
+        result = {
+            'baseline': {'mean_score': float(base.mean()), 'std_score': float(base.std()), 'ci_95': list(bootstrap_confidence_interval(base))},
+            'ablations': rows, 'paired_units': len(base), 'source_label': source_label,
+            'raw_measurements': raw,
+            'statistical_method': 'paired-unit percentile bootstrap; two-sided paired Student t test when variance estimable; unadjusted exploratory p values',
+            'provenance_hash': hashlib.sha256(json.dumps(raw, sort_keys=True, allow_nan=False).encode()).hexdigest(),
+        }
+        self.experiments['ablation_suite'] = result
+        return result
+
+    def generate_markdown_report(self, title: str = 'SYNAPSE Scientific Evidence Report') -> str:
+        lines = [f'# {title}', '', 'Paired supplied measurements. Component names and provenance are provided by the caller.', '']
+        if 'ablation_suite' not in self.experiments:
+            return '\n'.join(lines)
+        result = self.experiments['ablation_suite']
+        base = result['baseline']
+        lines.extend([f"Source: {result['source_label']}", '', f"Baseline mean: {base['mean_score']:.4f}; paired units: {result['paired_units']}.", '', '## Component Ablation Matrix', '',
+                      '| Comparison | Mean | Baseline minus comparison | Paired 95% interval | Exploratory p |', '|---|---:|---:|---|---:|'])
+        for name, row in result['ablations'].items():
+            low, high = row['paired_ci_95']
+            p = f"{row['p_value']:.4g}" if row['p_value'] is not None else 'not estimable'
+            lines.append(f"| `{name}` | {row['mean_score']:.4f} | {row['paired_mean_difference']:+.4f} | [{low:+.4f}, {high:+.4f}] | {p} |")
+        lines.extend(['', result['statistical_method']+'. Small samples limit inference; no multiplicity correction is applied.', '', f"Raw-measurement SHA-256: `{result['provenance_hash']}`", ''])
+        return '\n'.join(lines)

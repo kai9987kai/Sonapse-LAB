@@ -100,9 +100,22 @@ class Workbench:
                 if ident in self.cancel: self.cancel[ident].set(); job['cancel_requested']=True; self.persist(job)
                 return dict(job)
         with self.lock:
+            if path=='/api/experience/mode':
+                mode=data.get('mode')
+                if mode not in ('off','model','memory'):
+                    raise ValueError('experience mode must be off, model, or memory')
+                config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model')
+                self.runtime.config=config; self.runtime.agent.config=config
+                return self.runtime.snapshot()
             if path=='/api/step':
                 learn=data.get('learn',False)
                 if type(learn) is not bool: raise ValueError('learn must be boolean')
+                act=data.get('action')
+                if act is not None:
+                    if not isinstance(act,(list,tuple)) or len(act)!=5:
+                        raise ValueError('action must be a 5-element list')
+                    act=[float(x) for x in act]
+                    return self.runtime.step(integer(data.get('steps',1),'steps',1,1000),learn=learn,action=act)
                 return self.runtime.step(integer(data.get('steps',1),'steps',1,1000),learn=learn)
             if path=='/api/reset':
                 cfg=data.get('config')

@@ -1,10 +1,367 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SYNAPSE · Research Workbench</title><link rel="stylesheet" href="/style.css"></head><body>
-<aside><a class="brand" href="/">S<span>◉</span>NAPSE</a><div class="caption">INTEGRATED RESEARCH LAB</div><nav><button data-tab="overview" class="active">01 <span>Live workbench</span></button><button data-tab="capabilities">02 <span>Capabilities</span></button><button data-tab="patches">03 <span>Weight programs</span></button><button data-tab="experiments">04 <span>Experiments & RSI</span></button><button data-tab="checkpoints">05 <span>State archive</span></button></nav><div class="sidebar-note"><i></i> LOCAL / CPU<br><small>Synthetic connectome research.<br>Measured behavior, bounded claims.</small></div></aside>
-<main><header><div><div class="eyebrow">CONNECTOME × WEIGHT SPACE × INHERITED SEARCH</div><h1 id="title">Live workbench</h1></div><div id="connection">Connecting…</div></header><div id="error" role="alert" hidden></div>
-<section id="overview" class="tab active"><div class="toolbar"><button id="run" class="primary">▶ Run</button><button id="pause">Ⅱ Pause</button><button id="step">Step +1</button><button id="train">Train +32</button><label><input id="learn" type="checkbox"> Learn while running</label><span class="muted" id="runstatus">Paused</span></div><div id="metrics" class="metrics"></div><div class="visual-grid"><article><div class="panel-head"><h2>Integrated neural substrate</h2><span class="tag">LIVE ACTIVATION</span></div><canvas id="graph" height="340"></canvas><div class="legend"><span>● Rate graph</span><span>● Tidal bridge</span><span>● Active coupling</span></div></article><article><div class="panel-head"><h2>Embodied world</h2><span id="worldtask" class="tag"></span></div><canvas id="world" height="340"></canvas><div class="legend">Projected world state · native task backend</div></article></div><div class="visual-grid"><article><h2>Routing & learning signals</h2><canvas id="signals" height="180"></canvas></article><article><h2>Memory & agent telemetry</h2><div id="telemetry" class="keyvalues"></div></article></div><div class="visual-grid" style="margin-top:16px"><article><div class="panel-head"><h2>Neuromodulatory & Astrocyte Field Gauges</h2><span class="tag">DA · 5-HT · OA · ACh · [Ca2+]</span></div><canvas id="gauges" height="180"></canvas><div class="legend"><span>● Dopamine / ACh</span><span>● Serotonin</span><span>● Octopamine / Glia</span></div></article><article><div class="panel-head"><h2>Predictive Coding & Free Energy</h2><span class="tag">FEP ACTIVE INFERENCE</span></div><canvas id="predictive" height="180"></canvas><div class="legend">Variational Free Energy & Surprisal</div></article></div><article><div class="panel-head"><h2>Session configuration</h2><span class="muted">Reset creates a fresh agent and world</span></div><form id="config"><label>Task<select name="task"><option>forage</option><option>maze</option><option>push</option><option>grasp_place</option><option>peg_insert</option><option>delayed_match</option><option>go_nogo</option><option>button_sequence</option><option>auto</option></select></label><label>Seed<input name="seed" type="number" value="7" min="0"></label><label>Nodes / source<input name="nodes_per_source" type="number" value="100" min="16" max="1500"></label><label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label><label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label><label>Readout<select name="readout"><option>absolute</option><option>evoked</option><option>persistent_evoked</option></select></label><button>Reset session</button></form></article><details><summary>Complete snapshot · inspect raw evidence</summary><pre id="snapshot"></pre></details></section>
-<section id="capabilities" class="tab"><article><h2>Source-backed capability explorer</h2><p class="muted">Inspect availability, typed inputs and evidence scope before invoking a service.</p><input id="search" placeholder="Search architecture, operation or source…"><div class="explorer"><div id="catalog"></div><div><h3 id="capname">Select a capability</h3><pre id="capschema"></pre><label>JSON payload<textarea id="cappayload">{}</textarea></label><button id="invoke" class="primary">Invoke capability</button><pre id="capresult"></pre></div></div></article></section>
-<section id="patches" class="tab"><div class="visual-grid"><article><h2>Numeric patch author</h2><p class="muted">Bounded, fingerprinted edits to named tensors. Preview a packet before applying it.</p><button id="tensors">Refresh editable surfaces</button><pre id="surfaces"></pre><label>Description<input id="description" value="Manual bounded numeric edit"></label><label>Edits JSON<textarea id="edits" placeholder='{"tensor":"surface_name","indices":[[0,0]],"values":[0.01]}'>[]</textarea></label><button id="makepatch" class="primary">Build patch packet</button></article><article><h2>Packet preview / import</h2><label>Import JSON file<input id="importpatch" type="file" accept=".json"></label><textarea id="packet" class="tall" placeholder="Create or paste a patch packet here"></textarea><div class="toolbar"><button id="previewpatch">Validate preview</button><button id="applypatch" class="primary">Apply packet</button><button id="rollback">Rollback last apply</button><button id="exportpatch">Export JSON</button></div><pre id="patchresult"></pre></article></div><div class="visual-grid" style="margin-top:16px"><article><h2>Autonomous failure diagnosis & repair</h2><p class="muted">Diagnostic rollouts &rarr; circuit failure diagnosis &rarr; weight-space program synthesis &rarr; inactive candidate evaluation &rarr; confirmation with writer disconnected.</p><div class="toolbar"><button id="autoprogram" class="primary">Run Autonomous Repair</button></div><pre id="autorepairresult"></pre></article><article><h2>Factorial donor transplantation</h2><p class="muted">Extract donor graft circuit and run full factorial comparison against 5 control arms (correct, random, shuffled, irrelevant, disabled, permuted_host).</p><div class="toolbar"><button id="transplant" class="primary">Run Transplantation Assay</button></div><pre id="transplantresult"></pre></article></div><div class="visual-grid" style="margin-top:16px"><article><h2>Metamorphic Invariance Oracle</h2><p class="muted">Stress-test formal metamorphic relations: MR1 (rotational invariance), MR2 (valence monotonicity), MR3 (sensor fault tolerance), MR5 (Lipschitz stability).</p><div class="toolbar"><button id="metamorphic" class="primary">Run Metamorphic Audit</button></div><pre id="metamorphicresult"></pre></article><article><h2>Spectral Connectome Harmonics</h2><p class="muted">Normalized graph Laplacian eigendecomposition, harmonic resonant modes, and live neural power spectra.</p><div class="toolbar"><button id="spectral" class="primary">Analyze Harmonics</button></div><pre id="spectralresult"></pre></article></div><div class="visual-grid" style="margin-top:16px"><article><h2>Gromov-Wasserstein Manifold Alignment</h2><p class="muted">Unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies.</p><div class="toolbar"><button id="manifold" class="primary">Align Manifolds (GW)</button></div><pre id="manifoldresult"></pre></article><article><h2>Tripartite Glial Metaplasticity</h2><p class="muted">Intracellular astrocytic calcium [Ca2+]_i waves, regional gliotransmission, and sliding BCM thresholds.</p><div class="toolbar"><button id="astrocyte" class="primary">Audit Astrocytes</button></div><pre id="astrocyteresult"></pre></article></div></section>
-<section id="experiments" class="tab"><div class="visual-grid"><article><h2>Bounded study protocol</h2><p class="muted">Studies run on isolated agents. Held-out query evidence is reported separately from proposal selection.</p><label>Configuration JSON<textarea id="studyconfig">{
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYNAPSE · Research Workbench</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<aside>
+  <a class="brand" href="/">S<span>◉</span>NAPSE</a>
+  <div class="caption">INTEGRATED RESEARCH LAB</div>
+  <nav>
+    <button data-tab="overview" class="active">01 <span>Live workbench</span></button>
+    <button data-tab="capabilities">02 <span>Capabilities</span></button>
+    <button data-tab="patches">03 <span>Weight programs</span></button>
+    <button data-tab="experiments">04 <span>Experiments & RSI</span></button>
+    <button data-tab="checkpoints">05 <span>State archive</span></button>
+  </nav>
+  <div class="sidebar-note">
+    <i></i> LOCAL / CPU<br>
+    <small>Synthetic connectome research.<br>Measured behavior, bounded claims.</small>
+  </div>
+</aside>
+
+<main>
+  <header>
+    <div>
+      <div class="eyebrow">CONNECTOME × WEIGHT SPACE × INHERITED SEARCH</div>
+      <h1 id="title">Live workbench</h1>
+    </div>
+    <div id="connection">Connecting…</div>
+  </header>
+  
+  <div id="error" role="alert" hidden></div>
+
+  <!-- 01 LIVE WORKBENCH -->
+  <section id="overview" class="tab active">
+    <div class="toolbar">
+      <button id="run" class="primary">▶ Run</button>
+      <button id="pause">Ⅱ Pause</button>
+      <button id="step">Step +1</button>
+      <button id="train">Train +32</button>
+      <label><input id="learn" type="checkbox"> Learn while running</label>
+      <label>Speed:
+        <select id="simspeed" style="display:inline;width:auto;padding:4px 8px;margin:0 4px">
+          <option value="250">1x (250ms)</option>
+          <option value="125" selected>2x (125ms)</option>
+          <option value="50">5x (50ms)</option>
+          <option value="20">10x (20ms)</option>
+        </select>
+      </label>
+      <label>Quick Task:
+        <select id="quicktask" style="display:inline;width:auto;padding:4px 8px;margin:0 4px">
+          <option value="">(Current)</option>
+          <option value="forage">forage</option>
+          <option value="maze">maze</option>
+          <option value="push">push</option>
+          <option value="grasp_place">grasp_place</option>
+          <option value="peg_insert">peg_insert</option>
+          <option value="delayed_match">delayed_match</option>
+          <option value="go_nogo">go_nogo</option>
+          <option value="button_sequence">button_sequence</option>
+        </select>
+      </label>
+      <span class="muted" id="runstatus">Paused</span>
+    </div>
+
+    <div id="metrics" class="metrics"></div>
+
+    <!-- MAIN VISUAL GRID: SUBSTRATE & EMBODIED WORLD -->
+    <div class="visual-grid">
+      <!-- Integrated Neural Substrate Canvas -->
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Integrated neural substrate</h2>
+            <span class="tag">LIVE DYNAMICS</span>
+          </div>
+          <div class="view-toggle">
+            <button id="graph-view-2d" class="active" title="Planar anatomical clusters">2D Substrate</button>
+            <button id="graph-view-3d" title="Interactive 3D Anatomical Observatory">3D Observatory</button>
+            <button id="graph-autorotate" title="Toggle automatic 3D orbit">Orbit</button>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="graph" height="350"></canvas>
+          <div id="graph-tooltip" class="canvas-tooltip"></div>
+        </div>
+        <div class="legend">
+          <span id="filter-flywire" title="Click to filter FlyWire Central Brain">● FlyWire Central Brain</span>
+          <span id="filter-manc" title="Click to filter MANC Nerve Cord">● MANC Nerve Cord</span>
+          <span id="filter-optic" title="Click to filter Optic Lobe">● Optic Lobe</span>
+          <span id="filter-reset" title="Show all neuropils" style="color:var(--text)">↺ All</span>
+        </div>
+      </article>
+
+      <!-- Embodied World Canvas -->
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Embodied world</h2>
+            <span id="worldtask" class="tag"></span>
+          </div>
+          <div class="view-toggle">
+            <button id="world-view-iso" class="active" title="True isotropic 3D projection">3D Isometric</button>
+            <button id="world-view-top" title="Top-down orthographic radar">Top-Down Radar</button>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="world" height="350"></canvas>
+          <div id="world-tooltip" class="canvas-tooltip"></div>
+        </div>
+        <div class="teleop-bar">
+          <span style="font-size:11px;color:var(--muted)">Direct Teleop:</span>
+          <button id="teleop-fwd" title="Thrust forward (W / Up)">▲ Thrust</button>
+          <button id="teleop-left" title="Steer left (A / Left)">◀ Turn L</button>
+          <button id="teleop-right" title="Steer right (D / Right)">▶ Turn R</button>
+          <button id="teleop-grip" title="Toggle gripper (Space)">✊ Grip</button>
+          <button id="teleop-arm" title="Reach arm forward (E)">🦾 Reach</button>
+          <span class="teleop-kbd">Keys: W A S D / Arrow keys / Space</span>
+        </div>
+      </article>
+    </div>
+
+    <!-- SIGNALS & TELEMETRY -->
+    <div class="visual-grid">
+      <article>
+        <div class="panel-head">
+          <h2>Routing & learning signals</h2>
+          <span class="tag">TIMESERIES TELEMETRY</span>
+        </div>
+        <canvas id="signals" height="185"></canvas>
+      </article>
+      <article>
+        <div class="panel-head">
+          <h2>Memory & agent telemetry</h2>
+          <span class="tag">INTERNAL STATE</span>
+        </div>
+        <div id="telemetry" class="keyvalues"></div>
+      </article>
+    </div>
+
+    <!-- GAUGES & PREDICTIVE CODING -->
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <div class="panel-head">
+          <h2>Neuromodulatory & Astrocyte Field Gauges</h2>
+          <span class="tag">DA · 5-HT · OA · ACh · [Ca2+]</span>
+        </div>
+        <canvas id="gauges" height="185"></canvas>
+        <div class="legend">
+          <span>● Dopamine / ACh</span>
+          <span>● Serotonin</span>
+          <span>● Octopamine / Glia</span>
+        </div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <h2>Predictive Coding & Free Energy</h2>
+          <span class="tag">FEP ACTIVE INFERENCE</span>
+        </div>
+        <canvas id="predictive" height="185"></canvas>
+        <div class="legend">Variational Free Energy & Surprisal</div>
+      </article>
+    </div>
+
+    <!-- CONFIGURATION -->
+    <article>
+      <div class="panel-head">
+        <h2>Session configuration</h2>
+        <span class="muted">Reset creates a fresh agent and world</span>
+      </div>
+      <form id="config">
+        <label>Task
+          <select name="task">
+            <option>forage</option>
+            <option>maze</option>
+            <option>push</option>
+            <option>grasp_place</option>
+            <option>peg_insert</option>
+            <option>delayed_match</option>
+            <option>go_nogo</option>
+            <option>button_sequence</option>
+            <option>auto</option>
+          </select>
+        </label>
+        <label>Seed<input name="seed" type="number" value="7" min="0"></label>
+        <label>Nodes / source<input name="nodes_per_source" type="number" value="100" min="16" max="1500"></label>
+        <label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label>
+        <label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label>
+        <label>Readout
+          <select name="readout">
+            <option>absolute</option>
+            <option>evoked</option>
+            <option>persistent_evoked</option>
+          </select>
+        </label>
+        <button>Reset session</button>
+      </form>
+    </article>
+
+    <!-- EXPERIENCE & SURPRISE MEMORY -->
+    <article>
+      <div class="panel-head">
+        <h2>Experience learning &amp; surprise memory</h2>
+        <span class="tag">EXPERIMENTAL</span>
+      </div>
+      <p class="muted">Train +32 collects real outcomes. Planning uses learned immediate rewards and local action changes. Learning stays frozen when the learning controls are off.</p>
+      <div class="toolbar">
+        <label>Action policy
+          <select id="experience-mode">
+            <option value="off">Actor only</option>
+            <option value="model">Actor + learned model</option>
+            <option value="memory">Actor + model + surprise memory</option>
+          </select>
+        </label>
+        <button id="experience-apply">Set policy</button>
+      </div>
+      <p id="experience-summary" class="muted">Waiting for experience data.</p>
+      <details>
+        <summary>Prediction, coverage &amp; memory measurements</summary>
+        <pre id="experience-details"></pre>
+      </details>
+    </article>
+
+    <details>
+      <summary>Complete snapshot · inspect raw evidence</summary>
+      <pre id="snapshot"></pre>
+    </details>
+  </section>
+
+  <!-- 02 CAPABILITIES -->
+  <section id="capabilities" class="tab">
+    <article>
+      <h2>Source-backed capability explorer</h2>
+      <p class="muted">Inspect availability, typed inputs and evidence scope before invoking a service.</p>
+      <input id="search" placeholder="Search architecture, operation or source…">
+      <div class="explorer">
+        <div id="catalog"></div>
+        <div>
+          <h3 id="capname">Select a capability</h3>
+          <pre id="capschema"></pre>
+          <label>JSON payload<textarea id="cappayload">{}</textarea></label>
+          <button id="invoke" class="primary">Invoke capability</button>
+          <pre id="capresult"></pre>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- 03 WEIGHT PROGRAMS & ADVANCED ASSAYS -->
+  <section id="patches" class="tab">
+    <div class="visual-grid">
+      <article>
+        <h2>Numeric patch author</h2>
+        <p class="muted">Bounded, fingerprinted edits to named tensors. Preview a packet before applying it.</p>
+        <button id="tensors">Refresh editable surfaces</button>
+        <pre id="surfaces"></pre>
+        <label>Description<input id="description" value="Manual bounded numeric edit"></label>
+        <label>Edits JSON<textarea id="edits" placeholder='{"tensor":"surface_name","indices":[[0,0]],"values":[0.01]}'>[]</textarea></label>
+        <button id="makepatch" class="primary">Build patch packet</button>
+      </article>
+      <article>
+        <h2>Packet preview / import</h2>
+        <label>Import JSON file<input id="importpatch" type="file" accept=".json"></label>
+        <textarea id="packet" class="tall" placeholder="Create or paste a patch packet here"></textarea>
+        <div class="toolbar">
+          <button id="previewpatch">Validate preview</button>
+          <button id="applypatch" class="primary">Apply packet</button>
+          <button id="rollback">Rollback last apply</button>
+          <button id="exportpatch">Export JSON</button>
+        </div>
+        <pre id="patchresult"></pre>
+      </article>
+    </div>
+
+    <!-- ADVANCED ASSAY PANELS -->
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <h2>Causal Circuit Atlas & Abstraction Mapping</h2>
+        <p class="muted">Systematic optogenetic silencing & ablation assay linking anatomical subcircuits to behavioral primitives (thrust, steering, evasion, memory).</p>
+        <div class="toolbar">
+          <button id="atlas" class="primary">Build Causal Atlas</button>
+        </div>
+        <pre id="atlasresult"></pre>
+      </article>
+      <article>
+        <h2>Weight-Space Hypernetwork Program Synthesis</h2>
+        <p class="muted">Generates closed-loop Dale's-law-compliant patch packets directly from diagnostic connectome & behavioral signatures.</p>
+        <div class="toolbar">
+          <button id="hyperprogram" class="primary">Synthesize Hyperprogram</button>
+          <button id="hyperapply">Apply Generated Patch</button>
+        </div>
+        <pre id="hyperresult"></pre>
+      </article>
+    </div>
+
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <h2>Autonomous failure diagnosis & repair</h2>
+        <p class="muted">Diagnostic rollouts &rarr; circuit failure diagnosis &rarr; weight-space program synthesis &rarr; inactive candidate evaluation &rarr; confirmation with writer disconnected.</p>
+        <div class="toolbar">
+          <button id="autoprogram" class="primary">Run Autonomous Repair</button>
+        </div>
+        <pre id="autorepairresult"></pre>
+      </article>
+      <article>
+        <h2>Factorial donor transplantation</h2>
+        <p class="muted">Extract donor graft circuit and run full factorial comparison against 5 control arms (correct, random, shuffled, irrelevant, disabled, permuted_host).</p>
+        <div class="toolbar">
+          <button id="transplant" class="primary">Run Transplantation Assay</button>
+        </div>
+        <pre id="transplantresult"></pre>
+      </article>
+    </div>
+
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <h2>Flagship Experiment: Dual-Skill Transfer & Recursive Evolution</h2>
+        <p class="muted">Executes full 6-stage developmental benchmark: Task A & B training &rarr; dual transplantation &rarr; double dissociation ablation &rarr; recursive rule evolution &rarr; benchmark arms.</p>
+        <div class="toolbar">
+          <button id="flagship" class="primary">Run Flagship Assay</button>
+        </div>
+        <pre id="flagshipresult"></pre>
+      </article>
+      <article>
+        <h2>Metamorphic Invariance Oracle</h2>
+        <p class="muted">Stress-test formal metamorphic relations: MR1 (rotational invariance), MR2 (valence monotonicity), MR3 (sensor fault tolerance), MR5 (Lipschitz stability).</p>
+        <div class="toolbar">
+          <button id="metamorphic" class="primary">Run Metamorphic Audit</button>
+        </div>
+        <pre id="metamorphicresult"></pre>
+      </article>
+    </div>
+
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <h2>Spectral Connectome Harmonics</h2>
+        <p class="muted">Normalized graph Laplacian eigendecomposition, harmonic resonant modes, and live neural power spectra.</p>
+        <div class="toolbar">
+          <button id="spectral" class="primary">Analyze Harmonics</button>
+        </div>
+        <pre id="spectralresult"></pre>
+      </article>
+      <article>
+        <h2>Gromov-Wasserstein Manifold Alignment</h2>
+        <p class="muted">Unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies.</p>
+        <div class="toolbar">
+          <button id="manifold" class="primary">Align Manifolds (GW)</button>
+        </div>
+        <pre id="manifoldresult"></pre>
+      </article>
+    </div>
+  </section>
+
+  <!-- 04 EXPERIMENTS & RSI -->
+  <section id="experiments" class="tab">
+    <div class="visual-grid">
+      <article>
+        <h2>Bounded study protocol</h2>
+        <p class="muted">Studies run on isolated agents. Held-out query evidence is reported separately from proposal selection.</p>
+        <label>Configuration JSON
+          <textarea id="studyconfig">{
   "seed": 7,
   "lineages": 3,
   "generations": 3,
@@ -12,6 +369,43 @@
   "support": 16,
   "query": 24,
   "nodes_per_source": 16
-}</textarea></label><button id="startstudy" class="primary">Start study</button></article><article><h2>Job monitor</h2><div id="jobs" class="muted">No studies recorded.</div></article></div><article><h2>RSI lineage & study evidence</h2><div id="lineage" class="lineage muted">Completed study receipts appear here.</div><pre id="studyresult"></pre></article></section>
-<section id="checkpoints" class="tab"><article><h2>Exact session archive</h2><p class="muted">Save and restore the runtime through validated local checkpoint names.</p><div class="toolbar"><input id="checkpointname" value="session" pattern="[A-Za-z0-9_-]+"><button id="save" class="primary">Save checkpoint</button><button id="load">Load checkpoint</button><button id="refreshcheckpoints">Refresh archive</button></div><div id="checkpointlist"></div><pre id="checkpointresult"></pre></article></section>
-<footer>SYNAPSE / 0.2 <span>Local experimental workbench · no general intelligence or biological fidelity claim</span></footer></main><script src="/app.js"></script></body></html>
+}</textarea>
+        </label>
+        <button id="startstudy" class="primary">Start study</button>
+      </article>
+      <article>
+        <h2>Job monitor</h2>
+        <div id="jobs" class="muted">No studies recorded.</div>
+      </article>
+    </div>
+    <article>
+      <h2>RSI lineage & study evidence</h2>
+      <div id="lineage" class="lineage muted">Completed study receipts appear here.</div>
+      <pre id="studyresult"></pre>
+    </article>
+  </section>
+
+  <!-- 05 CHECKPOINTS -->
+  <section id="checkpoints" class="tab">
+    <article>
+      <h2>Exact session archive</h2>
+      <p class="muted">Save and restore the runtime through validated local checkpoint names.</p>
+      <div class="toolbar">
+        <input id="checkpointname" value="session" pattern="[A-Za-z0-9_-]+">
+        <button id="save" class="primary">Save checkpoint</button>
+        <button id="load">Load checkpoint</button>
+        <button id="refreshcheckpoints">Refresh archive</button>
+      </div>
+      <div id="checkpointlist"></div>
+      <pre id="checkpointresult"></pre>
+    </article>
+  </section>
+
+  <footer>
+    SYNAPSE / 0.2 <span>Local experimental workbench · no general intelligence or biological fidelity claim</span>
+  </footer>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1566,23 +1566,18 @@ def _handle_safety_action_shield(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def _handle_evidence_research_benchmark(payload: Dict[str, Any]) -> Dict[str, Any]:
-    from .evidence_engine import ResearchEvidenceEngine
-    engine = ResearchEvidenceEngine()
-    suite = engine.run_ablation_suite(
-        baseline_scores=[1.0, 0.95, 1.05, 0.98],
-        ablated_scores_dict={
-            'no_active_inference': [0.6, 0.65, 0.58, 0.62],
-            'no_spatial_map': [0.4, 0.45, 0.38, 0.42]
-        }
-    )
-    report = engine.generate_markdown_report()
-    return {
-        'status': 'ok',
-        'baseline_mean': suite['baseline']['mean_score'],
-        'num_ablations': len(suite['ablations']),
-        'report_length': len(report),
-        'scope': 'reproducible research evidence engine with confidence intervals'
-    }
+    if 'baseline_scores' in payload or 'ablated_scores' in payload:
+        from .evidence_engine import ResearchEvidenceEngine
+        if not payload.get('source_label'):
+            raise ValueError('a source_label is required for supplied measurements')
+        engine = ResearchEvidenceEngine()
+        suite = engine.run_ablation_suite(payload['baseline_scores'], payload['ablated_scores'], source_label=payload['source_label'])
+        return {'status': 'ok', 'evidence_kind': 'caller_supplied_measurements', 'suite': suite, 'markdown_report': engine.generate_markdown_report(),
+                'scope': 'paired statistics on caller-supplied measurements; provenance not independently verified'}
+    from .adaptation_study import run_adaptation_study
+    result = run_adaptation_study(config={'seeds': [7], 'tasks': ['forage'], 'support_steps': 8, 'query_steps': 8, 'nodes_per_source': 16})
+    return {'status': 'ok', 'evidence_kind': 'native_world_development_study', 'receipt': result,
+            'scope': 'measured small native-world development pilot; no confirmed performance advantage'}
 
 # Master Registry of all 47 Audited Capabilities across 19 Families
 # ---------------------------------------------------------------------------
