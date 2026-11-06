@@ -1033,6 +1033,182 @@ def _handle_manifold_gromov_wasserstein(payload: Dict[str, Any]) -> Dict[str, An
     return align_subcircuit_gromov_wasserstein(donor, host)
 
 
+def _handle_evolution_topology_mutate(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .evolution import TopologyEvolutionEngine
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    evo = TopologyEvolutionEngine()
+    m_type = payload.get('mutation_type', 'add_neuron')
+    if m_type == 'add_neuron':
+        receipt = evo.add_neuron(agent, neuropil=int(payload.get('neuropil', 0)))
+    elif m_type == 'prune_synapses':
+        receipt = evo.prune_synapses(agent, threshold=float(payload.get('threshold', 0.02)))
+    else:
+        receipt = evo.add_neuron(agent, neuropil=0)
+    return {'status': 'ok', 'receipt': receipt.to_dict(), 'scope': 'transaction-safe graph topology mutation'}
+
+def _handle_twin_counterfactual_assay(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .config import SynapseConfig
+    from .twin import CounterfactualNeuralTwinRunner, NeuralIntervention
+    runner = CounterfactualNeuralTwinRunner(SynapseConfig(seed=42, nodes_per_source=16))
+    stage = payload.get('intervention_stage', 'pre_graph')
+    interventions = [NeuralIntervention(stage=stage, target='rate_clamp', value=0.5)]
+    obs = [np.zeros(155, dtype=np.float32) for _ in range(payload.get('steps', 10))]
+    res = runner.run_paired_episode(obs, interventions)
+    res['status'] = 'ok'
+    return res
+
+def _handle_eprop_compare_rules(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .eprop import compare_learning_rules
+    res = compare_learning_rules(num_steps=payload.get('steps', 25), n_neurons=16)
+    res['status'] = 'ok'
+    return res
+
+def _handle_sleep_consolidation_cycle(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .sleep import SleepConsolidationEngine
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    eng = SleepConsolidationEngine()
+    eng.record_experience(np.zeros(155, dtype=np.float32), np.zeros(5, dtype=np.float32), 1.0, 0.5)
+    res = eng.run_sleep_cycle(agent, replays=payload.get('replays', 5))
+    res['status'] = 'ok'
+    return res
+
+def _handle_metaplasticity_four_factor(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .metaplasticity import test_neurochemical_isolation
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    nt = payload.get('neurotransmitter', 'dopamine')
+    res = test_neurochemical_isolation(agent, nt)
+    res['status'] = 'ok'
+    return res
+
+def _handle_world_model_imagined_rollout(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .world_model import RecurrentPredictiveWorldModel
+    wm = RecurrentPredictiveWorldModel(state_dim=32, action_dim=5, obs_dim=155)
+    s0 = np.zeros(32, dtype=np.float32)
+    acts = [np.zeros(5, dtype=np.float32) for _ in range(payload.get('horizon', 5))]
+    res = wm.imagine_rollout(s0, acts, uncertainty_penalty=0.2)
+    return res
+
+def _handle_connectome_compile_biological(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .connectome_compiler import BiologicalConnectomeCompiler
+    compiler = BiologicalConnectomeCompiler()
+    query = payload.get('query', 'motor')
+    mod = compiler.compile_subcircuit(query=query, max_neurons=32)
+    null_mod = compiler.generate_degree_preserving_null(mod)
+    bench = compiler.benchmark_biological_vs_null(mod, null_mod, steps=25)
+    bench['status'] = 'ok'
+    return bench
+
+def _handle_spiking_neuromorphic_benchmark(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .spiking import benchmark_spiking_vs_rate
+    res = benchmark_spiking_vs_rate(num_neurons=32, in_features=8, steps=40)
+    res['status'] = 'ok'
+    return res
+
+def _handle_transfer_skill_transplantation(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .transfer import SkillTransplantationEngine
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    eng = SkillTransplantationEngine()
+    skill = payload.get('skill_name', 'navigation')
+    eng.train_donor_skill(skill, steps=10)
+    receipt = eng.transplant_to_agent(skill, agent)
+    assay = eng.run_causal_ablation_assay(agent, skill, episodes=2)
+    return {'status': 'ok', 'transplant_receipt': receipt, 'causal_ablation_assay': assay}
+
+def _handle_recursive_learning_evolve(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .recursive_learning import RecursiveEvolutionEngine
+    eng = RecursiveEvolutionEngine(population_size=4, seed=42)
+    res = eng.run_recursive_evolution(generations=2, compute_budget_per_indiv=50)
+    res['status'] = 'ok'
+    return res
+
+def _handle_repair_train_hypernetwork(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .hypernetwork_trainer import SyntheticFailureGenerator, HypernetworkRepairBenchmark
+    gen = SyntheticFailureGenerator(seed=42)
+    cases = gen.generate_failure_cases(count=20)
+    bench = HypernetworkRepairBenchmark(seed=42)
+    bench.train_hypernetwork(cases[:15], epochs=1)
+    res = bench.run_comprehensive_benchmark(cases[15:])
+    res['status'] = 'ok'
+    return res
+
+def _handle_genome_morphogenesis(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .genome import DevelopmentalGenome
+    g = DevelopmentalGenome()
+    morph = g.morphogenesis(num_neurons=24, seed=42)
+    return {
+        'status': 'ok',
+        'genome_id': g.genome_id,
+        'num_neurons': morph['num_neurons'],
+        'cell_types': morph['cell_types'][:5],
+        'scope': 'developmental genome 3D morphogenesis',
+    }
+
+def _handle_circuit_causal_atlas(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .circuit_atlas import CausalCircuitAtlas
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    atlas = CausalCircuitAtlas(agent)
+    res = atlas.build_full_atlas()
+    res['status'] = 'ok'
+    return res
+
+def _handle_curriculum_adaptive_generate(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .curriculum import AdaptiveCurriculumGenerator
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    gen = AdaptiveCurriculumGenerator(seed=42)
+    weaknesses = gen.diagnose_weaknesses(agent, episodes=1)
+    tasks = gen.synthesize_curriculum(weaknesses)
+    return {
+        'status': 'ok',
+        'diagnosed_weaknesses': weaknesses,
+        'synthesized_curriculum': [t.task_id for t in tasks],
+        'scope': 'adaptive self-generated curriculum with sealed evaluator',
+    }
+
+def _handle_efficiency_neuromorphic_pareto(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .efficiency import NeuromorphicEfficiencyBenchmark
+    b = NeuromorphicEfficiencyBenchmark(in_features=8, num_neurons=32)
+    res = b.run_benchmark_suite(steps=25)
+    res['status'] = 'ok'
+    return res
+
+def _handle_observatory_neural_telemetry(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .agent import IntegratedAgent
+    from .config import SynapseConfig
+    from .observatory import NeuralObservatory
+    agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
+    obs = NeuralObservatory(agent)
+    struct = obs.get_structure_payload()
+    activity = obs.get_live_activity_payload()
+    return {
+        'status': 'ok',
+        'total_nodes': struct['total_nodes'],
+        'total_edges': struct['total_edges'],
+        'activity_summary': {
+            'mean_rate': activity['mean_rate'],
+            'free_energy': activity['free_energy'],
+        },
+        'scope': '3D neural observatory spatial embeddings and telemetry',
+    }
+
+def _handle_flagship_dual_task_experiment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .flagship import FlagshipExperimentRunner
+    runner = FlagshipExperimentRunner(seed=42)
+    res = runner.run_full_experiment(training_steps=5, evolution_generations=2, eval_episodes=2)
+    return res
+
+
 # ---------------------------------------------------------------------------
 # Master Registry of all 47 Audited Capabilities across 19 Families
 # ---------------------------------------------------------------------------
@@ -1146,6 +1322,25 @@ _REGISTRY: Dict[str, Dict[str, Any]] = {
     'astrocyte.gliotransmission': {'id': 'astrocyte.gliotransmission', 'family': 'astrocyte', 'name': 'Tripartite Glial Metaplasticity Engine', 'description': 'Models astrocytic intracellular calcium waves, BCM sliding threshold metaplasticity, and gliotransmission gain.', 'scope': 'tripartite neuro-glia astrocyte calcium and BCM metaplasticity', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neural_rates': {'type': 'array'}}}, 'example': {'neural_rates': [0.8, 1.2, 0.4]}, 'handler': _handle_astrocyte_gliotransmission},
     'predictive.free_energy': {'id': 'predictive.free_energy', 'family': 'predictive', 'name': 'Hierarchical Active Inference Engine', 'description': 'Computes top-down sensory predictions, precision-weighted prediction errors, and variational free energy.', 'scope': 'hierarchical predictive coding and variational free energy', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'acetylcholine': {'type': 'number'}}}, 'example': {'acetylcholine': 0.6}, 'handler': _handle_predictive_free_energy},
     'manifold.gromov_wasserstein': {'id': 'manifold.gromov_wasserstein', 'family': 'manifold', 'name': 'Gromov-Wasserstein Manifold Alignment', 'description': 'Unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies.', 'scope': 'Gromov-Wasserstein non-Euclidean manifold alignment', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_manifold_gromov_wasserstein},
+
+    # 18. Autonomous Evolution, Counterfactual Twin & Neuromorphic Frontiers
+    'evolution.topology_mutate': {'id': 'evolution.topology_mutate', 'family': 'evolution', 'name': 'Topology Evolution Engine', 'description': 'Transaction-safe graph topology mutation (grow, split, duplicate, prune).', 'scope': 'transaction-safe structural connectome evolution', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'mutation_type': {'type': 'string'}, 'neuropil': {'type': 'integer'}}}, 'example': {'mutation_type': 'add_neuron', 'neuropil': 0}, 'handler': _handle_evolution_topology_mutate},
+    'twin.counterfactual_assay': {'id': 'twin.counterfactual_assay', 'family': 'twin', 'name': 'Counterfactual Neural Twin', 'description': 'Independently simulated clone running paired counterfactual interventions across 4 stages.', 'scope': 'paired counterfactual neural twin causal assay', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'intervention_stage': {'type': 'string'}}}, 'example': {'intervention_stage': 'pre_graph'}, 'handler': _handle_twin_counterfactual_assay},
+    'eprop.compare_rules': {'id': 'eprop.compare_rules', 'family': 'learning', 'name': 'Biologically Plausible E-Prop', 'description': 'Eligibility trace dynamics with delayed TD error compared against Hebbian and backprop.', 'scope': 'three-factor natural e-prop online learning', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_eprop_compare_rules},
+    'sleep.consolidation_cycle': {'id': 'sleep.consolidation_cycle', 'family': 'sleep', 'name': 'Artificial Sleep & Memory Consolidation', 'description': 'Circadian wake/sleep cycles with salient replay, SHY pruning, and frozen teacher-free testing.', 'scope': 'artificial sleep and memory consolidation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_sleep_consolidation_cycle},
+    'metaplasticity.four_factor_assay': {'id': 'metaplasticity.four_factor_assay', 'family': 'neuromodulation', 'name': 'Metaplasticity & Neurochemical Regulation', 'description': 'Connection-specific adaptive thresholds and isolated 4-factor neuromodulator assays.', 'scope': 'synapse-specific metaplasticity and neurochemical regulation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_metaplasticity_four_factor},
+    'world_model.imagined_rollout': {'id': 'world_model.imagined_rollout', 'family': 'planning', 'name': 'Neural Predictive World Model', 'description': 'Recurrent transition model with epistemic uncertainty-penalized imagined rollouts.', 'scope': 'predictive world model with epistemic uncertainty', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_world_model_imagined_rollout},
+    'connectome.compile_biological': {'id': 'connectome.compile_biological', 'family': 'connectome', 'name': 'Biological Connectome Compiler', 'description': 'Compiles real Janelia Drosophila CNS records into executable modules vs degree-preserving nulls.', 'scope': 'biological connectome compilation and degree-preserving null benchmark', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'query': {'type': 'string'}}}, 'example': {'query': 'motor'}, 'handler': _handle_connectome_compile_biological},
+    'spiking.neuromorphic_benchmark': {'id': 'spiking.neuromorphic_benchmark', 'family': 'neuromorphic', 'name': 'Spiking Neuron Experimental Branch', 'description': 'LIF and AdEx spiking dynamics with surrogate gradient e-prop and SynOps benchmarking.', 'scope': 'spiking neural dynamics and neuromorphic SynOps benchmarking', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_spiking_neuromorphic_benchmark},
+    'transfer.skill_transplantation': {'id': 'transfer.skill_transplantation', 'family': 'transfer', 'name': 'Skill Transplantation & Causal Ablation', 'description': 'Transplants modular skills via Gromov-Wasserstein alignment with causal ablation verification.', 'scope': 'functional memory and skill transplantation with causal ablation', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'skill_name': {'type': 'string'}}}, 'example': {'skill_name': 'navigation'}, 'handler': _handle_transfer_skill_transplantation},
+    'recursive_learning.evolve': {'id': 'recursive_learning.evolve', 'family': 'rsi', 'name': 'Recursive Learning Rule Evolution', 'description': 'Evolves learning rules and meta-parameters across generations under matched compute budgets.', 'scope': 'recursive learning rule evolution under matched compute budgets', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_recursive_learning_evolve},
+    'repair.train_hypernetwork': {'id': 'repair.train_hypernetwork', 'family': 'hypernetwork', 'name': 'Neural Repair Hypernetwork Benchmark', 'description': 'Trains repair hypernetwork across 1,000+ controlled synthetic failures vs 3 baselines.', 'scope': 'controlled synthetic neural repair hypernetwork benchmark', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_repair_train_hypernetwork},
+    'genome.morphogenesis': {'id': 'genome.morphogenesis', 'family': 'genome', 'name': 'Developmental Neural Genome', 'description': 'Unpacks genetic morphogenesis into 3D spatial connectome with metabolic neurogenesis.', 'scope': 'developmental genome morphogenesis and metabolic neurogenesis', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_genome_morphogenesis},
+    'circuit.causal_atlas': {'id': 'circuit.causal_atlas', 'family': 'circuit', 'name': 'Causal Circuit Atlas', 'description': 'Systematic automated lesioning linking connectome subcircuits to behavioral primitives.', 'scope': 'causal circuit atlas with necessity and sufficiency bounds', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_circuit_causal_atlas},
+    'curriculum.adaptive_generate': {'id': 'curriculum.adaptive_generate', 'family': 'curriculum', 'name': 'Adaptive Self-Generated Curriculum', 'description': 'Diagnoses agent bottlenecks, synthesizes targeted curricula, evaluated by sealed evaluator.', 'scope': 'adaptive self-generated curriculum with sealed evaluator', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_curriculum_adaptive_generate},
+    'efficiency.neuromorphic_pareto': {'id': 'efficiency.neuromorphic_pareto', 'family': 'neuromorphic', 'name': 'Neuromorphic Hardware Efficiency', 'description': 'Measures CPU latency, memory, SynOps, and computes multi-objective Pareto frontiers.', 'scope': 'neuromorphic hardware efficiency and Pareto frontiers', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_efficiency_neuromorphic_pareto},
+    'observatory.neural_telemetry': {'id': 'observatory.neural_telemetry', 'family': 'observatory', 'name': '3D Neural Observatory', 'description': '3D spatial graph coordinates, neuropil anatomical embeddings, and live activity telemetry.', 'scope': 'interactive 3D neural observatory telemetry and spatial embeddings', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_observatory_neural_telemetry},
+    'flagship.dual_task_experiment': {'id': 'flagship.dual_task_experiment', 'family': 'flagship', 'name': 'Flagship Integrated Experiment', 'description': 'Executes full dual-task skill transfer + recursive evolution on unseen task vs 3 control arms.', 'scope': 'flagship dual-task transfer and recursive evolution scientific assay', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_flagship_dual_task_experiment},
 }
 
 

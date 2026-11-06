@@ -27,6 +27,11 @@ def main(argv=None):
     sub.add_parser('astrocyte')
     sub.add_parser('free_energy')
     sub.add_parser('manifold')
+    p=sub.add_parser('flagship'); p.add_argument('--training-steps',type=int,default=15); p.add_argument('--generations',type=int,default=3)
+    sub.add_parser('spiking')
+    sub.add_parser('atlas')
+    sub.add_parser('efficiency')
+    p=sub.add_parser('connectome'); p.add_argument('--query',default='motor')
     args=parser.parse_args(argv)
     try:
         config=SynapseConfig(seed=args.seed,nodes_per_source=args.nodes,task=args.task)
@@ -84,6 +89,27 @@ def main(argv=None):
                 import numpy as np
                 adj=np.array([[0,1,0,1],[1,0,1,0],[0,1,0,1],[1,0,1,0]],dtype=np.float64)
                 result=align_subcircuit_gromov_wasserstein(adj,adj)
+            elif args.command=='flagship':
+                from .flagship import FlagshipExperimentRunner
+                runner=FlagshipExperimentRunner(seed=args.seed)
+                result=runner.run_full_experiment(training_steps=args.training_steps,evolution_generations=args.generations)
+            elif args.command=='spiking':
+                from .spiking import benchmark_spiking_vs_rate
+                result=benchmark_spiking_vs_rate(num_neurons=args.nodes,steps=50,seed=args.seed)
+            elif args.command=='atlas':
+                from .circuit_atlas import CausalCircuitAtlas
+                atlas=CausalCircuitAtlas(runtime.agent)
+                result=atlas.build_full_atlas()
+            elif args.command=='efficiency':
+                from .efficiency import NeuromorphicEfficiencyBenchmark
+                bench=NeuromorphicEfficiencyBenchmark(num_neurons=args.nodes,seed=args.seed)
+                result=bench.run_benchmark_suite(steps=50)
+            elif args.command=='connectome':
+                from .connectome_compiler import BiologicalConnectomeCompiler
+                comp=BiologicalConnectomeCompiler()
+                m=comp.compile_subcircuit(query=args.query,max_neurons=args.nodes)
+                null=comp.generate_degree_preserving_null(m)
+                result=comp.benchmark_biological_vs_null(m,null)
         print(json.dumps(result,indent=2,allow_nan=False,default=str)); return 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:
         parser.exit(2,f'Error: {exc}\n')

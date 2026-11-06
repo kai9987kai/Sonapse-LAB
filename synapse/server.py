@@ -85,6 +85,12 @@ class Workbench:
                 return {'tensors':{k:{'shape':list(v.shape),'count':v.numel(),'min':float(v.detach().min()),'max':float(v.detach().max())} for k,v in self.runtime.agent.editable_tensors().items()}}
             if path=='/api/checkpoints':
                 return {'checkpoints':sorted(p.stem for p in self.root.glob('*.pt') if p.is_file())}
+            if path=='/api/observatory/structure':
+                from .observatory import NeuralObservatory
+                return NeuralObservatory(self.runtime.agent).get_structure_payload()
+            if path=='/api/observatory/activity':
+                from .observatory import NeuralObservatory
+                return NeuralObservatory(self.runtime.agent).get_live_activity_payload()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/studies': return self.start_study(data.get('config',{}))
@@ -169,6 +175,17 @@ class Workbench:
                     'task': self.runtime.config.task,
                 }
                 return compile_hypernetwork_patch(self.runtime.agent, hypernet, diag, target_surface=data.get('target', 'motor.weight'), max_edits=16)
+            if path=='/api/flagship':
+                from .flagship import FlagshipExperimentRunner
+                runner = FlagshipExperimentRunner(seed=data.get('seed', 42))
+                return runner.run_full_experiment(
+                    training_steps=data.get('training_steps', 15),
+                    evolution_generations=data.get('generations', 3),
+                    eval_episodes=data.get('eval_episodes', 3)
+                )
+            if path=='/api/atlas':
+                from .circuit_atlas import CausalCircuitAtlas
+                return CausalCircuitAtlas(self.runtime.agent).build_full_atlas()
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):

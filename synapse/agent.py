@@ -206,7 +206,15 @@ class IntegratedAgent:
         return deepcopy({'schema':1,'config':self.config.to_dict(),'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[])})
     def import_state(self,state):
         if state.get('schema')!=1 or state['config']!=self.config.to_dict(): raise ValueError('agent state/config mismatch')
-        for k,v in state['modules'].items(): self.modules[k].load_state_dict(v)
+        for k,v in state['modules'].items():
+            if k == 'brain':
+                for buf_name in ('r', 'activity_ema', 'elig', 'heb', 'graft_pre', 'graft_post', 'base_pre', 'base_post', 'base_w', 'graft_site', 'bias', 'sensory_idx', 'motor_idx', 'probe_idx'):
+                    if buf_name in v:
+                        self.brain.register_buffer(buf_name, torch.zeros_like(v[buf_name]))
+                if 'graft_w' in v:
+                    self.brain.graft_w = nn.Parameter(torch.zeros_like(v['graft_w']))
+                self.brain.n = len(v['r'])
+            self.modules[k].load_state_dict(v)
         self.opt.load_state_dict(state['optimizer']); self.curiosity.opt.load_state_dict(state['curiosity_optimizer']); self.rng.bit_generator.state=state['rng']
         for k,v in deepcopy(state['transient']).items(): setattr(self,k,v)
         self.compass.bump_angle=state['compass_angle']; self.routing=state['routing']
