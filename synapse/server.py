@@ -31,7 +31,7 @@ class Workbench:
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(),output_root=self.root)
+            runtime=LabRuntime(config or SynapseConfig(total_neurons=1000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
         self.jobs={}; self.cancel={}; self.receipts={}
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
@@ -94,6 +94,15 @@ class Workbench:
             if path=='/api/connectomes':
                 from .connectome_datasets import list_connectome_datasets
                 return {'status': 'ok', 'total_datasets': 8, 'datasets': list_connectome_datasets()}
+            if path=='/api/dormant/status':
+                agent=self.runtime.agent
+                return agent.dormant_lifecycle.summary() if hasattr(agent, 'dormant_lifecycle') else {'status': 'inactive'}
+            if path=='/api/continual_backprop/status':
+                agent=self.runtime.agent
+                return agent.continual_backprop.get_metrics() if (hasattr(agent, 'continual_backprop') and agent.continual_backprop) else {'enabled': False}
+            if path=='/api/fast_weight/status':
+                agent=self.runtime.agent
+                return agent.fast_weight_memory.get_metrics() if (hasattr(agent, 'fast_weight_memory') and agent.fast_weight_memory) else {'enabled': False}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/studies': return self.start_study(data.get('config',{}))
@@ -103,11 +112,32 @@ class Workbench:
                 if ident in self.cancel: self.cancel[ident].set(); job['cancel_requested']=True; self.persist(job)
                 return dict(job)
         with self.lock:
+            if path=='/api/experience/preview':
+                from .experience import encode_experience_state
+                from .experience_planner import ExperienceMPC
+                horizon=integer(data.get('horizon',self.runtime.config.experience_horizon),'horizon',1,5)
+                use_memory=data.get('memory',self.runtime.config.surprise_memory)
+                if type(use_memory) is not bool: raise ValueError('memory must be boolean')
+                value_guided=data.get('value_guided',getattr(self.runtime.config,'value_guided_planning',False))
+                if type(value_guided) is not bool: raise ValueError('value_guided must be boolean')
+                agent=self.runtime.agent
+                state=encode_experience_state(self.runtime.obs,agent.last_features)
+                baseline=self.runtime.last_action.copy()
+                proposed,diagnostics=ExperienceMPC(agent.experience_model,horizon=horizon,value_guided=value_guided).plan(
+                    state,baseline,memory=agent.surprise_memory if use_memory else None)
+                return {**diagnostics,'horizon':horizon,'source_step':self.runtime.total_steps,
+                        'baseline':baseline.tolist(),'proposed_action':proposed.tolist(),
+                        'action_order':['drive','turn','reach','height','grip'],
+                        'baseline_source':'repeat previous executed action; current observation with last neural context',
+                        'scope':'pure model forecast; no actor/world advance; final runtime drive governor applies on execution'}
             if path=='/api/experience/mode':
                 mode=data.get('mode')
                 if mode not in ('off','model','memory'):
                     raise ValueError('experience mode must be off, model, or memory')
-                config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model')
+                horizon=integer(data.get('horizon',self.runtime.config.experience_horizon),'horizon',1,5)
+                value_guided=data.get('value_guided',getattr(self.runtime.config,'value_guided_planning',False))
+                if type(value_guided) is not bool: raise ValueError('value_guided must be boolean')
+                config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model',experience_horizon=horizon,value_guided_planning=value_guided)
                 self.runtime.config=config; self.runtime.agent.config=config
                 return self.runtime.snapshot()
             if path=='/api/step':
@@ -124,6 +154,8 @@ class Workbench:
                 cfg=data.get('config')
                 if cfg is not None:
                     if not isinstance(cfg,dict): raise ValueError('config must be object')
+                    cfg=dict(cfg)
+                    if isinstance(cfg.get('connectome_sources'),list): cfg['connectome_sources']=tuple(cfg['connectome_sources'])
                     from .runtime import LabRuntime
                     self.runtime=LabRuntime(SynapseConfig(**cfg),output_root=self.root)
                     self.receipts.clear()
@@ -133,7 +165,7 @@ class Workbench:
                 return getattr(self.runtime,path.rsplit('/',1)[1])(safe_name(data.get('name')))
             if path=='/api/invoke':
                 from .capabilities import invoke
-                return invoke(data.get('id'),data.get('payload',{}))
+                return invoke(data.get('id'),data.get('payload',{}),runtime=self.runtime)
             if path=='/api/patch/make':
                 from .patches import make_patch
                 return make_patch(self.runtime.agent,data.get('edits',[]),data.get('description',''))

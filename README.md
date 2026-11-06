@@ -15,6 +15,12 @@ license: apache-2.0
 
 # SYNAPSE: Developmental Connectome Intelligence & Weight-Space Lab (SAIL Edition)
 
+**Current evidence:** SYNAPSE is a CPU research workbench with an integrated
+executed-transition learner and many standalone experiments. Module availability
+does not establish embodied capability or biological fidelity. Planning is
+experimental and off by default. Read the [design recovery audit](docs/design-audit.md)
+for restored contracts and remaining research gaps.
+
 A unified, CPU-first embodied cognitive research platform combining signed recurrent neural graphs, a frozen Poseidon Tidal MoE DAgger controller, continuous online connectome neurogenesis, interoceptive homeostatic drive regulation, MiMoMix dual-process cognitive deliberation, experience-grounded prediction, and direct weight-space programming with inherited recursive self-improvement (RSI).
 
 Now featuring the **Sonapse Adaptive Intelligence Laboratory (SAIL)** research track: utility-driven continual backpropagation, trainable student-teacher sleep consolidation, universal fast-weight memory (uTTT & Titans associative learning), recurrent multi-step world models with MPC planning ($H \in \{1, 3, 5, 10\}$), verifiable ReLIFT curriculum challenges, and causal connectome structural evolution.
@@ -43,7 +49,7 @@ flowchart TD
     R -->|System 1 Fast Reflex or System 2 ACT Mental Search| D[Deliberated Action]
     
     %% Experience & Outcome Planning
-    E[Experience World Model Ensemble] --> P[One-Step Predictive Planner]
+    E[Experience World Model Ensemble] --> P[Bounded 1–5 Step Experience Planner]
     SM[Surprise Episodic Outcome Memory] --> P
     D --> P
     P --> X[Executed Action]
@@ -83,12 +89,13 @@ flowchart TD
 | **Verifiable Curriculum Engine** | Verifiable progression & ReLIFT | Procedural sequential subgoals (`CUE_DISCOVERED`, `GATE_TRIGGERED`, `BARRIER_PASSED`, `TARGET_REACHED`) with cryptographic SHA-256 process receipts. |
 | **Causal Connectome Evolution** | Interventional structural changes | Paired counterfactual rollouts measuring $\Delta J(m) = \mathbb{E}[R \mid do(m)] - \mathbb{E}[R \mid do(m_0)]$ penalized by wiring, compute, and catastrophic forgetting costs. |
 | **Verifier-Gated Bounded RSI** | Bounded self-improvement & failure archive | AIDE² / DGM / AlphaEvolve pattern: AST range checks, deterministic tests, support/query evaluation, LCB dominance ($LCB(\Delta) > \epsilon$), canary regression gating ($\le 1\%$), and immutable Failure Archive. |
-| **World Model v2 & CEM Planner** | Recurrent dynamics ensemble & CEM | $M=3$ latent dynamics ensemble with JEPA loss, CEM trajectory optimization across horizons $H \in \{1, 3, 5, 10\}$, fallback shield to frozen Tidal, and exploitation tracking ($G_{\text{exploit}} = R_{\text{pred}} - R_{\text{real}}$). |
+| **World Model v2 & CEM Planner** | Standalone neural dynamics experiment | $M=3$ latent ensemble and CEM demonstrator. The live actor instead uses the persisted experience model below. CLI demonstrations do not record fabricated realized outcomes. |
+| **Experience MPC** | Integrated short-horizon prediction and control | Pure deterministic ensemble rollouts over horizons 1–5, bounded local action changes, fixed neural context, repeated-baseline comparator, uncertainty/support abstention, and a 256 ensemble-transition work budget. No terminal/value head or calibrated safety claim. |
 | **9-Arm Connectome Causal Assay** | Biological vs matched controls | Causal benchmark evaluating real Drosophila wiring against 8 matched nulls (degree-, sign-, community-rewired, random, learned, unsigned, local-only, brain-cord motif) calculating formal Cohen's $d$. |
 | **Coconut Latent Deliberation** | Tokenless continuous recurrence | Continuous hidden-state thought recurrence ($h^{\text{think}}_{i+1} = F(h^{\text{think}}_i, z_t)$), dynamic ponder halting, and anytime compute-depth curves. |
 | **Masked Diffusion Repair Sidecar** | Non-autoregressive repair & infill | Iterative masked diffusion repair of failing code, configuration, or action trajectory constraints with executable verifier in the loop. |
 | **Machine-Verifiable DPO Engine** | Direct preference optimization | First-party machine-checked preference pairs (safety, return, unit tests) optimized via DPO without ungrounded self-judging loops. |
-| **Unified Evaluation Scorecard** | Calibrated multi-dimensional scoring | Joint deployment score $S = R - \alpha C - \beta U - \gamma F$ balancing task return, compute cost, calibration (Brier / ECE), and safety failures. |
+| **Unified Evaluation Scorecard** | Standalone metric calculations | Combines supplied returns, compute, Brier/ECE and failure inputs. Its CLI fixture is explicitly illustrative; it does not measure deployment performance. |
 | **Landmark Connectome Catalog (8 Datasets)** | Whole-animal multi-connectome substrate | Full integration of 8 datasets: MaleCNS v1.0, BANC, FlyEM Optic Lobe, FANC, FlyWire FAFB v783, MANC, Larval Drosophila, and Hemibrain with regional neuromodulation. |
 | **Multi-Connectome Hub** | Scalable cross-region routing | Unifies brain, optic, and cord neuropils with 93 biological interface sites, high-capacity scaling (>40,000 neurons/sec on CPU), and transactional weight-space editing. |
 
@@ -96,6 +103,12 @@ flowchart TD
 ## Run Locally
 
 Requires Python 3.10+ with PyTorch CPU, NumPy, and SciPy:
+
+New workbench sessions use **1,000 total neurons**, allocated 334/333/333 across
+the three default sources. The graph view includes all 1,000. Use
+`python -m synapse --total-neurons 1000 serve` or set **Total neurons** in the
+session controls. The older `--nodes 16` option still selects 16 per source for
+small experiments and compatible checkpoints.
 
 ```powershell
 python -m pip install -e .
@@ -112,6 +125,8 @@ Open the local workbench at [http://127.0.0.1:8765](http://127.0.0.1:8765) or la
 - **3D Anatomical Connectome Observatory**: Interactive 3D point-cloud and synaptic edge visualization with OrbitControls (left-click rotate, right-click pan, scroll zoom) and click-to-inspect individual neuron activity.
 - **Homeostatic Vitals & Cognition HUD**: Real-time meters for Energy, Stamina, Health, Threat, Exposure, and Hunger, paired with MiMoMix System 1 / System 2 deliberation badges and ACT ponder steps.
 - **Scientific Assay Panels**: Causal Circuit Atlas, Weight-Space Hypernetwork synthesis, Flagship evolutionary benchmarks, State Archives, and Audited Capabilities Explorer.
+- **Counterfactual Plan Inspector**: Select a horizon, inspect pure forecasts, compare candidate returns and uncertainty, and see why the planner retains its baseline. Previews never advance the world or fit the model.
+- **Learning Contracts**: Manual actions can train the same executed-outcome learner. Drive/turn coordinates and fatigue limits apply consistently; frozen evaluation preserves learned topology and structural statistics. Tool memory belongs to each checkpointed runtime.
 
 ## Command Line Interface (CLI)
 
@@ -138,13 +153,13 @@ python -m synapse.cli capabilities --id learning.continual_backprop
 python -m synapse.cli capabilities --id memory.fast_weights
 
 # SAIL 6-Upgrade Research & Development Suite
-python -m synapse.cli continual-backprop --steps 50
+python -m synapse.cli continual-backprop
 python -m synapse.cli sleep-train --sleep-steps 10
-python -m synapse.cli fast-memory --steps 30
-python -m synapse.cli multistep-plan --horizons 1 3 5 10 --trials 3
-python -m synapse.cli curriculum-verify --stages 3 --trials-per-stage 3
-python -m synapse.cli causal-growth --candidates 3
-python -m synapse.cli flagship-milestone --steps-per-task 20
+python -m synapse.cli fast-memory
+python -m synapse.cli multistep-plan --horizon 3
+python -m synapse.cli curriculum-verify
+python -m synapse.cli causal-growth
+python -m synapse.cli flagship-milestone --milestone-steps 20
 
 # Deep Research Architecture & Control Experiments
 python -m synapse.cli rsi-verify --patch-type config
@@ -171,6 +186,10 @@ python -m synapse.cli --nodes 16 hyperprogram --target motor.weight
 python -m synapse.cli --output outputs evidence --name my-pilot --seeds 7 11 19 --tasks forage push --support-steps 64 --query-steps 64
 python -m synapse.cli adaptation-verify outputs/adaptation-studies/my-pilot
 python -m synapse.cli evidence --receipt outputs/adaptation-studies/my-pilot
+
+# Paired actual-world planning comparison (actor, horizon 1, horizon 3)
+python -m synapse.cli --nodes 16 --output outputs planning-study --name planning-pilot --seeds 23 29 31 --tasks forage push ecosystem --support-steps 96 --query-steps 48 --horizons 1 3
+python -m synapse.cli planning-verify outputs/planning-studies/planning-pilot
 ```
 
 ## Measured Experiments & Verification
@@ -179,6 +198,49 @@ Empirical evidence studies run on actual native and complex environments with st
 - **Support Adaptation**: Shared exploratory support trajectories condition the learner.
 - **Query Freeze**: All model and memory learning is strictly frozen during query episodes.
 - **Replay & Audit Receipts**: Full cryptographic digests, parameter matrices, RNG states, and execution timings are recorded in atomic JSON receipts.
+
+Planning pilots fit a shared learner on actual support trajectories and compare
+frozen actors in independent paired query worlds. Saved checkpoints and receipts
+bind raw transitions, source fingerprints and arithmetic. Verification detects
+inconsistency; it does not authenticate a consistently rewritten receipt or
+re-execute the simulation. Negative differences and abstentions remain visible.
+
+Sleep consolidation uses observation-conditioned reset-state imitation and accepts
+only candidates passing a caller-supplied finite retention screen. Missing or
+failed screens reject the candidate. Untrained predictive/MiMoMix action corrections
+are opt-in through `experimental_cognition`; older checkpoints default to disabled.
+The original flagship continual benchmark remains a labeled synthetic surrogate.
+
+The integrated planner draws on [PETS](https://arxiv.org/abs/1805.12114) for ensemble
+trajectory propagation and [MBPO](https://arxiv.org/abs/1906.08253) for limiting model
+rollouts. It uses online linear dynamics and deterministic search; it implements
+neither paper's complete algorithm or reported guarantees. An online Temporal Difference
+value critic $V(s)$ resolves finite-horizon truncation bias when `value_guided_planning`
+is selected.
+
+## Frontier Capabilities & Research Additions
+
+The runtime provides toggleable research implementations of recent frontier techniques:
+- **Dormant Expert Dynamic Lifecycle (`synapse/dormant_lifecycle.py`)**:
+  Recruits dynamic capacity when graph delta exceeds novelty thresholds. Experts advance
+  through validated states (`DORMANT` $\to$ `INITIALIZING` $\to$ `ACTIVATING` $\to$ `ACTIVE` $\to$ `CONSOLIDATING` $\to$ `RETIRED`)
+  with orthogonal initialization, gradual activation ramping, directional cosine contribution testing,
+  and native parameter distillation with slot recycling.
+- **Value-Guided MPC Critic (`synapse/experience.py`, `synapse/experience_planner.py`)**:
+  Eliminates horizon truncation bias in short MPC trajectories ($H \in [1, 5]$) by learning an online TD critic
+  $V(s) \approx \mathbb{E}[\sum_{\tau=0}^\infty \gamma^\tau r_\tau]$ alongside the transition ensemble.
+- **Two-Channel Evoked Readout (`synapse/agent.py`)**:
+  Separates resting manifold activity $m = O(r_{\text{null}})$ from task-evoked perturbation $d = O(r_{\text{actual}}) - O(r_{\text{null}})$
+  with input-dependent gating $\alpha$, exposing full telemetry for persistent state dynamics.
+- **Continual Backpropagation (`synapse/continual_backprop.py`)**:
+  Applies Dohare et al. (Nature 2024) selective unit reinitialization based on feature utility to prevent
+  loss of plasticity during continual adaptation.
+- **Universal Fast-Weight Memory (`synapse/fast_weight_memory.py`)**:
+  Implements dual-speed associative learning (Titans / uTTT) with surprise-gated inner-loop updates.
+- **Continuous Latent Deliberation (`synapse/latent_reasoner.py`)**:
+  Applies Coconut continuous latent-space thinking when variational free energy or prediction error exceeds bounds.
+
+All options are configurable in `SynapseConfig`, controllable via the web workbench HUD and settings, and fully preserved across mid-episode state checkpoints.
 
 ## Upstream Lineage & Research Grounding
 

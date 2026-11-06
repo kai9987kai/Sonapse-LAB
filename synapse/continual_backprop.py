@@ -13,7 +13,9 @@ from typing import Dict, Any, List, Optional, Tuple, Set
 import numpy as np
 import torch
 import torch.nn as nn
-from .agent import IntegratedAgent
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .agent import IntegratedAgent
 
 @dataclass
 class NeuronUtilityStats:
@@ -172,6 +174,9 @@ class ContinualBackpropEngine:
                 state['exp_avg'][:, col_idx] = 0.0
             if 'exp_avg_sq' in state and state['exp_avg_sq'].ndim == 2:
                 state['exp_avg_sq'][:, col_idx] = 0.0
+
+    def get_metrics(self) -> Dict[str, Any]:
+        return self.summary()
 
     def summary(self) -> Dict[str, Any]:
         """Return diagnostic metrics on neuron utility distribution and replacements."""

@@ -8,7 +8,9 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description='SYNAPSE integrated connectome research lab')
     parser.add_argument('--output',type=Path,default=ARTIFACTS)
     parser.add_argument('--seed',type=int,default=7)
-    parser.add_argument('--nodes',type=int,default=100)
+    size=parser.add_mutually_exclusive_group()
+    size.add_argument('--nodes',type=int,help='legacy neurons per source')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 1000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -62,9 +64,18 @@ def main(argv=None):
     p.add_argument('--study-nodes',type=int,default=16)
     p.add_argument('--name',help='exclusive output folder name; defaults to a timestamp')
     p=sub.add_parser('adaptation-verify'); p.add_argument('path',type=Path)
+    p=sub.add_parser('planning-study'); p.add_argument('--name',default='planning-pilot')
+    p.add_argument('--seeds',type=int,nargs='+',default=[23,29,31])
+    p.add_argument('--tasks',nargs='+',default=['forage','push'])
+    p.add_argument('--support-steps',type=int,default=64)
+    p.add_argument('--query-steps',type=int,default=64)
+    p.add_argument('--horizons',type=int,nargs='+',default=[1,3])
+    p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        config=SynapseConfig(seed=args.seed,nodes_per_source=args.nodes,task=args.task)
+        total=args.total_neurons if args.total_neurons is not None else (1000 if args.nodes is None else None)
+        config=SynapseConfig(seed=args.seed,nodes_per_source=100 if args.nodes is None else args.nodes,total_neurons=total,task=args.task)
+        demo_nodes=config.total_neurons or config.nodes_per_source
         if args.command=='serve':
             from .server import serve
             serve(args.host,args.port,config=config,output_root=args.output); return 0
@@ -78,6 +89,15 @@ def main(argv=None):
         elif args.command=='adaptation-verify':
             from .adaptation_study import verify_adaptation_study
             result=verify_adaptation_study(args.path)
+        elif args.command=='planning-verify':
+            from .planning_study import verify_planning_study
+            result=verify_planning_study(args.path)
+        elif args.command=='planning-study':
+            from .planning_study import run_planning_study
+            from .server import safe_name
+            result=run_planning_study(args.output/'planning-studies'/safe_name(args.name),
+                {'seeds':args.seeds,'tasks':args.tasks,'support_steps':args.support_steps,
+                 'query_steps':args.query_steps,'nodes_per_source':config.nodes_per_source,'horizons':args.horizons})
         elif args.command=='evidence':
             from .adaptation_study import run_adaptation_study,verify_adaptation_study,format_adaptation_report
             from .server import safe_name
@@ -143,19 +163,19 @@ def main(argv=None):
                 result=runner.run_full_experiment(training_steps=args.training_steps,evolution_generations=args.generations)
             elif args.command=='spiking':
                 from .spiking import benchmark_spiking_vs_rate
-                result=benchmark_spiking_vs_rate(num_neurons=args.nodes,steps=50,seed=args.seed)
+                result=benchmark_spiking_vs_rate(num_neurons=demo_nodes,steps=50,seed=args.seed)
             elif args.command=='atlas':
                 from .circuit_atlas import CausalCircuitAtlas
                 atlas=CausalCircuitAtlas(runtime.agent)
                 result=atlas.build_full_atlas()
             elif args.command=='efficiency':
                 from .efficiency import NeuromorphicEfficiencyBenchmark
-                bench=NeuromorphicEfficiencyBenchmark(num_neurons=args.nodes,seed=args.seed)
+                bench=NeuromorphicEfficiencyBenchmark(num_neurons=demo_nodes,seed=args.seed)
                 result=bench.run_benchmark_suite(steps=50)
             elif args.command=='connectome':
                 from .connectome_compiler import BiologicalConnectomeCompiler
                 comp=BiologicalConnectomeCompiler()
-                m=comp.compile_subcircuit(query=args.query,max_neurons=args.nodes)
+                m=comp.compile_subcircuit(query=args.query,max_neurons=demo_nodes)
                 null=comp.generate_degree_preserving_null(m)
                 result=comp.benchmark_biological_vs_null(m,null)
             elif args.command=='neurogenesis':
@@ -236,8 +256,7 @@ def main(argv=None):
                 import numpy as np
                 obs = np.random.uniform(0, 1, 155).astype(np.float32)
                 plan_res = planner.plan(obs, np.zeros(5, dtype=np.float32))
-                planner.record_realized_outcome(plan_res['best_score'], plan_res['best_score'] * 0.95)
-                result = {'plan_mode': plan_res['plan_mode'], 'shield_triggered': plan_res['shield_triggered'], 'best_score': plan_res['best_score'], 'exploitation': planner.get_exploitation_metric()}
+                result = {'plan_mode': plan_res['plan_mode'], 'shield_triggered': plan_res['shield_triggered'], 'best_score': plan_res['best_score'], 'exploitation': None, 'realized_outcomes': 0}
             elif args.command=='connectome-assay':
                 from .connectome_compiler import BiologicalConnectomeCompiler
                 from .connectome_controls import ControlledConnectomeAssay
@@ -285,8 +304,11 @@ def main(argv=None):
                 from .flagship_benchmark import FlagshipContinualBenchmark
                 bench=FlagshipContinualBenchmark(steps_per_stage=args.milestone_steps, seed=args.seed)
                 result=bench.run_benchmark()
+        if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan'):
+            result={**result,'measured':False,'evidence_kind':'illustrative',
+                    'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}
         print(json.dumps(result,indent=2,allow_nan=False,default=str))
-        return 1 if args.command in ('verify','adaptation-verify') and not result.get('ok',False) else 0
+        return 1 if args.command in ('verify','adaptation-verify','planning-verify') and not result.get('ok',False) else 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:
         parser.exit(2,f'Error: {exc}\n')
 

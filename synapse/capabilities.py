@@ -1,8 +1,10 @@
-"""Comprehensive audited upstream capabilities, source inventory and typed service explorer.
-Covers all 19 architecture families from the approved SYNAPSE specification.
+"""Source inventory and service explorer, including explicitly labeled illustrations.
+Successful invocation is not evidence that a service is an integrated learned skill.
 """
 from __future__ import annotations
 import ast
+from contextvars import ContextVar
+from copy import deepcopy
 import json
 import math
 import operator
@@ -17,8 +19,45 @@ from .sources import activate, manifest
 
 activate()
 
-# Shared tool and episodic memory trace
+# Calls without a runtime retain a bounded legacy exploration session. The web
+# runtime supplies its own checkpointed memory through a request-local context.
 _TOOL_MEMORY: List[Dict[str, Any]] = []
+_ACTIVE_TOOL_MEMORY = ContextVar('synapse_capability_tool_memory', default=None)
+_TOOL_MEMORY_CAPACITY = 128
+
+
+def _tool_memory():
+    active = _ACTIVE_TOOL_MEMORY.get()
+    return _TOOL_MEMORY if active is None else active
+
+
+def _store_tool_record(record):
+    memory = _tool_memory()
+    memory.append(deepcopy(record))
+    del memory[:-_TOOL_MEMORY_CAPACITY]
+
+# These historical handlers return examples rather than executing the named
+# scientific method. Keep their exploratory API while making that boundary
+# machine-readable at both discovery and invocation.
+_ILLUSTRATIVE_CAPABILITIES = {
+    'reasoning.cartan': 'Dimension-based example; no differential system is supplied or solved.',
+    'reasoning.chronos': 'Example ordering heuristic; no general DAG verification is performed.',
+    'reasoning.causal': 'Fixed example distribution; no causal model, identification or intervention is evaluated.',
+    'planning.trident': 'Fixed goal utilities; no controller or world rollout is evaluated.',
+    'nexus.causal_efe': 'Fixed example scores; no generative model or expected-free-energy inference is executed.',
+    'coordination.cognitive_agent': 'Illustrative state and latency; no live coordinator timing is measured.',
+    'coordination.pantheon': 'Fixed pillar count and consensus; no execution trace establishes active pathways.',
+    'coordination.poseidon_x': 'Fixed uncertainty/confidence examples; no calibration dataset is evaluated.',
+    'rsi.meta_evaluate': 'No fresh learners are evaluated by this illustration. Use the study/verify commands for recorded experiments.',
+}
+
+
+def _illustrative_evidence(capability_id):
+    return {
+        'evidence_kind': 'illustrative',
+        'measured': False,
+        'limitations': _ILLUSTRATIVE_CAPABILITIES[capability_id],
+    }
 
 def _safe_eval_math(expr_str: str) -> float | int:
     """Safe AST arithmetic evaluation without eval/exec."""
@@ -109,12 +148,12 @@ def _handle_reasoning_solve(payload: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError(f"Could not solve expression: {e}")
 
     record = {'query': expr, 'result': result_str, 'value': val, 'capability': 'reasoning.solve', 'timestamp': time.time()}
-    _TOOL_MEMORY.append(record)
+    _store_tool_record(record)
     return {
         'status': 'ok',
         'result': val,
         'expression': expr,
-        'consumer': {'stored': True, 'memory_entries': len(_TOOL_MEMORY)},
+        'consumer': {'stored': True, 'memory_entries': len(_tool_memory())},
         'scope': 'exact verified arithmetic and problem solving',
     }
 
@@ -163,11 +202,11 @@ def _handle_reasoning_causal(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _handle_memory_retrieve(payload: Dict[str, Any]) -> Dict[str, Any]:
     query = str(payload.get('query', '')).lower()
     matches = []
-    for item in _TOOL_MEMORY:
+    for item in _tool_memory():
         item_q = str(item.get('query', '')).lower()
         item_res = str(item.get('result', '')).lower()
         if query in item_q or item_q in query or query in item_res:
-            matches.append(item)
+            matches.append(deepcopy(item))
     return {
         'status': 'ok',
         'query': query,
@@ -180,11 +219,11 @@ def _handle_memory_store(payload: Dict[str, Any]) -> Dict[str, Any]:
     key = str(payload.get('key', 'default'))
     value = payload.get('value', '')
     record = {'query': key, 'result': str(value), 'value': value, 'capability': 'memory.store', 'timestamp': time.time()}
-    _TOOL_MEMORY.append(record)
+    _store_tool_record(record)
     return {
         'status': 'ok',
         'key': key,
-        'consumer': {'stored': True, 'total_memory_records': len(_TOOL_MEMORY)},
+        'consumer': {'stored': True, 'total_memory_records': len(_tool_memory())},
         'scope': 'explicit episodic memory storage',
     }
 
@@ -264,7 +303,7 @@ def _handle_core_scene(payload: Dict[str, Any]) -> Dict[str, Any]:
         memory = out['memory'][0].tolist()
         scene = {k: v[0].tolist() for k, v in out['scene'].items()}
     record = {'query': 'core.scene', 'result': f"action={int(np.argmax(action_probs))}, routing={routing}", 'timestamp': time.time()}
-    _TOOL_MEMORY.append(record)
+    _store_tool_record(record)
     return {
         'status': 'ok',
         'intent': action_probs,
@@ -407,7 +446,7 @@ def _handle_graph_successor(payload: Dict[str, Any]) -> Dict[str, Any]:
     I = np.eye(num_states, dtype=np.float64)
     M = np.linalg.inv(I - gamma * T)
     record = {'query': f'graph.successor(N={num_states})', 'result': f"trace={float(np.trace(M)):.3f}", 'timestamp': time.time()}
-    _TOOL_MEMORY.append(record)
+    _store_tool_record(record)
     return {
         'status': 'ok',
         'num_states': num_states,
@@ -857,13 +896,17 @@ def _handle_expanse_evoked_readout(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 # 15. RECURSIVE IMPROVEMENT & LANGUAGE
 def _handle_rsi_meta_evaluate(payload: Dict[str, Any]) -> Dict[str, Any]:
-    generations = int(payload.get('generations', 2))
+    generations = payload.get('generations', 2)
+    if type(generations) is not int or not 0 <= generations <= 100:
+        raise ValueError('generations must be an integer in [0,100]')
     return {
         'status': 'ok',
-        'generations_evaluated': generations,
-        'meta_retention_rate': 0.985,
-        'fresh_learner_adaptation_delta': 0.082,
-        'scope': 'Recursive self-improvement fresh-learner validation screen',
+        'generations_requested': generations,
+        'generations_evaluated': 0,
+        'meta_retention_rate': None,
+        'fresh_learner_adaptation_delta': None,
+        'illustrative_values': {'meta_retention_rate': 0.985, 'fresh_learner_adaptation_delta': 0.082},
+        'scope': 'RSI interface illustration; no measured retention or improvement',
     }
 
 def _handle_rsi_policy_archive(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -2119,6 +2162,9 @@ def catalog() -> Dict[str, Any]:
             'input_schema': cap['input_schema'],
             'example': cap['example'],
         }
+        if cap_id in _ILLUSTRATIVE_CAPABILITIES:
+            entry.update(_illustrative_evidence(cap_id))
+            entry['description'] = 'Illustration only. ' + entry['description']
         caps_list.append(entry)
 
     return {
@@ -2129,8 +2175,8 @@ def catalog() -> Dict[str, Any]:
     }
 
 
-def invoke(capability_id: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Invoke an audited capability by its unique ID with validated payload."""
+def invoke(capability_id: str, payload: Optional[Dict[str, Any]] = None, runtime=None) -> Dict[str, Any]:
+    """Invoke a service, optionally using the runtime's checkpointed tool session."""
     if not isinstance(capability_id, str) or capability_id not in _REGISTRY:
         return {
             'status': 'unavailable',
@@ -2145,14 +2191,34 @@ def invoke(capability_id: str, payload: Optional[Dict[str, Any]] = None) -> Dict
             'error': f'Capability {capability_id} has no executable handler registered',
             'capability_id': capability_id,
         }
+    token = None
     try:
-        return handler(payload or {})
+        if payload is not None and not isinstance(payload, dict):
+            raise ValueError('capability payload must be an object')
+        if runtime is not None:
+            memory = runtime.agent.tool_memory
+            if not isinstance(memory, list):
+                raise ValueError('runtime agent tool memory must be a list')
+            token = _ACTIVE_TOOL_MEMORY.set(memory)
+        result = handler(payload or {})
+        if capability_id in _ILLUSTRATIVE_CAPABILITIES:
+            result = {**result, **_illustrative_evidence(capability_id)}
+            result['scope'] = 'Illustration only: ' + result.get('scope', cap['scope'])
+        result['memory_context'] = {
+            'owner': 'runtime' if _ACTIVE_TOOL_MEMORY.get() is not None else 'legacy_process_demo',
+            'checkpointed': _ACTIVE_TOOL_MEMORY.get() is not None,
+            'capacity': _TOOL_MEMORY_CAPACITY,
+        }
+        return result
     except Exception as exc:
         return {
             'status': 'error',
             'error': f'{type(exc).__name__}: {exc}',
             'capability_id': capability_id,
         }
+    finally:
+        if token is not None:
+            _ACTIVE_TOOL_MEMORY.reset(token)
 
 
 def coverage_sweep() -> Dict[str, Any]:
@@ -2164,6 +2230,8 @@ def coverage_sweep() -> Dict[str, Any]:
             'status': res.get('status'),
             'scope': res.get('scope', cap.get('scope')),
             'consumer': res.get('consumer'),
+            'evidence_kind': res.get('evidence_kind', 'unclassified'),
+            'measured': res.get('measured'),
         }
     return {
         'total': len(results),
@@ -2171,5 +2239,7 @@ def coverage_sweep() -> Dict[str, Any]:
         'unavailable': sum(1 for r in results.values() if r['status'] == 'unavailable'),
         'experimental': sum(1 for r in results.values() if r['status'] == 'experimental'),
         'error': sum(1 for r in results.values() if r['status'] == 'error'),
+        'illustrative': sum(1 for r in results.values() if r['evidence_kind'] == 'illustrative'),
+        'scope': 'Successful calls include illustrations; coverage is not evidence of learned capability or performance.',
         'details': results,
     }

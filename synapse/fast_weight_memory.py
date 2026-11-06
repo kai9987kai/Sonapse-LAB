@@ -51,6 +51,20 @@ class UniversalFastWeightMemory(nn.Module):
         self.step_count = 0
         self.total_inner_updates = 0
 
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        readout, gate = self.read(x)
+        return readout, {'gate': gate, 'memory_norm': float(self.M.norm().item())}
+
+    def inner_update(self, x: torch.Tensor, surprisal: float = 0.0) -> Dict[str, Any]:
+        return self.step_and_update(x, surprisal=surprisal, adapt=True)
+
+    def get_metrics(self) -> Dict[str, Any]:
+        return self.summary()
+
+    @property
+    def inner_step_count(self) -> int:
+        return self.total_inner_updates
+
     def reset_memory(self):
         """Reset fast-weight buffer to zero (e.g. at episode boundaries if desired)."""
         self.M.zero_()

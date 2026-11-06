@@ -12,6 +12,29 @@
   --purple: #c084fc;
   --blue: #80aaff;
 }
+.contract-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0; }
+.contract-item { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; }
+.contract-item small { color: var(--muted); }
+.contract-item.ready { border-color: #31735f; }
+.contract-item.ready span { color: var(--teal); }
+#plan-preview { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+.plan-actions { max-width: 720px; }
+.plan-action { display: grid; grid-template-columns: 60px 1fr 145px; align-items: center; gap: 16px; margin: 10px 0; }
+.plan-action b { font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; }
+.plan-meter { position: relative; height: 7px; background: linear-gradient(90deg, #384958 49.7%, var(--muted) 50%, #384958 50.3%); border-radius: 4px; }
+.plan-meter i { position: absolute; top: -3px; width: 4px; height: 13px; background: var(--teal); transform: translateX(-50%); border-radius: 2px; }
+.toolbar-select { display: inline; width: auto; padding: 4px 8px; margin: 0 4px; }
+.legend-reset { color: var(--text); }
+.teleop-label { font-size: 11px; color: var(--muted); }
+.spaced-grid { margin-top: 16px; }
+.thrust-tag { background: rgba(255,200,0,.15); color: #fc0; }
+.cognition-tag { background: rgba(0,255,180,.15); color: #00ffb4; }
+.vitals-container { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.cognition-values { padding: 14px; }
+.plan-candidates { overflow-x: auto; margin: 18px 0; }
+.plan-candidates table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.plan-candidates th, .plan-candidates td { text-align: right; border-bottom: 1px solid var(--line); padding: 7px 12px; white-space: nowrap; }
+.plan-candidates th:first-child, .plan-candidates td:first-child { text-align: left; }
 * {
   box-sizing: border-box;
 }

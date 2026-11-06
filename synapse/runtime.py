@@ -9,6 +9,7 @@ from .config import ROOT
 from .agent import IntegratedAgent
 from .stateio import save_state,load_state
 from .complex_world import ComplexWorld, ALL_TASKS as TASKS
+from .actions import ACTION_NAMES, govern_action, validate_action
 
 class LabRuntime:
     def __init__(self,config,output_root=None):
@@ -17,16 +18,21 @@ class LabRuntime:
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
     def step(self,steps=1,learn=False,camera=None,action=None):
         if type(steps) is not int or not 1<=steps<=10000: raise ValueError('steps must be integer 1..10000')
+        if type(learn) is not bool: raise ValueError('learn must be boolean')
+        manual = None if action is None else validate_action(action)
         for _ in range(steps):
-            if action is not None:
-                act=np.asarray(action,dtype=np.float32)
-                self.last_action=act
-                self.last={'action':act.tolist(),'manual_teleop':True}
-            else:
-                out=self.agent.act(self.obs,camera=camera,learn=learn)
-                self.last=out['telemetry']
-                self.last_action=out['action']
-                act=out['action']
+            # Manual actions still observe the current state through the actor;
+            # the actual motor command is then bound before any outcome arrives.
+            out=self.agent.act(self.obs,camera=camera,learn=learn,
+                               planner_mode='off' if manual is not None else None)
+            self.last=out['telemetry']
+            proposed = out['action'] if manual is None else manual
+            act=govern_action(proposed,self.agent.homeostasis.get_max_allowed_thrust())
+            self.agent.pending_transition['action']=act.copy()
+            self.last_action=act.copy()
+            self.last.update(action=act.tolist(),manual_teleop=manual is not None,
+                             action_source='manual' if manual is not None else 'actor',
+                             action_coordinates=list(ACTION_NAMES))
             self.obs,reward,done,info=self.world.step(act)
             if hasattr(self.agent, 'homeostasis'):
                 self.agent.homeostasis.step(
@@ -37,15 +43,19 @@ class LabRuntime:
                     in_friction_zone=info.get('in_friction_zone', False)
                 )
             if learn:
-                self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done)
+                self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done,action=act)
                 self.agent.feedback(reward,done)
+            else:
+                # Query outcomes cannot be learned accidentally by a later call.
+                self.agent.pending_transition=None
+            self.last['homeostasis']=self.agent.homeostasis.summary()
             self.total_steps+=1
             self.recent=(self.recent+[{'step':self.total_steps,'reward':float(reward),'done':bool(done)}])[-128:]
             if done: self.agent.reset_episode(); self.obs=self.world.reset()
         return self.snapshot()
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
-        indices=np.linspace(0,g.n-1,min(256,g.n)).astype(int)
+        indices=np.linspace(0,g.n-1,min(1000,g.n)).astype(int)
         edge_indices=np.linspace(0,len(g.base_pre)-1,min(400,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}

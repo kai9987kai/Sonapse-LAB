@@ -72,6 +72,9 @@ class ComplexWorld(BaseWorld):
             self._setup_puzzle_chamber()
 
         self.base_walls = self.walls.copy()
+        self.history.setdefault(self.task,deque(maxlen=50))
+        # A frontier task cannot inherit the temporary forage potential.
+        self._prev = self._progress()
         return self.observe()
 
     # ------------------------------------------------------------------
@@ -184,6 +187,8 @@ class ComplexWorld(BaseWorld):
     # Step Physics & Environmental Updates
     # ------------------------------------------------------------------
     def step(self, action: np.ndarray):
+        from .actions import DRIVE, validate_action
+        action = validate_action(action)
         # 1. Terrain zone physics (modulate thrust/turn)
         current_friction = 1.0
         in_friction_zone = False
@@ -197,12 +202,13 @@ class ComplexWorld(BaseWorld):
                 break
 
         # Adjust effective action under terrain friction
-        eff_action = np.asarray(action, dtype=np.float32).copy()
-        if len(eff_action) > 1:
-            eff_action[1] /= current_friction  # Slip on ice, drag in sand
+        eff_action = action.copy()
+        eff_action[DRIVE] = np.clip(eff_action[DRIVE] / current_friction, -1, 1)
 
         # 2. Step base environment
-        obs, reward, done, info = super().step(eff_action)
+        _, reward, done, info = super().step(eff_action)
+        base_reward = reward
+        ax, ay = self.a['x'], self.a['y']
         info["in_friction_zone"] = in_friction_zone
         info["terrain_friction"] = current_friction
 
@@ -232,7 +238,6 @@ class ComplexWorld(BaseWorld):
             p_dx = ax - pred["x"]
             p_dy = ay - pred["y"]
             dist_to_agent = math.hypot(p_dx, p_dy)
-            min_hazard_dist = min(min_hazard_dist, dist_to_agent)
 
             if pred["kind"] == "pursuer" and dist_to_agent < 4.0:
                 # Direct chase steering
@@ -256,6 +261,8 @@ class ComplexWorld(BaseWorld):
                 pred["y"] = float(np.clip(pred["y"], -h, h))
 
             # Collision with agent
+            dist_to_agent = math.hypot(ax-pred['x'],ay-pred['y'])
+            min_hazard_dist = min(min_hazard_dist,dist_to_agent)
             if dist_to_agent < (pred["r"] + 0.35):
                 reward -= 0.45  # Penalty for getting hit by predator
                 info["predator_impact"] = True
@@ -275,7 +282,13 @@ class ComplexWorld(BaseWorld):
         self.ambient_light = float(0.65 + 0.35 * math.sin(self.day_night_clock))
         info["ambient_light"] = self.ambient_light
 
-        return obs, reward, done, info
+        # BaseWorld recorded its reward before the ecological penalties. Keep
+        # transition observations and episode accounting bound to the final reward.
+        self.ep_return += reward-base_reward
+        self.last_reward = reward
+        if done:
+            info['ret'] = self.ep_return
+        return self.observe(), reward, done, info
 
     def observe(self):
         """Generates 155-dim sensory observation with ambient lighting modulation."""

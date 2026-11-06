@@ -5,7 +5,8 @@ Implements continuous activity-dependent structural plasticity:
 1. **Apoptosis**: Pruning stagnant, weak or inactive synapses below softplus threshold.
 2. **Synaptogenesis**: Sprouting new synaptic connections between pairs of neurons
    exhibiting high pre-post firing rate covariance.
-3. **Dale's Law Compliant**: Ensures excitatory and inhibitory polarity invariants are strictly preserved.
+3. **Sign-aware Growth**: Reuses consistent frozen-source polarity when available;
+   otherwise retains the replaced slot's sign. No measured cell-type guarantee.
 4. **Neuromodulatory & Astrocytic Gating**: Synaptic growth is facilitated by elevated Dopamine (positive RPE)
    and Astrocytic [Ca2+] spillover, and suppressed under high stress/threat.
 """
@@ -103,6 +104,7 @@ class ConnectomeNeurogenesisEngine:
         pre = np.array(graph.graft_pre, dtype=np.int64)
         post = np.array(graph.graft_post, dtype=np.int64)
         n_edges = len(g_w)
+        changed_slots = []
 
         # -------------------------------------------------------------
         # 1. APOPTOSIS (Synaptic Pruning)
@@ -151,13 +153,26 @@ class ConnectomeNeurogenesisEngine:
 
                 # Sprout new synaptic coupling within existing graft weight slots
                 # (Find least used edge or weakest slot to repurpose)
-                weakest_idx = int(np.argmin(np.abs(g_w)))
+                compatible=np.arange(n_edges)
+                if hasattr(agent,'plasticity'):
+                    # Birth telemetry represents an executing edge. Replacing an
+                    # active weak slot preserves the fixed directional budget.
+                    compatible=compatible[agent.plasticity.active_mask.detach().cpu().numpy()]
+                if hasattr(graph,'origin'):
+                    compatible=compatible[(graph.origin[pre[compatible]]==graph.origin[p_i])
+                                          & (graph.origin[post[compatible]]==graph.origin[p_j])]
+                if not len(compatible):
+                    continue
+                weakest_idx = int(compatible[np.argmin(np.abs(g_w[compatible]))])
                 if np.abs(g_w[weakest_idx]) < self.prune_threshold * 1.5:
+                    old_sign=float(np.sign(g_w[weakest_idx])) or 1.0
                     pre[weakest_idx] = p_i
                     post[weakest_idx] = p_j
-                    # Sign matches polarity of pre-synaptic neuron (Dale's law)
-                    sign = 1.0 if (p_i % 2 == 0) else -1.0
+                    source_signs=np.sign(np.asarray(graph.base_w)[np.asarray(graph.base_pre)==p_i]) if hasattr(graph,'base_w') else np.array([])
+                    source_signs=source_signs[source_signs!=0]
+                    sign=float(source_signs[0]) if len(source_signs) and np.all(source_signs==source_signs[0]) else old_sign
                     g_w[weakest_idx] = sign * (0.05 + 0.03 * growth_drive)
+                    changed_slots.append(weakest_idx)
                     existing_pairs.add((p_i, p_j))
                     sprouted += 1
 
@@ -167,11 +182,16 @@ class ConnectomeNeurogenesisEngine:
                 event_record['sprouted'] = sprouted
 
         # Apply updated weights and topology back to brain
-        with torch.no_grad():
-            brain.graft_w.copy_(torch.tensor(g_w, dtype=torch.float32))
-            # Keep graph pre and post arrays consistent
-            graph.graft_pre = pre
-            graph.graft_post = post
+        if changed_slots and hasattr(agent,'rewire_graft_slots'):
+            agent.rewire_graft_slots(pre,post,g_w,changed_slots)
+        else:
+            with torch.no_grad():
+                brain.graft_w.copy_(torch.tensor(g_w, dtype=torch.float32))
+                if hasattr(brain,'graft_pre'):
+                    brain.graft_pre.copy_(torch.as_tensor(pre))
+                    brain.graft_post.copy_(torch.as_tensor(post))
+                graph.graft_pre = pre
+                graph.graft_post = post
 
         # Update stats
         self.stats.active_synapses = int(np.sum(np.abs(g_w) >= self.prune_threshold))

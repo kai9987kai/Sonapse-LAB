@@ -43,7 +43,7 @@
       <button id="train">Train +32</button>
       <label><input id="learn" type="checkbox"> Learn while running</label>
       <label>Speed:
-        <select id="simspeed" style="display:inline;width:auto;padding:4px 8px;margin:0 4px">
+        <select id="simspeed" class="toolbar-select">
           <option value="250">1x (250ms)</option>
           <option value="125" selected>2x (125ms)</option>
           <option value="50">5x (50ms)</option>
@@ -51,7 +51,7 @@
         </select>
       </label>
       <label>Quick Task:
-        <select id="quicktask" style="display:inline;width:auto;padding:4px 8px;margin:0 4px">
+        <select id="quicktask" class="toolbar-select">
           <option value="">(Current)</option>
           <option value="forage">forage</option>
           <option value="maze">maze</option>
@@ -95,7 +95,7 @@
           <span id="filter-flywire" title="Click to filter FlyWire Central Brain">● FlyWire Central Brain</span>
           <span id="filter-manc" title="Click to filter MANC Nerve Cord">● MANC Nerve Cord</span>
           <span id="filter-optic" title="Click to filter Optic Lobe">● Optic Lobe</span>
-          <span id="filter-reset" title="Show all neuropils" style="color:var(--text)">↺ All</span>
+          <span id="filter-reset" title="Show all neuropils" class="legend-reset">↺ All</span>
         </div>
       </article>
 
@@ -116,7 +116,7 @@
           <div id="world-tooltip" class="canvas-tooltip"></div>
         </div>
         <div class="teleop-bar">
-          <span style="font-size:11px;color:var(--muted)">Direct Teleop:</span>
+          <span class="teleop-label">Direct Teleop:</span>
           <button id="teleop-fwd" title="Thrust forward (W / Up)">▲ Thrust</button>
           <button id="teleop-left" title="Steer left (A / Left)">◀ Turn L</button>
           <button id="teleop-right" title="Steer right (D / Right)">▶ Turn R</button>
@@ -146,7 +146,7 @@
     </div>
 
     <!-- GAUGES & PREDICTIVE CODING -->
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <div class="panel-head">
           <h2>Neuromodulatory & Astrocyte Field Gauges</h2>
@@ -170,16 +170,16 @@
     </div>
 
     <!-- HOMEOSTATIC VITALS & MIMOMIX COGNITION -->
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <div class="panel-head">
           <div>
             <h2>Homeostatic Physiology & Interoception</h2>
             <span class="tag">SUPERMIX DRIVES</span>
           </div>
-          <span id="thrust-governor" class="tag" style="background:rgba(255,200,0,0.15);color:#ffcc00">Thrust: 100%</span>
+          <span id="thrust-governor" class="tag thrust-tag">Thrust: 100%</span>
         </div>
-        <div id="vitals-hud" class="vitals-container" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div id="vitals-hud" class="vitals-container">
           <!-- Real-time dynamic vitals bars injected by app.js -->
         </div>
       </article>
@@ -189,10 +189,38 @@
             <h2>MiMoMix Deliberation & Neurogenesis</h2>
             <span class="tag">DUAL-PROCESS COGNITION</span>
           </div>
-          <span id="mimomix-badge" class="tag" style="background:rgba(0,255,180,0.15);color:#00ffb4">System 1 (Reflex)</span>
+          <span id="mimomix-badge" class="tag cognition-tag">Experimental cognition disabled</span>
         </div>
-        <div id="cognition-hud" class="keyvalues" style="padding:14px">
+        <div id="cognition-hud" class="keyvalues cognition-values">
           <!-- Real-time cognition, ponder, and structural remodeling metrics -->
+        </div>
+      </article>
+    </div>
+
+    <!-- DORMANT EXPERT LIFECYCLE & CONTINUAL PLASTICITY -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Dormant Expert Dynamic Lifecycle</h2>
+            <span class="tag">DYNAMIC CAPACITY</span>
+          </div>
+          <span id="dormant-badge" class="tag cognition-tag">Lifecycle active</span>
+        </div>
+        <div id="dormant-hud" class="keyvalues cognition-values">
+          <!-- Real-time dormant expert state, activation, consolidation metrics -->
+        </div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Fast-Weight Memory &amp; Continual Plasticity</h2>
+            <span class="tag">TITANS · CONTINUAL BACKPROP</span>
+          </div>
+          <span id="plasticity-badge" class="tag thrust-tag">Plasticity ready</span>
+        </div>
+        <div id="plasticity-hud" class="keyvalues cognition-values">
+          <!-- Real-time continual backprop, fast weights, and latent reasoning metrics -->
         </div>
       </article>
     </div>
@@ -222,7 +250,7 @@
           </select>
         </label>
         <label>Seed<input name="seed" type="number" value="7" min="0"></label>
-        <label>Nodes / source<input name="nodes_per_source" type="number" value="100" min="16" max="1500"></label>
+        <label>Total neurons<input name="total_neurons" type="number" value="1000" min="48" max="15000"></label>
         <label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label>
         <label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label>
         <label>Readout
@@ -232,6 +260,11 @@
             <option>persistent_evoked</option>
           </select>
         </label>
+        <label><input name="continual_backprop" type="checkbox"> Continual Backprop</label>
+        <label><input name="fast_weight_memory" type="checkbox"> Fast-Weight Memory</label>
+        <label><input name="dormant_lifecycle" type="checkbox" checked> Dormant Lifecycle</label>
+        <label><input name="latent_reasoning" type="checkbox"> Latent Reasoning</label>
+        <label><input name="value_guided_planning" type="checkbox"> Value-Guided MPC</label>
         <button>Reset session</button>
       </form>
     </article>
@@ -242,7 +275,7 @@
         <h2>Experience learning &amp; surprise memory</h2>
         <span class="tag">EXPERIMENTAL</span>
       </div>
-      <p class="muted">Train +32 collects real outcomes. Planning uses learned immediate rewards and local action changes. Learning stays frozen when the learning controls are off.</p>
+      <p class="muted">Train +32 learns from executed outcomes, including manual actions. Compare short forecasts before enabling planning. Model uncertainty is a heuristic; learned parameters and topology stay frozen when learning is off.</p>
       <div class="toolbar">
         <label>Action policy
           <select id="experience-mode">
@@ -251,9 +284,29 @@
             <option value="memory">Actor + model + surprise memory</option>
           </select>
         </label>
+        <label>Planning horizon
+          <select id="experience-horizon">
+            <option value="1">1 · immediate reward</option>
+            <option value="2">2 steps</option>
+            <option value="3">3 steps</option>
+            <option value="4">4 steps</option>
+            <option value="5">5 steps</option>
+          </select>
+        </label>
+        <label><input id="experience-value-guided" type="checkbox"> Value-guided critic</label>
         <button id="experience-apply">Set policy</button>
+        <button id="experience-preview">Inspect forecast</button>
       </div>
       <p id="experience-summary" class="muted">Waiting for experience data.</p>
+      <div id="learning-contract" class="contract-strip" aria-live="polite"></div>
+      <div id="plan-preview" hidden>
+        <div class="panel-head"><h3>Counterfactual plan inspector</h3><span id="plan-step" class="tag"></span></div>
+        <p id="plan-reason" aria-live="polite"></p>
+        <div id="plan-actions" class="plan-actions"></div>
+        <div id="plan-candidates" class="plan-candidates"></div>
+        <p class="muted">Preview repeats the previous executed action as its baseline. It reads the model without advancing the actor or world. Forecasts omit terminal events and future neural context changes.</p>
+        <details><summary>Candidate sequences and model trajectory</summary><pre id="plan-details"></pre></details>
+      </div>
       <details>
         <summary>Prediction, coverage &amp; memory measurements</summary>
         <pre id="experience-details"></pre>
@@ -312,7 +365,7 @@
     </div>
 
     <!-- ADVANCED ASSAY PANELS -->
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <h2>Causal Circuit Atlas & Abstraction Mapping</h2>
         <p class="muted">Systematic optogenetic silencing & ablation assay linking anatomical subcircuits to behavioral primitives (thrust, steering, evasion, memory).</p>
@@ -332,7 +385,7 @@
       </article>
     </div>
 
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <h2>Autonomous failure diagnosis & repair</h2>
         <p class="muted">Diagnostic rollouts &rarr; circuit failure diagnosis &rarr; weight-space program synthesis &rarr; inactive candidate evaluation &rarr; confirmation with writer disconnected.</p>
@@ -351,7 +404,7 @@
       </article>
     </div>
 
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <h2>Flagship Experiment: Dual-Skill Transfer & Recursive Evolution</h2>
         <p class="muted">Executes full 6-stage developmental benchmark: Task A & B training &rarr; dual transplantation &rarr; double dissociation ablation &rarr; recursive rule evolution &rarr; benchmark arms.</p>
@@ -370,7 +423,7 @@
       </article>
     </div>
 
-    <div class="visual-grid" style="margin-top:16px">
+    <div class="visual-grid spaced-grid">
       <article>
         <h2>Spectral Connectome Harmonics</h2>
         <p class="muted">Normalized graph Laplacian eigendecomposition, harmonic resonant modes, and live neural power spectra.</p>

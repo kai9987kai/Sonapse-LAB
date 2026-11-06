@@ -925,12 +925,53 @@ function render(s) {
   if (!s) return;
   state = s;
   show('snapshot', s);
+  const neuronInput = $('config').elements.namedItem('total_neurons');
+  const sourceCount = s.config?.connectome_sources?.length || 3;
+  const sizeKey = JSON.stringify([s.config?.total_neurons, s.config?.nodes_per_source, sourceCount]);
+  if (neuronInput && neuronInput.dataset.sizeKey !== sizeKey) {
+    neuronInput.value = String(s.config?.total_neurons ?? s.graph?.neurons ?? 1000);
+    neuronInput.min = String(16 * sourceCount);
+    neuronInput.max = String(5000 * sourceCount);
+    neuronInput.dataset.sizeKey = sizeKey;
+  }
 
   const experience = s.experience || {};
   $('experience-mode').value = experience.mode || 'off';
+  $('experience-horizon').value = String(s.config?.experience_horizon || 1);
+  if ($('experience-value-guided')) {
+    $('experience-value-guided').checked = !!s.config?.value_guided_planning;
+  }
+  const configForm = $('config');
+  if (configForm) {
+    for (const boolField of ['continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning', 'value_guided_planning']) {
+      const el = configForm.elements.namedItem(boolField);
+      if (el && !el.dataset.userTouched) {
+        if (boolField === 'dormant_lifecycle') {
+          el.checked = s.config?.[boolField] !== false;
+        } else {
+          el.checked = !!s.config?.[boolField];
+        }
+      }
+    }
+  }
   const model = experience.model || {}, memory = experience.memory || {}, planner = experience.planner || {};
   $('experience-summary').textContent = `${model.samples || 0} observed transitions · ${memory.size || 0}/${memory.capacity || 128} memory slots · reward prediction RMSE ${Number(model.prequential_reward_rmse || 0).toFixed(5)} · ${planner.reason || 'collect support to begin'}`;
   show('experience-details', experience);
+  const gates = [
+    ['Reward model', model.prediction_gate_passed ? 'support gate passed' : 'collect more support', !!model.prediction_gate_passed],
+    ['Dynamics model', model.dynamics_gate_passed ? 'support gate passed' : 'multi-step not ready', !!model.dynamics_gate_passed],
+    ['Learning', s.telemetry?.manual_teleop ? 'manual executed action' : ($('learn').checked ? 'enabled' : 'frozen'), false],
+    ['Action order', 'drive · turn · reach · height · grip', false]
+  ];
+  $('learning-contract').replaceChildren(...gates.map(([label, value, ready]) => {
+    const item = document.createElement('div');
+    item.className = `contract-item${ready ? ' ready' : ''}`;
+    const name = document.createElement('small'), text = document.createElement('span');
+    name.textContent = label; text.textContent = value; item.append(name, text); return item;
+  }));
+  if (!$('plan-preview').hidden && Number($('plan-step').dataset.step) !== s.steps) {
+    $('plan-step').textContent = `Step ${$('plan-step').dataset.step} · stale preview`;
+  }
 
   const m = [
     ['Simulation steps', s.steps ?? 0],
@@ -997,7 +1038,7 @@ function render(s) {
   const mimomix = s.telemetry?.mimomix || {};
   const neuro = s.telemetry?.neurogenesis || {};
   if ($('mimomix-badge')) {
-    const engaged = mimomix.system_engaged || 'System 1 (Reflex)';
+    const engaged = mimomix.system_engaged || (s.config?.experimental_cognition ? 'Awaiting action' : 'Experimental cognition disabled');
     $('mimomix-badge').textContent = engaged;
     if (engaged.includes('System 2')) {
       $('mimomix-badge').style.background = 'rgba(255,100,200,0.25)';
@@ -1012,12 +1053,72 @@ function render(s) {
       ['Deliberation Mode', mimomix.system_engaged || 'System 1 (Reflex)'],
       ['Ponder Steps', `${mimomix.ponder_steps || 0} / 4 ACT steps`],
       ['Ponder Cost', Number(mimomix.ponder_cost || 0).toFixed(4)],
-      ['Confidence', `${Math.round((mimomix.confidence || 1.0) * 100)}%`],
+      ['Heuristic confidence', s.config?.experimental_cognition ? `${Math.round((mimomix.confidence || 0) * 100)}%` : 'inactive'],
       ['Synapses Born', neuro.synapses_born ?? 0],
       ['Synapses Pruned', neuro.synapses_pruned ?? 0],
       ['Active Synapses', neuro.active_synapses ?? s.graph?.edges?.length ?? '—']
     ];
     $('cognition-hud').replaceChildren(...cogMetrics.map(([k, val]) => {
+      const d = document.createElement('div');
+      d.className = 'kv';
+      const name = document.createElement('span'), v = document.createElement('b');
+      name.textContent = k;
+      v.textContent = val;
+      d.append(name, v);
+      return d;
+    }));
+  }
+
+  // Dormant Expert Lifecycle HUD
+  const dormant = s.telemetry?.dormant_lifecycle || {};
+  const dormantSlots = dormant.slots || [];
+  if ($('dormant-badge')) {
+    const isEnabled = s.config?.dormant_lifecycle !== false;
+    const activeSlots = dormantSlots.filter(sl => sl.state === 'ACTIVE' || sl.state === 'ACTIVATING').length;
+    $('dormant-badge').textContent = isEnabled ? `${activeSlots} active / ${dormantSlots.length} slots` : 'Disabled';
+    $('dormant-badge').style.color = isEnabled ? '#00ffb4' : '#ec7c8d';
+  }
+  if ($('dormant-hud')) {
+    const slot0 = dormantSlots[0] || {};
+    const slot1 = dormantSlots[1] || {};
+    const dormantMetrics = [
+      ['Slot 0 State', `${slot0.state || 'DORMANT'} (gain: ${Number(slot0.activation_gain || 0).toFixed(2)})`],
+      ['Slot 1 State', `${slot1.state || 'DORMANT'} (gain: ${Number(slot1.activation_gain || 0).toFixed(2)})`],
+      ['Slot 0 Usage', `${slot0.usage_count || 0} calls · score ${Number(slot0.contribution_score || 0).toFixed(3)}`],
+      ['Slot 1 Usage', `${slot1.usage_count || 0} calls · score ${Number(slot1.contribution_score || 0).toFixed(3)}`],
+      ['Consolidations', `${dormant.consolidations_completed || 0} native distillations`],
+      ['Recruited Expert', s.telemetry?.recruited_expert != null ? `Slot ${s.telemetry.recruited_expert}` : 'None (idle)']
+    ];
+    $('dormant-hud').replaceChildren(...dormantMetrics.map(([k, val]) => {
+      const d = document.createElement('div');
+      d.className = 'kv';
+      const name = document.createElement('span'), v = document.createElement('b');
+      name.textContent = k;
+      v.textContent = val;
+      d.append(name, v);
+      return d;
+    }));
+  }
+
+  // Fast-Weight Plasticity & Continual Backprop HUD
+  const cbp = s.telemetry?.continual_backprop || {};
+  const fwm = s.telemetry?.fast_weight_memory || {};
+  const lat = s.telemetry?.latent_reasoner || {};
+  const evoked = s.telemetry?.evoked_channels || {};
+  if ($('plasticity-badge')) {
+    const plastActive = (cbp.enabled || fwm.enabled || lat.engaged);
+    $('plasticity-badge').textContent = plastActive ? 'Plasticity engaged' : 'Standard Adam';
+    $('plasticity-badge').style.color = plastActive ? '#00ffb4' : '#8892b0';
+  }
+  if ($('plasticity-hud')) {
+    const plastMetrics = [
+      ['Continual Backprop', cbp.enabled ? `Active · ${cbp.reinit_count || 0} reinits · step ${cbp.grad_step_count || 0}` : 'Disabled'],
+      ['Fast-Weight (Titans)', fwm.enabled ? `Active · ${fwm.inner_step_count || 0} updates · η=${fwm.eta || 0.1}` : 'Disabled'],
+      ['Coconut Deliberation', lat.engaged ? `Engaged · ${lat.recurrent_depth || 0} steps · cost ${Number(lat.ponder_cost || 0).toFixed(3)}` : (s.config?.latent_reasoning ? 'Monitoring surprise' : 'Disabled')],
+      ['Evoked Readout', `m: ${Number(evoked.channel_m_norm || 0).toFixed(3)} · d: ${Number(evoked.channel_d_norm || 0).toFixed(3)} · α: ${Number(evoked.gate_alpha || 1).toFixed(2)}`],
+      ['MPC Value Guidance', s.config?.value_guided_planning ? 'Value critic enabled' : 'Reward rollout only']
+    ];
+    $('plasticity-hud').replaceChildren(...plastMetrics.map(([k, val]) => {
       const d = document.createElement('div');
       d.className = 'kv';
       const name = document.createElement('span'), v = document.createElement('b');
@@ -1079,7 +1180,51 @@ $('step').onclick = () => action(() => tick(1));
 $('train').onclick = () => action(() => tick(32, true));
 $('experience-apply').onclick = () => action(async () => {
   running = false;
-  render(await api('experience/mode', { mode: $('experience-mode').value }));
+  render(await api('experience/mode', {
+    mode: $('experience-mode').value,
+    horizon: Number($('experience-horizon').value),
+    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false
+  }));
+});
+$('experience-preview').onclick = () => action(async () => {
+  running = false;
+  const preview = await api('experience/preview', {
+    horizon: Number($('experience-horizon').value),
+    memory: $('experience-mode').value === 'memory',
+    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false
+  });
+  $('plan-preview').hidden = false;
+  $('plan-step').dataset.step = String(preview.source_step);
+  $('plan-step').textContent = `Step ${preview.source_step} · horizon ${preview.horizon}`;
+  $('plan-reason').textContent = `${preview.used ? 'Proposed local change' : 'Baseline retained'}: ${preview.reason}. ${preview.evaluations || 0} model evaluations.`;
+  $('plan-actions').replaceChildren(...preview.action_order.map((name, index) => {
+    const row = document.createElement('div'); row.className = 'plan-action';
+    const label = document.createElement('span'), values = document.createElement('b');
+    label.textContent = name;
+    const baseline = Number(preview.baseline[index]), proposed = Number(preview.proposed_action[index]);
+    values.textContent = `${baseline.toFixed(3)} → ${proposed.toFixed(3)}`;
+    const meter = document.createElement('div'); meter.className = 'plan-meter';
+    const mark = document.createElement('i'); mark.style.left = `${(proposed + 1) * 50}%`;
+    meter.append(mark); row.append(label, meter, values); return row;
+  }));
+  const candidates = preview.candidates || [];
+  const table = document.createElement('table'), head = document.createElement('tr');
+  for (const text of ['Model forecast', 'Return', 'Penalized score', 'Uncertainty']) {
+    const th = document.createElement('th'); th.textContent = text; head.append(th);
+  }
+  table.append(head);
+  candidates.forEach((candidate, index) => {
+    const row = document.createElement('tr');
+    for (const value of [candidate.baseline ? 'Repeated baseline' : `Sequence ${index}`,
+      candidate.predicted_return, candidate.score, candidate.uncertainty]) {
+      const cell = document.createElement('td');
+      cell.textContent = typeof value === 'number' ? value.toFixed(4) : value;
+      row.append(cell);
+    }
+    table.append(row);
+  });
+  $('plan-candidates').replaceChildren(...(candidates.length ? [table] : []));
+  show('plan-details', preview);
 });
 
 $('simspeed').onchange = updateSimSpeed;
@@ -1096,9 +1241,17 @@ $('config').onsubmit = e => {
   e.preventDefault();
   running = false;
   const config = Object.fromEntries(new FormData(e.target));
-  for (const key of ['seed', 'nodes_per_source', 'microsteps', 'cognition_interval']) config[key] = Number(config[key]);
+  for (const key of ['seed', 'total_neurons', 'microsteps', 'cognition_interval']) config[key] = Number(config[key]);
+  config.continual_backprop = !!e.target.elements.continual_backprop?.checked;
+  config.fast_weight_memory = !!e.target.elements.fast_weight_memory?.checked;
+  config.dormant_lifecycle = !!e.target.elements.dormant_lifecycle?.checked;
+  config.latent_reasoning = !!e.target.elements.latent_reasoning?.checked;
+  config.value_guided_planning = !!e.target.elements.value_guided_planning?.checked;
   config.experience_planning = state.config?.experience_planning ?? false;
   config.surprise_memory = state.config?.surprise_memory ?? true;
+  config.experience_horizon = state.config?.experience_horizon ?? 1;
+  config.experimental_cognition = state.config?.experimental_cognition ?? false;
+  config.connectome_sources = state.config?.connectome_sources ?? ['flywire', 'manc', 'optic-lobe'];
   action(async () => {
     render(await api('reset', { config }));
     signalHistory = [];
@@ -1151,7 +1304,7 @@ $('filter-reset').onclick = () => { filterNeuropil = null; graph(); };
 async function executeTeleopAction(turn = 0, thrust = 0, gripToggle = false, armReach = false) {
   if (gripToggle) manualGripState = manualGripState > 0.5 ? 0.0 : 1.0;
   if (armReach) manualReachState = manualReachState > 0.5 ? 0.0 : 0.8;
-  const actionVec = [turn, thrust, manualReachState, 0.0, manualGripState];
+  const actionVec = [thrust, turn, manualReachState, 0.0, manualGripState];
   await tick(1, $('learn').checked, actionVec);
 }
 

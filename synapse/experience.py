@@ -37,14 +37,71 @@ def encode_experience_state(obs, features=None):
     return np.clip(np.asarray(summary, dtype=np.float64), -2, 2)
 
 
+class TDValueModel:
+    """Online TD(0) value estimator over encoded state coordinates.
+
+    Eliminates finite-horizon truncation bias in multi-step planning (TD-MPC / Hansen et al.).
+    """
+
+    def __init__(self, state_dim=16, gamma=0.95, lr=0.05, seed=7):
+        self.state_dim = state_dim
+        self.gamma = float(gamma)
+        self.lr = float(lr)
+        self.dim = 1 + 2 * state_dim
+        self.weights = np.zeros(self.dim, dtype=np.float64)
+        self.samples = 0
+        self.td_error_ema = 0.0
+
+    def _features(self, state):
+        s = _vector(state, self.state_dim, 'state')
+        return np.concatenate([[1.0], s, np.clip(s ** 2, -100, 100)])
+
+    def predict(self, state):
+        phi = self._features(state)
+        val = float(phi @ self.weights)
+        return float(np.clip(val, -20.0, 20.0))
+
+    def update(self, state, reward, next_state, done=False):
+        phi = self._features(state)
+        v_current = float(phi @ self.weights)
+        v_next = 0.0 if done else self.predict(next_state)
+        target = float(reward) + self.gamma * v_next
+        td_error = target - v_current
+        self.weights += self.lr * td_error * phi
+        norm = float(np.linalg.norm(self.weights))
+        if norm > 100.0:
+            self.weights *= 100.0 / norm
+        self.samples += 1
+        rate = 1.0 if self.samples == 1 else 0.05
+        self.td_error_ema += rate * (td_error ** 2 - self.td_error_ema)
+        return {'td_error': float(td_error), 'value_estimate': v_current}
+
+    def export_state(self):
+        return {'schema': 1, 'state_dim': self.state_dim, 'gamma': self.gamma,
+                'lr': self.lr, 'weights': self.weights.copy(),
+                'samples': self.samples, 'td_error_ema': float(self.td_error_ema)}
+
+    def import_state(self, state):
+        if not isinstance(state, dict) or state.get('schema') != 1:
+            raise ValueError('invalid TDValueModel schema')
+        self.state_dim = int(state['state_dim'])
+        self.gamma = float(state['gamma'])
+        self.lr = float(state['lr'])
+        self.dim = 1 + 2 * self.state_dim
+        self.weights = np.asarray(state['weights'], dtype=np.float64).copy()
+        self.samples = int(state['samples'])
+        self.td_error_ema = float(state.get('td_error_ema', 0.0))
+
+
 class ExperienceWorldModel:
     """Bounded-size bootstrap linear models with state/action interactions.
 
     The feature basis contains bias, state, action, state×action and action².
     RLS updates a regularized least-squares model with forgetting and a stabilizing
     covariance trace cap; Poisson(1) weights provide deterministic bootstrap members.
-    Next-state deltas are recorded for prediction diagnostics. Planning explicitly
-    uses immediate rewards only, so it cannot solve long-horizon credit assignment.
+    Next-state deltas are learned alongside immediate rewards. The original
+    ``plan`` method remains a one-step control; ExperienceMPC separately permits
+    short bounded rollouts.
     """
 
     def __init__(self, state_dim=16, action_dim=5, ensemble_size=3, seed=7,
@@ -75,10 +132,13 @@ class ExperienceWorldModel:
         self.weights = np.zeros((ensemble_size, self.dimension, self.predicted_dim + 1))
         self.covariance = np.repeat((np.eye(self.dimension) / ridge)[None], ensemble_size, axis=0)
         self.rng = np.random.default_rng(seed)
+        self.value_model = TDValueModel(state_dim=self.state_dim, seed=seed)
         self.samples = 0; self.member_updates = np.zeros(ensemble_size, dtype=np.int64)
         self.reward_error_ema = 0.0; self.delta_error_ema = 0.0
+        self.delta_baseline_error_ema = 0.0
         self.reward_mean = 0.0; self.baseline_error_ema = 0.0
         self.reward_squared_error = 0.0; self.delta_squared_error = 0.0
+        self.delta_baseline_squared_error = 0.0
         self.terminals = 0
 
     def _actions(self, actions):
@@ -113,6 +173,30 @@ class ExperienceWorldModel:
                 'disagreement': predictions[:, :, -1].std(axis=0),
                 'coverage': np.sqrt(np.maximum(leverage.mean(axis=0), 0))}
 
+    def predict_members(self, state, actions):
+        """Pure member predictions, with shapes [ensemble, candidates, ...].
+
+        ``state`` may be one encoded state or one separate state per ensemble
+        member. The latter keeps a member's own dynamics trajectory intact in
+        multi-step imagination. Conditioning coordinates always have zero delta.
+        Coverage is covariance leverage, not a calibrated confidence interval.
+        """
+        states = np.asarray(state, dtype=np.float64)
+        actions = self._actions(actions)
+        if states.shape == (self.state_dim,):
+            phi = np.broadcast_to(self._features(states, actions),
+                                  (self.ensemble_size, len(actions), self.dimension))
+        elif states.shape == (self.ensemble_size, self.state_dim):
+            phi = np.stack([self._features(member_state, actions) for member_state in states])
+        else:
+            raise ValueError('state must have shape [state_dim] or [ensemble_size, state_dim]')
+        predictions = np.einsum('enf,efk->enk', phi, self.weights, optimize=True)
+        leverage = np.einsum('enf,efg,eng->en', phi, self.covariance, phi, optimize=True)
+        delta = np.zeros((self.ensemble_size, len(actions), self.state_dim))
+        delta[:, :, :self.predicted_dim] = predictions[:, :, :-1]
+        return {'reward': predictions[:, :, -1].copy(), 'delta': delta,
+                'coverage': np.sqrt(np.maximum(leverage, 0))}
+
     def update(self, state, action, next_state, reward, done=False):
         """Learn only after an executed action; errors are measured before fitting."""
         state = _vector(state, self.state_dim, 'state')
@@ -130,6 +214,7 @@ class ExperienceWorldModel:
         baseline_error = float(reward - self.reward_mean)
         delta = (next_state - state)[:self.predicted_dim]
         delta_error = float(np.mean((delta - prediction['delta'][0, :self.predicted_dim]) ** 2))
+        delta_baseline_error = float(np.mean(delta ** 2))
         target = np.concatenate([delta, [float(reward)]])
         # All validation precedes RNG consumption or learned-state mutation.
         counts = self.rng.poisson(1.0, size=self.ensemble_size)
@@ -157,10 +242,14 @@ class ExperienceWorldModel:
         self.baseline_error_ema += rate * (baseline_error ** 2 - self.baseline_error_ema)
         self.reward_mean += rate * (float(reward) - self.reward_mean)
         self.delta_error_ema += rate * (delta_error - self.delta_error_ema)
+        self.delta_baseline_error_ema += rate * (delta_baseline_error - self.delta_baseline_error_ema)
         self.reward_squared_error += error ** 2
         self.delta_squared_error += delta_error
+        self.delta_baseline_squared_error += delta_baseline_error
+        self.value_model.update(state, float(reward), next_state, done=bool(done))
         return {'prediction_error': error, 'reward_squared_error': error ** 2,
-                'delta_squared_error': delta_error, 'samples': self.samples,
+                'delta_squared_error': delta_error, 'delta_baseline_squared_error': delta_baseline_error,
+                'samples': self.samples,
                 'member_updates': int(counts.astype(bool).sum())}
 
     def plan(self, state, baseline, memory=None):
@@ -227,6 +316,12 @@ class ExperienceWorldModel:
                     and self.baseline_error_ema > 1e-12
                     and self.reward_error_ema < 0.95 * self.baseline_error_ema)
 
+    def _dynamics_gate(self):
+        """Prequential delta error must beat holding the current state fixed."""
+        return bool(self.samples >= self.min_samples
+                    and self.delta_baseline_error_ema > 1e-12
+                    and self.delta_error_ema < 0.95 * self.delta_baseline_error_ema)
+
     def summary(self):
         return {'samples': self.samples, 'ensemble_size': self.ensemble_size,
                 'predicted_state_dimensions': self.predicted_dim, 'conditioning_dimensions': self.context_dim,
@@ -236,23 +331,32 @@ class ExperienceWorldModel:
                 'reward_baseline_rmse': float(np.sqrt(max(self.baseline_error_ema, 0))),
                 'prediction_gate_passed': self._prediction_gate(),
                 'prequential_delta_rmse': float(np.sqrt(self.delta_squared_error / max(1, self.samples))),
+                'recent_delta_rmse': float(np.sqrt(max(self.delta_error_ema, 0))),
+                'delta_no_change_baseline_rmse': float(np.sqrt(max(self.delta_baseline_error_ema, 0))),
+                'prequential_delta_no_change_baseline_rmse': float(np.sqrt(self.delta_baseline_squared_error / max(1, self.samples))),
+                'dynamics_gate_passed': self._dynamics_gate(),
+                'value_samples': self.value_model.samples,
+                'value_td_error_rmse': float(np.sqrt(max(self.value_model.td_error_ema, 0.0))),
                 'learned_bytes': int(self.weights.nbytes + self.covariance.nbytes),
                 'covariance_trace_cap': 10000,
-                'scope': 'bootstrap RLS; heuristic coverage; one-step reward planning; conditioning dynamics excluded; experimental'}
+                'scope': 'bootstrap RLS; heuristic coverage; immediate reward and state deltas; conditioning dynamics excluded; online TD value estimation; experimental'}
 
     def export_state(self):
         return deepcopy({'schema': 1, 'state_dim': self.state_dim, 'action_dim': self.action_dim,
-                         'ensemble_size': self.ensemble_size, 'ridge': self.ridge,
-                         'context_dim': self.context_dim,
-                         'forgetting': self.forgetting, 'min_samples': self.min_samples,
-                         'action_radius': self.action_radius, 'uncertainty_penalty': self.uncertainty_penalty,
-                         'weights': self.weights, 'covariance': self.covariance,
-                         'member_updates': self.member_updates, 'rng': self.rng.bit_generator.state,
-                         'samples': self.samples, 'terminals': self.terminals,
-                         'reward_error_ema': self.reward_error_ema, 'delta_error_ema': self.delta_error_ema,
-                         'reward_mean': self.reward_mean, 'baseline_error_ema': self.baseline_error_ema,
-                         'reward_squared_error': self.reward_squared_error,
-                         'delta_squared_error': self.delta_squared_error})
+                          'ensemble_size': self.ensemble_size, 'ridge': self.ridge,
+                          'context_dim': self.context_dim,
+                          'forgetting': self.forgetting, 'min_samples': self.min_samples,
+                          'action_radius': self.action_radius, 'uncertainty_penalty': self.uncertainty_penalty,
+                          'weights': self.weights, 'covariance': self.covariance,
+                          'member_updates': self.member_updates, 'rng': self.rng.bit_generator.state,
+                          'samples': self.samples, 'terminals': self.terminals,
+                          'reward_error_ema': self.reward_error_ema, 'delta_error_ema': self.delta_error_ema,
+                          'reward_mean': self.reward_mean, 'baseline_error_ema': self.baseline_error_ema,
+                          'reward_squared_error': self.reward_squared_error,
+                          'delta_squared_error': self.delta_squared_error,
+                          'delta_baseline_error_ema': self.delta_baseline_error_ema,
+                          'delta_baseline_squared_error': self.delta_baseline_squared_error,
+                          'value_model': self.value_model.export_state()})
 
     def import_state(self, state):
         """Validate fully before replacing the resident model."""
@@ -290,5 +394,12 @@ class ExperienceWorldModel:
         if not np.isscalar(mean) or not np.isfinite(mean) or not np.isscalar(baseline_error) or not np.isfinite(baseline_error) or baseline_error < 0:
             raise ValueError('invalid reward baseline state')
         candidate.reward_mean = float(mean); candidate.baseline_error_ema = float(baseline_error)
+        for key in ('delta_baseline_error_ema', 'delta_baseline_squared_error'):
+            value = state.get(key, 0.0)
+            if not np.isscalar(value) or not np.isfinite(value) or value < 0:
+                raise ValueError(f'invalid experience {key}')
+            setattr(candidate, key, float(value))
+        if 'value_model' in state:
+            candidate.value_model.import_state(state['value_model'])
         candidate.rng.bit_generator.state = deepcopy(state['rng'])
         self.__dict__.update(candidate.__dict__)

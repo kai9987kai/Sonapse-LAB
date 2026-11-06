@@ -79,7 +79,10 @@ class FlagshipContinualBenchmark:
             'seed': self.seed,
             'arm_results': results,
             'comparative_summary': comparison,
-            'scope': 'flagship 4-arm continual learning and developmental connectome milestone'
+            'evidence_kind': 'synthetic_surrogate',
+            'native_world_evaluation': False,
+            'limitations': 'Random observations and motor-component scores; arms have different update rules and are not a matched native-world learning comparison.',
+            'scope': 'legacy four-arm synthetic surrogate; no embodied learning or retention claim'
         }
 
     def _evaluate_agent_on_task(self, agent: IntegratedAgent, task: str) -> float:
@@ -253,7 +256,9 @@ class FlagshipContinualBenchmark:
                     if cand:
                         cbp.replace_neurons(agent, cand, optimizer=opt)
 
-            curriculum.complete_episode(success=True)
+            # This surrogate has no world-verified success event. It cannot
+            # supply evidence of mastery or advance the curriculum.
+            curriculum.complete_episode(success=False)
             sleep.run_sleep_cycle(agent, sleep_steps=10)
 
             for prev_idx in range(stage_idx + 1):
@@ -271,6 +276,7 @@ class FlagshipContinualBenchmark:
             'task_matrix': task_matrix.tolist(),
             'fast_memory_updates': fast_mem.total_inner_updates,
             'curriculum_stage': curriculum.current_stage,
+            'verified_task_success': False,
             'sleep_summary': sleep.summary(),
             'cbp_replacements': cbp.total_replacements
         }

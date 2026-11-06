@@ -23,7 +23,11 @@ from .experience import ExperienceWorldModel, encode_experience_state
 from .surprise_memory import SurpriseEpisodicMemory
 from .homeostasis import HomeostaticEngine
 from .neurogenesis import ConnectomeNeurogenesisEngine
-from .mimomix_reasoner import MiMoMixCognitiveCore
+from .mimomix_reasoner import MiMoMixCognitiveCore, MiMoMixReasoningTrace
+from .dormant_lifecycle import DormantLifecycleManager
+from .fast_weight_memory import UniversalFastWeightMemory
+from .latent_reasoner import ContinuousLatentReasoner
+from .actions import TURN, govern_action
 
 class AcquiringMushroomBody(MushroomBody):
     def forward(self,cue_vec,adapt=True):
@@ -45,7 +49,7 @@ class IntegratedAgent:
         with torch.random.fork_rng(devices=[]):
             torch.manual_seed(config.seed)
             sources = getattr(config, 'connectome_sources', ('flywire', 'manc', 'optic-lobe'))
-            self.graph=build([make_proxy(p,config.nodes_per_source,config.seed) for p in sources],seed=config.seed)
+            self.graph=build([make_proxy(p,n,config.seed) for p,n in zip(sources,config.source_node_counts())],seed=config.seed)
             self.brain=GraftedBrain(self.graph,microsteps=config.microsteps,noise=0,seed=config.seed)
             self.plasticity=GraftPlasticity(self.graph,155,PlasticityConfig(mode='adaptive'),seed=config.seed)
             self.mb=AcquiringMushroomBody(4)
@@ -65,10 +69,13 @@ class IntegratedAgent:
             self.donor_to_graph=nn.Linear(h+6,len(self.brain.sensory_idx),bias=False)
             self.graph_to_resource=nn.Linear(32,16,bias=False)
             self.motor=nn.Linear(64,5,bias=False)
-            self.dormant=nn.ModuleList([nn.Linear(32,32,bias=False) for _ in range(2)])
+            self.dormant_lifecycle=DormantLifecycleManager(num_slots=2,feature_dim=32,seed=config.seed)
+            self.dormant=self.dormant_lifecycle.modules
             self.native=nn.Linear(32,32,bias=False)
             nn.init.zeros_(self.native.weight)
             self.mimomix=MiMoMixCognitiveCore(latent_dim=64,action_dim=5)
+            self.latent_reasoner=(ContinuousLatentReasoner(latent_dim=64,action_dim=5)
+                                  if getattr(config,'latent_reasoning',False) else None)
         for p in self.tidal.parameters(): p.requires_grad_(False)
         self.modules={'brain':self.brain,'plasticity':self.plasticity,'mb':self.mb,'curiosity':self.curiosity,'tidal':self.tidal,'encoder':self.encoder,'donor_to_graph':self.donor_to_graph,'graph_to_resource':self.graph_to_resource,'motor':self.motor,'dormant':self.dormant,'native':self.native,'vision_encoder':self.vision_encoder,'vis_to_sensory':self.vis_to_sensory,'predictive_network':self.predictive,'mimomix':self.mimomix}
         self.opt=torch.optim.Adam(self._optimization_parameters(),lr=3e-4)
@@ -77,6 +84,13 @@ class IntegratedAgent:
         self.surprise_memory=SurpriseEpisodicMemory()
         self.homeostasis=HomeostaticEngine(seed=config.seed)
         self.neurogenesis=ConnectomeNeurogenesisEngine(num_neurons=self.brain.n,seed=config.seed)
+        if getattr(config,'continual_backprop',False):
+            from .continual_backprop import ContinualBackpropEngine
+            self.continual_backprop=ContinualBackpropEngine(num_neurons=self.brain.n,seed=config.seed)
+        else:
+            self.continual_backprop=None
+        self.fast_weight_memory=(UniversalFastWeightMemory(in_dim=32,out_dim=32,seed=config.seed)
+                                 if getattr(config,'fast_weight_memory',False) else None)
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
         self.reset_episode()
@@ -163,7 +177,9 @@ class IntegratedAgent:
             current=2*torch.tanh(self.encoder(torch.cat([o,compass,mbon]))+.3*self.donor_to_graph(torch.cat([self.hidden[0],self.intent])))
             if vis_latent is not None and hasattr(self, 'vis_to_sensory'):
                 current = current + 0.3 * torch.tanh(self.vis_to_sensory(vis_latent.to(current.device)))
-            pred_info=self.predictive.step(o,self.hidden,acetylcholine=self.neuromod.state.acetylcholine if hasattr(self,'neuromod') else 0.5) if hasattr(self,'predictive') else {'steer_bias':0.0}
+            # These neural corrections have no trained objective in this actor.
+            pred_info=(self.predictive.step(o,self.hidden,acetylcholine=self.neuromod.state.acetylcholine)
+                       if self.config.experimental_cognition else {'steer_bias':0.0})
             gates=self.plasticity.gates(o); effective=self.plasticity.effective_weights(self.brain.graft_w,gates)
             if hasattr(self,'astrocytes'):
                 effective=self.astrocytes.modulate_graft_weights(effective,torch.as_tensor(self.graph.graft_pre,dtype=torch.long),self.brain.n)
@@ -173,6 +189,7 @@ class IntegratedAgent:
             if hasattr(self,'astrocytes'):
                 self.astrocytes.step(r.detach())
             if learn: self.plasticity.observe(r)
+            gate_alpha=0.0
             if self.config.readout=='absolute':
                 read=r; delta_norm=0.0; baseline_norm=0.0
             else:
@@ -181,24 +198,39 @@ class IntegratedAgent:
                 baseline_norm=float(baseline.norm())
                 if self.config.readout=='persistent_evoked':
                     gate=torch.sigmoid(delta.abs().mean()*8)
+                    gate_alpha=float(gate)
                     self.evoked=.9*self.evoked+delta
                     read=gate*self.evoked+(1.-gate)*baseline
                 else:
                     self.evoked=delta
                     read=self.evoked
+                    gate_alpha=1.0
             pooled=self._pooled(read)
+            if self.fast_weight_memory is not None:
+                fmem_out, _ = self.fast_weight_memory(pooled.unsqueeze(0))
+                pooled = pooled + 0.05 * torch.tanh(fmem_out.squeeze(0))
             # Dormant candidates participate only when novelty recruits one; unused weights persist.
-            novelty=float((r-previous).abs().mean()); expert=int(self.intent.argmax())%2
-            recruited=novelty>.02
-            if recruited:
-                pooled=pooled+.05*torch.tanh(self.dormant[expert](pooled)); self.expert_usage[expert]+=1
+            novelty=float((r-previous).abs().mean()); preferred_expert=int(self.intent.argmax())%2
+            if getattr(self.config, 'dormant_lifecycle', True):
+                recruited, expert, gain = self.dormant_lifecycle.step_novelty(novelty, preferred_expert)
+                if gain > 0:
+                    pooled = pooled + 0.05 * gain * torch.tanh(self.dormant[expert](pooled))
+                    self.expert_usage[expert] += 1
+                    self.dormant_lifecycle.evaluate_contribution(pooled, expert)
+            else:
+                recruited=novelty>.02; expert=preferred_expert
+                if recruited:
+                    pooled=pooled+.05*torch.tanh(self.dormant[expert](pooled)); self.expert_usage[expert]+=1
             if learn: self.consolidated.mul_(.99).add_(pooled*.01)
             if learn and recruited and self.ticks%self.config.cognition_interval==0:
-                self.native.weight.mul_(.995).add_(self.dormant[expert].weight*.005)
+                if getattr(self.config, 'dormant_lifecycle', True):
+                    self.dormant_lifecycle.step_consolidation(self.native, recruited_slot=expert)
+                else:
+                    self.native.weight.mul_(.995).add_(self.dormant[expert].weight*.005)
                 self.consolidations+=1
             pooled=pooled+.01*self.consolidated+.05*torch.tanh(self.native(pooled))
             features=torch.cat([pooled,self.hidden[0,:16],mbon,self.intent,compass[:8]])
-            if hasattr(self, 'neurogenesis'):
+            if learn and hasattr(self, 'neurogenesis'):
                 self.neurogenesis.record_activity(r)
                 if self.ticks % 16 == 0 or learn:
                     da = self.neuromod.state.dopamine if hasattr(self, 'neuromod') else 1.0
@@ -216,22 +248,30 @@ class IntegratedAgent:
             gains=self.neuromod.compute_gains() if hasattr(self, 'neuromod') else {'motor_vigor':1.0}
             action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)*gains['motor_vigor']
             if 'steer_bias' in pred_info and abs(pred_info['steer_bias'])>1e-4:
-                action[1]=torch.clamp(action[1]+pred_info['steer_bias'],-1.0,1.0)
+                action[TURN]=torch.clamp(action[TURN]+pred_info['steer_bias'],-1.0,1.0)
             fe = float(self.predictive.state.free_energy) if hasattr(self, 'predictive') else 0.0
             surprisal = float(self.predictive.state.sensory_surprisal) if hasattr(self, 'predictive') else 0.0
             thr = float(self.homeostasis.state.threat) if hasattr(self, 'homeostasis') else 0.0
-            mimomix_delta, mimomix_trace = self.mimomix.deliberate(latent_state=features, free_energy=fe, surprisal=surprisal, threat=thr)
-            action = action + mimomix_delta
-            if hasattr(self, 'homeostasis'):
-                max_thrust = self.homeostasis.get_max_allowed_thrust()
-                action[1] = torch.clamp(action[1], -max_thrust, max_thrust)
+            mimomix_trace = MiMoMixReasoningTrace(system_engaged='disabled; untrained experimental correction')
+            if self.config.experimental_cognition:
+                mimomix_delta, mimomix_trace = self.mimomix.deliberate(latent_state=features, free_energy=fe, surprisal=surprisal, threat=thr)
+                action = action + mimomix_delta
+            latent_reasoner_trace = None
+            if self.latent_reasoner is not None and getattr(self.config, 'latent_reasoning', False):
+                if fe > 0.35 or surprisal > 0.25 or thr > 0.25:
+                    refined_act, latent_reasoner_trace = self.latent_reasoner.forward_continuous_thinking(features)
+                    action = 0.8 * action + 0.2 * refined_act.squeeze(0)
         bonus=self.curiosity.compute_bonus(o,train=learn)
         self.ticks+=1; self.last_obs=obs.copy(); self.last_features=features.numpy().copy()
         experience_state=encode_experience_state(obs,self.last_features)
         executed=np.clip(action.numpy(),-1.,1.).astype(np.float32,copy=True)
-        planner_info={'mode':mode,'enabled':mode!='off','scope':'experimental one-step planning; heuristic uncertainty'}
+        planner_info={'mode':mode,'enabled':mode!='off','horizon':self.config.experience_horizon,
+                      'scope':'experimental short-horizon planning; heuristic uncertainty'}
         if mode!='off':
-            planned,diagnostics=self.experience_model.plan(experience_state,executed,
+            from .experience_planner import ExperienceMPC
+            value_guided = getattr(self.config, 'value_guided_planning', False)
+            planner=ExperienceMPC(self.experience_model,horizon=self.config.experience_horizon,value_guided=value_guided)
+            planned,diagnostics=planner.plan(experience_state,executed,
                 memory=self.surprise_memory if mode=='memory' else None)
             candidate=np.asarray(planned,dtype=np.float32)
             if candidate.shape!=(5,) or not np.isfinite(candidate).all():
@@ -240,8 +280,17 @@ class IntegratedAgent:
             executed=np.clip(candidate,np.maximum(-1.,executed-.35),np.minimum(1.,executed+.35))
             planner_info.update(diagnostics)
             planner_info['mode']=mode
+        executed=govern_action(executed,self.homeostasis.get_max_allowed_thrust())
         self.pending_transition={'state':np.array(experience_state,copy=True),'action':executed.copy()}
         self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':camera_consumed,'visual_latents':vis_latent.tolist() if vis_latent is not None else [],'visual_brightness':vis_info.get('mean_brightness',0.0),'visual_contrast':vis_info.get('contrast',0.0),'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
+        self.last_telemetry['evoked_channels']={'channel_m_norm':baseline_norm,'channel_d_norm':delta_norm,'gate_alpha':gate_alpha,'persistent_norm':float(self.evoked.norm()) if hasattr(self,'evoked') else 0.0}
+        self.last_telemetry['dormant_lifecycle']=self.dormant_lifecycle.summary() if hasattr(self,'dormant_lifecycle') else {}
+        if self.continual_backprop is not None:
+            self.last_telemetry['continual_backprop']={'enabled':True,**self.continual_backprop.get_metrics()}
+        if self.fast_weight_memory is not None:
+            self.last_telemetry['fast_weight_memory']={'enabled':True,**self.fast_weight_memory.get_metrics()}
+        if latent_reasoner_trace is not None:
+            self.last_telemetry['latent_reasoner']={'engaged':True,'recurrent_depth':latent_reasoner_trace.recurrent_depth,'ponder_cost':latent_reasoner_trace.ponder_cost,'accumulated_halt':latent_reasoner_trace.accumulated_halt}
         self.last_telemetry['experience_planner']=planner_info
         self.last_telemetry['experience_model']=self.experience_model.summary()
         self.last_telemetry['surprise_memory']=self.surprise_memory.summary()
@@ -273,12 +322,20 @@ class IntegratedAgent:
         diagnostics=self.experience_model.update(state,executed,next_state,float(reward),done=bool(done))
         if self.config.surprise_memory:
             diagnostics={**diagnostics,'memory':self.surprise_memory.update(state,executed,float(reward),float(diagnostics['prediction_error']))}
+        if self.fast_weight_memory is not None:
+            pooled_f = torch.as_tensor(self.last_features[:32], dtype=torch.float32).unsqueeze(0)
+            self.fast_weight_memory.inner_update(pooled_f, surprisal=float(abs(diagnostics['prediction_error'])))
+        if self.continual_backprop is not None:
+            self.continual_backprop.update_utility(self.brain.r.detach().numpy())
+            if self.ticks % 16 == 0:
+                candidates = self.continual_backprop.identify_replacement_candidates()
+                if candidates:
+                    self.continual_backprop.replace_neurons(self, candidates, optimizer=self.opt)
         self.pending_transition=None
         return diagnostics
     def feedback(self,reward,done=False):
         self.mb.dopaminergic_update(float(reward)); self.brain.hebbian(float(reward)); self.brain.apply_hebbian()
-        if hasattr(self, 'homeostasis'):
-            self.homeostasis.step(applied_action=self.pending_transition['action'] if self.pending_transition else np.zeros(5), reward=float(reward), consumed_food=float(reward) > 0.3)
+        # LabRuntime advances physiology exactly once per real transition.
         if hasattr(self, 'neuromod'):
             threat=float(self.resources[5]) if hasattr(self, 'resources') and len(self.resources)>5 else 0.0
             contrast=float(np.std(self.last_obs[:33])) if len(self.last_obs)>=33 else 0.0
@@ -345,11 +402,88 @@ class IntegratedAgent:
             out.update({name+'.'+k:v for k,v in module.named_parameters()})
         out['mb.w_mbon']=self.mb.w_mbon
         return out
+    def _restore_graft_topology(self,pre,post,initial_weights):
+        """Synchronize fixed-budget candidate identity with executing endpoints.
+
+        Endpoint changes retain each slot's origin direction and site, so routing
+        and fixed directional budgets remain meaningful. Vendor code is unchanged.
+        """
+        pre=np.asarray(pre); post=np.asarray(post); initial=np.asarray(initial_weights,dtype=np.float32)
+        shape=tuple(self.brain.graft_w.shape)
+        if (pre.shape!=shape or post.shape!=shape or initial.shape!=shape
+                or pre.dtype.kind not in 'iu' or post.dtype.kind not in 'iu'
+                or not np.isfinite(initial).all()
+                or np.any(pre<0) or np.any(pre>=self.graph.n)
+                or np.any(post<0) or np.any(post>=self.graph.n)):
+            raise ValueError('invalid graft topology')
+        graph=deepcopy(self.graph)
+        graph.graft_pre=pre.astype(np.int64,copy=True)
+        graph.graft_post=post.astype(np.int64,copy=True)
+        graph.graft_w0=initial.copy()
+        template=GraftPlasticity(graph,155,self.plasticity.config,seed=self.config.seed)
+        if (not torch.equal(template.bucket_ids,self.plasticity.bucket_ids)
+                or not torch.equal(template.bucket_keys,self.plasticity.bucket_keys)
+                or not torch.equal(template.bucket_budgets,self.plasticity.bucket_budgets)):
+            raise ValueError('rewiring must preserve directional candidate budgets')
+        # Keep module/Parameter objects and optimizer bindings intact.
+        with torch.no_grad():
+            self.brain.graft_pre.copy_(template.candidate_pre)
+            self.brain.graft_post.copy_(template.candidate_post)
+            for name in ('candidate_pre','candidate_post','original_weights'):
+                getattr(self.plasticity,name).copy_(getattr(template,name))
+        self.plasticity._candidate_digest=template._candidate_digest
+        self.graph.graft_pre=graph.graft_pre
+        self.graph.graft_post=graph.graft_post
+        self.graph.graft_w0=graph.graft_w0
+
+    def rewire_graft_slots(self,pre,post,weights,slots):
+        """Commit neurogenesis to live topology and reset replaced-slot credit."""
+        slots=np.asarray(slots,dtype=np.int64)
+        values=np.asarray(weights,dtype=np.float32)
+        if (slots.ndim!=1 or np.any(slots<0) or np.any(slots>=len(self.brain.graft_w))
+                or values.shape!=tuple(self.brain.graft_w.shape) or not np.isfinite(values).all()):
+            raise ValueError('invalid graft slot replacement')
+        initial=self.graph.graft_w0.copy()
+        initial[slots]=values[slots]
+        self._restore_graft_topology(pre,post,initial)
+        indices=torch.as_tensor(slots,dtype=torch.long)
+        with torch.no_grad():
+            self.brain.graft_w.copy_(torch.from_numpy(values))
+            for tensor in (self.brain.elig,self.brain.heb,self.plasticity.coactivity_ema,
+                           self.plasticity.gradient_ema,self.plasticity.gradient_evidence_count,
+                           self.plasticity.edge_age,self.plasticity._pending_gradient):
+                tensor[indices]=0
+            for value in self.opt.state.get(self.brain.graft_w,{}).values():
+                if isinstance(value,torch.Tensor) and value.shape==self.brain.graft_w.shape:
+                    value[indices]=0
+
     def export_state(self):
-        return deepcopy({'schema':1,'config':self.config.to_dict(),'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None})
+        return deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None})
     def import_state(self,state):
+        backup=self.export_state()
+        try:
+            self._import_state(state)
+        except Exception:
+            self._import_state(backup)
+            raise
+
+    def _import_state(self,state):
         if state.get('schema')!=1 or not self.config.matches_saved(state.get('config')): raise ValueError('agent state/config mismatch')
-        rebuild_optimizer=False
+        brain_state=state['modules']['brain']
+        plasticity_state=state['modules'].get('plasticity',{})
+        topology=state.get('topology',{'pre':brain_state['graft_pre'].numpy(),
+            'post':brain_state['graft_post'].numpy(),
+            'initial_weights':plasticity_state.get('original_weights',torch.from_numpy(self.graph.graft_w0)).numpy()})
+        if (not np.array_equal(topology['pre'],brain_state['graft_pre'].numpy())
+                or not np.array_equal(topology['post'],brain_state['graft_post'].numpy())):
+            raise ValueError('checkpoint topology disagrees with executing endpoints')
+        rebuild_optimizer=self.brain.graft_w.shape!=brain_state['graft_w'].shape
+        if rebuild_optimizer:
+            self.brain.graft_w=nn.Parameter(torch.zeros_like(brain_state['graft_w']))
+        for name in ('graft_pre','graft_post'):
+            if getattr(self.brain,name).shape!=brain_state[name].shape:
+                self.brain.register_buffer(name,torch.zeros_like(brain_state[name]))
+        self._restore_graft_topology(topology['pre'],topology['post'],topology['initial_weights'])
         for k,v in state['modules'].items():
             if k == 'brain':
                 for buf_name in ('r', 'activity_ema', 'elig', 'heb', 'graft_pre', 'graft_post', 'base_pre', 'base_post', 'base_w', 'graft_site', 'bias', 'sensory_idx', 'motor_idx', 'probe_idx'):
@@ -359,8 +493,8 @@ class IntegratedAgent:
                     self.brain.graft_w = nn.Parameter(torch.zeros_like(v['graft_w']))
                     rebuild_optimizer=True
                 self.brain.n = len(v['r'])
-            self.modules[k].load_state_dict(v)
-        # A structural operator may already have replaced the parameter before load.
+            if k in self.modules:
+                self.modules[k].load_state_dict(v)
         live_parameters=self._optimization_parameters()
         optimizer_parameters=[p for group in self.opt.param_groups for p in group['params']]
         rebuild_optimizer=rebuild_optimizer or len(live_parameters)!=len(optimizer_parameters) or any(a is not b for a,b in zip(live_parameters,optimizer_parameters))
@@ -390,5 +524,14 @@ class IntegratedAgent:
             self.homeostasis.import_state(state['homeostasis'])
         if hasattr(self, 'neurogenesis') and state.get('neurogenesis'):
             self.neurogenesis.import_state(state['neurogenesis'])
+        if hasattr(self, 'dormant_lifecycle') and state.get('dormant_lifecycle') and hasattr(self, 'dormant_lifecycle'):
+            self.dormant_lifecycle.import_state(state['dormant_lifecycle'])
+        if hasattr(self, 'continual_backprop') and self.continual_backprop is not None and state.get('continual_backprop'):
+            self.continual_backprop.import_state(state['continual_backprop'])
+        if hasattr(self, 'fast_weight_memory') and self.fast_weight_memory is not None and state.get('fast_weight_memory'):
+            self.fast_weight_memory.import_state(state['fast_weight_memory'])
+        if hasattr(self, 'latent_reasoner') and self.latent_reasoner is not None and state.get('latent_reasoner'):
+            self.latent_reasoner.load_state_dict(state['latent_reasoner'])
+
     def status(self):
         return {'feature_schema':self.feature_schema,'graph':self.graph.describe(),'tidal_parameters':sum(p.numel() for p in self.tidal.parameters()),'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','motor_preparation_updates':self.preparation_updates,'camera':'active; visual encoder fused' if getattr(self, '_camera_consumed_any', False) else 'inactive; image not consumed','experience_planning':self.config.experience_planning,'experience_model':self.experience_model.summary(),'surprise_memory':self.surprise_memory.summary(),'evidence_scope':'synthetic graph and heuristic resource adapter; no integrated performance claim','telemetry':deepcopy(self.last_telemetry)}

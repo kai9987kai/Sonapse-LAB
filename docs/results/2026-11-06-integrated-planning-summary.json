@@ -1,0 +1,238 @@
+{
+  "schema": "synapse-planning-study-v1",
+  "verification_stage": "Recorded before the later 1000-neuron sizing patch; original fingerprints are frozen and later source differences are expected.",
+  "config": {
+    "seeds": [
+      23,
+      29,
+      31
+    ],
+    "tasks": [
+      "forage",
+      "push",
+      "ecosystem"
+    ],
+    "support_steps": 96,
+    "query_steps": 48,
+    "nodes_per_source": 16,
+    "horizons": [
+      1,
+      3
+    ]
+  },
+  "summary": {
+    "arms": {
+      "actor": {
+        "mean_return": -0.5233617624201137,
+        "returns": [
+          -0.011583476291410736,
+          -0.6281353277415431,
+          -0.48,
+          -0.5257658125590088,
+          -0.4590599070427071,
+          -0.48,
+          -1.099932055457741,
+          -0.5457792826886121,
+          -0.48
+        ],
+        "planner_use_fraction": 0.0,
+        "mean_model_evaluations": 0.0
+      },
+      "horizon_1": {
+        "mean_return": -0.4616402242512445,
+        "returns": [
+          -0.08238213254536272,
+          -0.6814000521746723,
+          -0.48,
+          -0.5257658125590088,
+          -0.4501209761340177,
+          -0.48,
+          -1.099932055457741,
+          0.1248390106096022,
+          -0.48
+        ],
+        "planner_use_fraction": 0.26157407407407407,
+        "mean_model_evaluations": 8.666666666666666
+      },
+      "horizon_3": {
+        "mean_return": -0.5133404749982644,
+        "returns": [
+          -0.634390938476655,
+          -0.708684346878211,
+          -0.48,
+          -0.43413598049287355,
+          -0.4501209761340177,
+          -0.48,
+          -1.085347838012661,
+          0.13261580501003808,
+          -0.48
+        ],
+        "planner_use_fraction": 0.37731481481481477,
+        "mean_model_evaluations": 96.2199074074074
+      }
+    },
+    "comparisons": {
+      "horizon_1_minus_actor": {
+        "paired_differences": [
+          -0.07079865625395199,
+          -0.05326472443312913,
+          0.0,
+          0.0,
+          0.008938930908689413,
+          0.0,
+          0.0,
+          0.6706182932982143,
+          0.0
+        ],
+        "mean_difference": 0.061721538168869175,
+        "descriptive_bootstrap_95": [
+          -0.028561039945590463,
+          0.21861434293002258
+        ]
+      },
+      "horizon_3_minus_actor": {
+        "paired_differences": [
+          -0.6228074621852442,
+          -0.0805490191366679,
+          0.0,
+          0.09162983206613523,
+          0.008938930908689413,
+          0.0,
+          0.014584217445079872,
+          0.6783950876986502,
+          0.0
+        ],
+        "mean_difference": 0.010021287421849169,
+        "descriptive_bootstrap_95": [
+          -0.19648778592317767,
+          0.22776726318898405
+        ]
+      }
+    },
+    "paired_units": 9,
+    "interpretation": "finite development pilot; shared task types; no automatic promotion; no general performance claim"
+  },
+  "costs": {
+    "support_world_steps": 864,
+    "query_world_steps": 1296,
+    "support_update_calls": 864,
+    "query_update_calls": 0
+  },
+  "wall_seconds": 156.60304349998478,
+  "integrity": "59cd0798f46ab4ab0ad57ce9aaeac10d6d05a7b0cc41e612523ef78c58e777db",
+  "source_fingerprints": {
+    "__init__.py": "6270c2ab3c8d1e6e35fa54f748284d3c2f0a82dd167d8df295a64362bc2290e9",
+    "__main__.py": "7c553ad38c59c5c872b956fb383fbae28a49fc39c16f8d284217fa55d519d96b",
+    "actions.py": "f5f646748581c2f9c36c12d28ae4ef785eb3ef4ecbdeb39712c47be1b12ded48",
+    "active_inference.py": "54507984b21904497aa2f70511afefac30007adc284b88b261cb1027c04dd798",
+    "adaptation_study.py": "9e705f9ced061357f5172e53dbca0007b1a6a8784ca55aaa1caa4b14f29f74dd",
+    "adaptive_compute.py": "850a5f5a3f718e50d72a38bfe088879bb4b0d4bee131c6eb17fb320b1b5c2cfa",
+    "agent.py": "4ede567cc62b06967da978fc16c89491170caf76766bd59ccaf6dff9e922d7f4",
+    "astrocyte.py": "10d3c52df939dd420a961b05449acbb5e1535f5bd07e27e4b0134982cb98ae28",
+    "auto_programmer.py": "af1a42abce9148e3143d75a037217b9d34f4ff9e069396c4a3326494afd9d183",
+    "capabilities.py": "845c8033c5f48a4139cd81a63c02daa8977d4b2c65c6bad7502e503dfa9bae43",
+    "causal_growth.py": "319c5f9e46321ea2183c1c613bff36806a44a2bc11a1d30ebd2f318a0600ab81",
+    "causal_mediation.py": "bdc72695855794f3be3cef80aa26e16274901c21382dcec62ddf26df81b76624",
+    "circuit_atlas.py": "86a754ae89294a5543e3d8098a4a2901d024079691c0bb79bb6604dd4014f9a2",
+    "cli.py": "208e14e2e5aab8fedd3090062bfa5e13041981be7dd07755c73d1ccad8935313",
+    "complex_world.py": "c478356f114cb095f72f4f2ce4f07bf8f8421eccc16b9583ef83637126601b91",
+    "config.py": "2770f5f2f2d3f550b548e9866fda17bac2892e669b8a64076301c571a0dd1d8a",
+    "connectome_compiler.py": "f4d37156c6c41d4e0e20e15f76072db5fae8b7e86372d35bad8c9bfbc1d696e3",
+    "connectome_controls.py": "342faeaf8ee0bac92b2454cc23ec8bed6e10067ac6e2814c0c90292073d246fb",
+    "connectome_datasets.py": "022c8a019a6807e62cacfc684a54ebcd6fd6e4a361b9c645b194820cb4d35be1",
+    "continual_backprop.py": "0854ccc779399fb1b61fee823c0972404cc5d0b37a9198a330168232763c6bc0",
+    "continual_probe.py": "e2481b2413e11be0c90d02374f2d45d88201ed07a465d778363f536dc0e6af41",
+    "curriculum.py": "e74cc89967cf4237f81739342a1a02c72a52a2307dcefacb85444235423f4ff3",
+    "dales_law.py": "1243e1044cee9a5789a5e0940a59628c9f9957f5bb891c22ee8735448640b50b",
+    "diffusion_repair.py": "6e4088da1bfe2d70a99d7dd8fb69f82b6c19fd848bc47b3565746488a71ca818",
+    "efficiency.py": "4546011dbcda07cb9247cd3d615af4bacf5a981a4cc2c0d5b2c22bf989c1e805",
+    "eprop.py": "898476a3d9bf06b4159471c3c74c1458a23642d1d517aa07264eb44e4d306b13",
+    "evidence_engine.py": "aa35679b4b385fddd5e87673d9aad30d642cb00f912b00bff690330b7a3a18db",
+    "evolution.py": "257a5b9835a4c953a12ee0838d07c5e8b85c1b598e270d3f0c247791c37574ae",
+    "experience.py": "3088ee0a04601a4485fb881049873dc08bafb0ba80c7cb7d02c16a686f149218",
+    "experience_planner.py": "b6916af413c7c1cf7056b191c59b0caf112699fef6d3c62fd1ce0826b400f152",
+    "experiments.py": "e0f9825cfaf6e43b5473e628696a5619e60d6a3a9e61dbbecbfcd42f0c1c5c7a",
+    "fast_weight_memory.py": "ce8b72fff8afd50ad8a66834fcc801242e500b2b9f0d3662eacef6f66d9c6d6b",
+    "flagship.py": "b4890102fb3c0964fef45c749de0ff99ea6ab44c5a3443e571e75dbc36ca8703",
+    "flagship_benchmark.py": "265e02adf67d5229d4f3e979d0a2008ee475a6e7deb02ae3125d09860b15fb88",
+    "genome.py": "74a83d48ef39377ba61d009e18705eb6dbed77926d591a212de99f22dbf9c0a6",
+    "homeostasis.py": "ca0637fb4baf65b63f3b3d4bf4b7c4e24cfec36f0835ed48a32ec47b304d5acf",
+    "hypernetwork.py": "da132a5544ad35479da9ce3e8491a6c343b023553391d49387b5275305800d0e",
+    "hypernetwork_trainer.py": "b895cd02bfab62f6868843dcad4625db60505e9f35571f4e72ce59de92258bba",
+    "imagination.py": "464b71598998ef15541354129103f6cf3763c02525c08a88721bcee2c4f78f6d",
+    "latent_reasoner.py": "3d42f12ef68d4e36eea9b94c570d7e8167cfff2eb3074761fde29021884172b8",
+    "learning.py": "a0ea6363534245e77e0f26d1aaa2e4fd84d42097405b8b7428476bcb4c1040d6",
+    "manifold_alignment.py": "d9fd9ba98d7660cc5b4dacc5dadc09341034434ffdcdc358c53dc7f04a7662cc",
+    "metabolic.py": "bd73f49caac8919308f2db11dd048975692a3aba308e83d30922be8e8ac8e0f7",
+    "metamorphic.py": "412e928a0a7c1248d2f774431fc95b0754bac3fb65262baa58ce197ab7358dee",
+    "metaplasticity.py": "0e64a220795d08f5b68b227fe7ac62bf2e729c1a05c7cbf2d4ec445763cd8621",
+    "mimomix_reasoner.py": "2e79cf784b1b8697ea79d30aa8c93e627ebcad2eea6eb4a08ea0b4d148ab3133",
+    "motivation.py": "69e883958c40f0744225fececefd07ea08fe4499e1720324a712e4c68076ede4",
+    "multi_connectome.py": "aa164a6b5352f34ac996af8b8e20afd792c7c675bf68193f0892626ffd378d18",
+    "multiscale_memory.py": "7eebb018a5a8e653b9d692c5b9a0189468f631b633b8ba70efd040e51d4978fb",
+    "multistep_planner.py": "4e70689bbeaa28a3ed97ab5208db44776b56df54a1b4d26093c07bd84d43cbaa",
+    "neuro_symbolic.py": "5babd88df4dccdb78b01b6d78baabe3faf39e5b756d877b5db68410aeb6cd1f6",
+    "neurogenesis.py": "3241cc97a95b0869696dd5c00d298e26c45817c7fcb82f40a0e41dfd8eaf130e",
+    "neuromodulation.py": "17d216453b826a902a82cd73ccfdfd648d90b1b276f4ea4f9174eb949a2ad098",
+    "object_memory.py": "6e82771ee1ba1cefd953c2d91fba8ec6187b26e73fa03a934bbac939e424facb",
+    "observatory.py": "2263d1878be7db54418516ce21d22336a03fb9a6d4d229413ffa6cb4c720c07a",
+    "patches.py": "db8bb9f84669b807b98ff64c78cd76acfb3389e42176928b3e43265c9fed080b",
+    "planning_study.py": "800c7831a00ca224103d51273f05a14acf3247bceecb7b4c79e7734253218a09",
+    "predictive_coding.py": "836df4a580372ab30bc0fc4c1f7415b17c7db2cf300970f4ae3cff68705da4f8",
+    "preference_dpo.py": "6d00e09b43affa4e72d9199dcaf44812fafa67364814010d9512ea5d26ce89d4",
+    "recursive_learning.py": "627a55d07e97ce695aaa5e13d7dad6ef2b157cf4ebd58df3131fc0a344c5090d",
+    "rsi.py": "009db0357c1eecc7e0e39d947fb040d52c953ea984c7f1e0b629258ad8e8fe7c",
+    "rsi_verifier.py": "968ebc94726400b7403e1c9e4a191ef3cf6034b41f926b83f8df135f44c060dc",
+    "runtime.py": "156d16fbabc44097366a47914bf1f5c4bf250fb259440e11f0ba173c161f8c7b",
+    "server.py": "34404a18f76ab59250b7a36d238bd5dd2ba1755b55fb8b69ba7a52e5d62c3e92",
+    "skill_hierarchy.py": "74033121c00cf85bf78252f40eddc5c71f68f77562ae89e17ab5b093dd3bd877",
+    "sleep.py": "52659081fde9086677f8ca07e05ba895469838462ceceb8a254126e13e9d4caa",
+    "sources.py": "df3dc3f1ad44adf12c2d285bd8e0dc5067f9bd7d5309bde2d56393e321484582",
+    "spatial_map.py": "8da3e1679e8ea9a2d78b169f10ae7e1fa3e31a683e577e1eca36368e1449b62c",
+    "spectral.py": "d1dc6ea76100196166990c76a3de9224a10e16c735b75daffde334b40b5e3bf4",
+    "spiking.py": "125d6a7bbc22a0d18bd8acc354139189fdf1f87078a7ffc4166a8790682e8810",
+    "stateio.py": "f70b447b1af26e3882467bd60853dd0488db0b077731ac83cc06da6a9d33f884",
+    "structural_plasticity.py": "1de641fa5ba2874e55cf0e8b514907627f4cd3cf80863a1772075a46c33dd669",
+    "surprise_memory.py": "3cafc0e1035d6d51b3691477dd009071618170e29266049d1e206ecf34e2dec4",
+    "transfer.py": "ad979ef1e6ee62cbee86ed102596a93c2f393347edf95477c83d5e19074bf7eb",
+    "transplantation.py": "e73c93e6fb2e1278f61e175f9bacecc7e584071097af458fb8c391c006e13505",
+    "twin.py": "d490a9ac49b332c65e5f0364ab4a27b46baa0af6c9779746cea4c26fe88ec7a1",
+    "uncertainty_guard.py": "11ad7eb6ce14322c3bc6db45b14fd68a78b57732371976a940c241d926dc5b5e",
+    "unified_eval.py": "4fc938cf2cfbbe0743b67ba703c9432e47420b10fc9f325d87bb7e49ce5c3480",
+    "verified_curriculum.py": "2799803581b2217ed43bcc87e1bd71874906d08ffab1315aa4a2fffcc7435db8",
+    "vision_encoder.py": "b0860dd15910695a6f11251254b30c240921282792a29a5f91554a1cddb51165",
+    "world_model.py": "e7a417955c9cba247363f2e605c209512e420ace1d668f337735312d65f95d64",
+    "world_model_v2.py": "2d9c8c8129ae964240e367df4c4f7d5b0455c1b8f11261c8411a8a6f5320ab28",
+    "_vendor/graftbrain/graftbrain/brain.py": "ce5e973e93fae26906770e3c6fac66d993cc96af1c4239c5b1ec34a0dc37fa75",
+    "_vendor/graftbrain/graftbrain/plasticity.py": "c26184bd8d38670aa7ef1011289a4e9c3f4309cc8f7e8670ec6ae9307c006167",
+    "_vendor/graftbrain/graftbrain/neuro_modules.py": "d1237a929a9710ade3f7b7afd235bcea48d443a89f27c28617d89ad971466fb6",
+    "_vendor/graftbrain/graftbrain/world.py": "720a6a026e593adf37c280d1a3dffafa185899119f3eaf0f2a41cd478e833bf3",
+    "_vendor/graftbrain/graftbrain/connectomes.py": "329af282fafd26b0d0444291f4e53beae198d6f28f2bdfeb8eea6a62e73de3c1",
+    "_vendor/graftbrain/graftbrain/graft.py": "8663492e63645cd88669503c1c7a1ec051be2d736fe416c8f9d7128617e5df85",
+    "_vendor/poseidon/poseidon/core.py": "a171fb9eb82baecd1fb142e598fe94ee80bdf229464673c9c237404734b2df8d",
+    "artifact:tidal_core.pt": "a053104ae63dc7f86baa15b4b34e46730e1ccb92117f221801fb21f90d2d6c27"
+  },
+  "environment": {
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.28120-SP0",
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "torch": "2.11.0+cpu"
+  },
+  "receipt_path": "outputs\\planning-studies\\integrated-planning-final-20261106\\receipt.json",
+  "verification": {
+    "ok": true,
+    "warnings": [],
+    "scope": "hash/arithmetic replay, not re-execution or authenticity"
+  },
+  "validation": {
+    "pytest_passed": 322,
+    "pytest_seconds": 117.12,
+    "js_syntax": "passed",
+    "python_compile": "passed"
+  },
+  "regressed_units": {
+    "horizon_1_minus_actor": 2,
+    "horizon_3_minus_actor": 2
+  }
+}

@@ -116,6 +116,35 @@ def test_server_autoprogram_and_transplant(tmp_path):
         res4 = json.load(urllib.request.urlopen(req4))
         assert 'harmonics' in res4
         assert 'projection' in res4
+
+        # Test new GET endpoints
+        dormant_res = json.load(urllib.request.urlopen(base + '/api/dormant/status'))
+        assert 'num_slots' in dormant_res
+        assert 'slots' in dormant_res
+
+        cbp_res = json.load(urllib.request.urlopen(base + '/api/continual_backprop/status'))
+        assert isinstance(cbp_res, dict)
+
+        fwm_res = json.load(urllib.request.urlopen(base + '/api/fast_weight/status'))
+        assert isinstance(fwm_res, dict)
+
+        # Test experience mode and preview with value_guided
+        mode_req = urllib.request.Request(
+            base + '/api/experience/mode',
+            data=b'{"mode":"model","horizon":2,"value_guided":true}',
+            headers={'Content-Type': 'application/json'}
+        )
+        mode_res = json.load(urllib.request.urlopen(mode_req))
+        assert mode_res['config']['value_guided_planning'] is True
+
+        prev_req = urllib.request.Request(
+            base + '/api/experience/preview',
+            data=b'{"horizon":2,"value_guided":true}',
+            headers={'Content-Type': 'application/json'}
+        )
+        prev_res = json.load(urllib.request.urlopen(prev_req))
+        assert 'proposed_action' in prev_res
+        assert prev_res['horizon'] == 2
     finally:
         server.shutdown()
         server.server_close()

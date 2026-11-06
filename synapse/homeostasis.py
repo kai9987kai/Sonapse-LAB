@@ -16,6 +16,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import torch
+from .actions import DRIVE, REACH, validate_action
 
 
 @dataclass
@@ -75,9 +76,9 @@ class HomeostaticEngine:
         in_friction_zone: bool = False,
     ) -> HomeostaticState:
         """Updates physiological vitals based on actions, environmental stress, and rewards."""
-        action = np.asarray(applied_action, dtype=np.float32)
-        thrust = float(abs(action[1])) if len(action) > 1 else 0.0
-        reach = float(abs(action[2])) if len(action) > 2 else 0.0
+        action = validate_action(applied_action)
+        thrust = float(abs(action[DRIVE]))
+        reach = float(abs(action[REACH]))
 
         # 1. Stamina Dynamics
         effort = thrust * 0.7 + reach * 0.3
