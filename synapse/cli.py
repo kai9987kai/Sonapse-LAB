@@ -24,6 +24,9 @@ def main(argv=None):
     sub.add_parser('metamorphic')
     sub.add_parser('spectral')
     p=sub.add_parser('hyperprogram'); p.add_argument('--target',default='motor.weight'); p.add_argument('--edits',type=int,default=16)
+    sub.add_parser('astrocyte')
+    sub.add_parser('free_energy')
+    sub.add_parser('manifold')
     args=parser.parse_args(argv)
     try:
         config=SynapseConfig(seed=args.seed,nodes_per_source=args.nodes,task=args.task)
@@ -72,6 +75,15 @@ def main(argv=None):
                 hypernet=WeightSpaceHypernetwork()
                 diag={'mean_return':0.2,'total_steps':30,'mean_graph_activity':float(runtime.agent.brain.r.mean()),'mean_approach_valence':0.1,'mean_avoid_valence':-0.1,'action_mean':runtime.last_action.tolist(),'task':runtime.config.task}
                 result=compile_hypernetwork_patch(runtime.agent,hypernet,diag,target_surface=args.target,max_edits=args.edits)
+            elif args.command=='astrocyte':
+                result=runtime.agent.astrocytes.summary()
+            elif args.command=='free_energy':
+                result=runtime.agent.predictive.state.to_dict()
+            elif args.command=='manifold':
+                from .manifold_alignment import align_subcircuit_gromov_wasserstein
+                import numpy as np
+                adj=np.array([[0,1,0,1],[1,0,1,0],[0,1,0,1],[1,0,1,0]],dtype=np.float64)
+                result=align_subcircuit_gromov_wasserstein(adj,adj)
         print(json.dumps(result,indent=2,allow_nan=False,default=str)); return 0
     except (ValueError,TypeError,KeyError,OSError,RuntimeError) as exc:
         parser.exit(2,f'Error: {exc}\n')

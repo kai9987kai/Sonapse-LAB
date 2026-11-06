@@ -994,6 +994,44 @@ def _handle_structural_topology(payload: Dict[str, Any]) -> Dict[str, Any]:
     agent = IntegratedAgent(SynapseConfig(seed=42, nodes_per_source=16))
     return audit_structural_topology(agent)
 
+def _handle_astrocyte_gliotransmission(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .astrocyte import AstrocyteNetwork
+    rates = torch.tensor(payload.get('neural_rates', [0.8, 1.2, 0.4, 0.9, 1.5, 0.3]), dtype=torch.float32)
+    astro = AstrocyteNetwork(num_domains=3)
+    gains = astro.step(rates)
+    return {
+        'status': 'ok',
+        'transmission_gains': [round(float(g), 4) for g in gains],
+        'astrocyte_summary': astro.summary(),
+        'scope': 'tripartite neuro-glia astrocyte calcium and BCM metaplasticity',
+    }
+
+def _handle_predictive_free_energy(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .predictive_coding import PredictiveCodingEngine
+    engine = PredictiveCodingEngine()
+    obs = torch.tensor(payload.get('obs', [0.5] * 155), dtype=torch.float32)
+    memory = torch.tensor(payload.get('memory', [0.1] * 128), dtype=torch.float32)
+    ach = float(payload.get('acetylcholine', 0.6))
+    res = engine.step(obs, memory, acetylcholine=ach)
+    res['status'] = 'ok'
+    return res
+
+def _handle_manifold_gromov_wasserstein(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from .manifold_alignment import align_subcircuit_gromov_wasserstein
+    donor = np.array(payload.get('donor_weights', [
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0]
+    ]), dtype=np.float64)
+    host = np.array(payload.get('host_weights', [
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0]
+    ]), dtype=np.float64)
+    return align_subcircuit_gromov_wasserstein(donor, host)
+
 
 # ---------------------------------------------------------------------------
 # Master Registry of all 47 Audited Capabilities across 19 Families
@@ -1105,6 +1143,9 @@ _REGISTRY: Dict[str, Dict[str, Any]] = {
     'hypernetwork.synthesize': {'id': 'hypernetwork.synthesize', 'family': 'hypernetwork', 'name': 'Weight-Space Hypernetwork Synthesizer', 'description': 'Low-rank neural hypernetwork generating verified weight program patches from diagnostic signatures.', 'scope': 'low-rank weight-space hypernetwork program synthesis', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'return': {'type': 'number'}}}, 'example': {'return': 0.5}, 'handler': _handle_hypernetwork_synthesize},
     'metamorphic.audit': {'id': 'metamorphic.audit', 'family': 'metamorphic', 'name': 'Metamorphic Invariance Oracle', 'description': 'Stress-tests agents against formal metamorphic relations (rotational invariance, monotonicity, fault tolerance, Lipschitz stability).', 'scope': 'formal metamorphic invariant stress-testing', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_metamorphic_audit},
     'structural.topology': {'id': 'structural.topology', 'family': 'structural', 'name': 'Connectome Structural Topology Auditor', 'description': 'Audits wiring density, inter-neuropil vs intra-neuropil modularity, and synaptogenesis candidates.', 'scope': 'developmental connectome structural topology audit', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_structural_topology},
+    'astrocyte.gliotransmission': {'id': 'astrocyte.gliotransmission', 'family': 'astrocyte', 'name': 'Tripartite Glial Metaplasticity Engine', 'description': 'Models astrocytic intracellular calcium waves, BCM sliding threshold metaplasticity, and gliotransmission gain.', 'scope': 'tripartite neuro-glia astrocyte calcium and BCM metaplasticity', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'neural_rates': {'type': 'array'}}}, 'example': {'neural_rates': [0.8, 1.2, 0.4]}, 'handler': _handle_astrocyte_gliotransmission},
+    'predictive.free_energy': {'id': 'predictive.free_energy', 'family': 'predictive', 'name': 'Hierarchical Active Inference Engine', 'description': 'Computes top-down sensory predictions, precision-weighted prediction errors, and variational free energy.', 'scope': 'hierarchical predictive coding and variational free energy', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {'acetylcholine': {'type': 'number'}}}, 'example': {'acetylcholine': 0.6}, 'handler': _handle_predictive_free_energy},
+    'manifold.gromov_wasserstein': {'id': 'manifold.gromov_wasserstein', 'family': 'manifold', 'name': 'Gromov-Wasserstein Manifold Alignment', 'description': 'Unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies.', 'scope': 'Gromov-Wasserstein non-Euclidean manifold alignment', 'status': 'available', 'input_schema': {'type': 'object', 'properties': {}}, 'example': {}, 'handler': _handle_manifold_gromov_wasserstein},
 }
 
 

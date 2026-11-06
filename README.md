@@ -29,6 +29,9 @@ license: apache-2.0
 12. **Metamorphic Invariance Oracle** — formal stress-testing across rotational invariance (MR1), valence monotonicity (MR2), sensor fault tolerance (MR3), and Lipschitz stability (MR5).
 13. **Activity-Dependent Structural Plasticity** — Hebbian cross-neuropil synaptogenesis and metabolic dormant synapse pruning.
 14. **Recursive Self-Improvement (RSI)** — inherited meta-improvement policies ($\phi$) whose accepted successors directly control subsequent candidate proposals, benchmarked on fresh-learner held-out tasks under identical budgets.
+15. **Tripartite Neuro-Glia Astrocyte Metaplasticity** — regional astrocytic endfeet tracking $[Ca^{2+}]_i$ calcium waves and spillover, releasing gliotransmitters (ATP/D-serine) to dynamically adapt Bienenstock-Cooper-Munro (BCM) sliding thresholds and protect against hyperactive epileptiform synchrony.
+16. **Hierarchical Active Inference & Predictive Coding** — Karl Friston's Free Energy Principle (FEP) decomposed into top-down generative predictions from Tidal memory, precision-weighted prediction errors, and reflex motor action biases.
+17. **Gromov-Wasserstein Non-Euclidean Manifold Alignment** — unsupervised diffeomorphism-invariant optimal transport between disparate neural connectome topologies without requiring paired sensory-motor observations.
 
 ---
 
@@ -119,9 +122,9 @@ http://127.0.0.1:8765
 ```
 
 The workbench provides 5 interactive panes:
-- **01 Live Workbench**: Real-time canvas rendering of connectome activation graphs, 3D world projections, ray-cast visual sensors, and routing telemetry.
-- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 72 audited capabilities.
-- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, execute factorial donor transplantation assays, stress-test with the Metamorphic Oracle, and compute Connectome Harmonics.
+- **01 Live Workbench**: Real-time canvas rendering of connectome activation graphs, 3D world projections, ray-cast visual sensors, neurochemical & astrocyte field gauges, predictive coding free energy, and routing telemetry. Engineered with high-DPI transform-safe rendering and dedicated backing fills that prevent canvas whiteout.
+- **02 Capabilities**: Interactive explorer to inspect schemas and invoke all 75 audited capabilities across 20 architecture families.
+- **03 Weight Programs**: Author, preview, apply, and rollback bounded numeric patch packets, run autonomous closed-loop failure repairs, execute factorial donor transplantation assays, stress-test with the Metamorphic Oracle, compute Connectome Harmonics, align non-Euclidean manifolds via Gromov-Wasserstein optimal transport, and audit tripartite astrocyte metaplasticity.
 - **04 Experiments & RSI**: Configure and execute bounded background RSI studies with job monitoring and lineage graphs.
 - **05 State Archive**: Save, load, and inspect exact agent and world session checkpoints.
 
