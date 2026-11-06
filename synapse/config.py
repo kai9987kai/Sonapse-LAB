@@ -30,7 +30,7 @@ class SynapseConfig:
                 raise ValueError(f'{key} must be an integer in [{low},{high}]')
         if self.readout not in {'absolute','evoked','persistent_evoked'}:
             raise ValueError('unsupported graph readout')
-        if self.task not in {'auto','forage','maze','push','grasp_place','peg_insert','delayed_match','go_nogo','button_sequence','webcam_chase'}:
+        if self.task not in {'auto','forage','maze','push','grasp_place','peg_insert','delayed_match','go_nogo','button_sequence','webcam_chase','ecosystem','predator_evasion','dynamic_arena','puzzle_chamber'}:
             raise ValueError('unknown task')
 
     def to_dict(self): return asdict(self)

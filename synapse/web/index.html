@@ -61,6 +61,10 @@
           <option value="delayed_match">delayed_match</option>
           <option value="go_nogo">go_nogo</option>
           <option value="button_sequence">button_sequence</option>
+          <option value="ecosystem">ecosystem (Dynamic Ecology)</option>
+          <option value="predator_evasion">predator_evasion (Predator Drone Evasion)</option>
+          <option value="dynamic_arena">dynamic_arena (Oscillating Gates)</option>
+          <option value="puzzle_chamber">puzzle_chamber (Button Unlock Puzzle)</option>
         </select>
       </label>
       <span class="muted" id="runstatus">Paused</span>
@@ -165,6 +169,34 @@
       </article>
     </div>
 
+    <!-- HOMEOSTATIC VITALS & MIMOMIX COGNITION -->
+    <div class="visual-grid" style="margin-top:16px">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Homeostatic Physiology & Interoception</h2>
+            <span class="tag">SUPERMIX DRIVES</span>
+          </div>
+          <span id="thrust-governor" class="tag" style="background:rgba(255,200,0,0.15);color:#ffcc00">Thrust: 100%</span>
+        </div>
+        <div id="vitals-hud" class="vitals-container" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+          <!-- Real-time dynamic vitals bars injected by app.js -->
+        </div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>MiMoMix Deliberation & Neurogenesis</h2>
+            <span class="tag">DUAL-PROCESS COGNITION</span>
+          </div>
+          <span id="mimomix-badge" class="tag" style="background:rgba(0,255,180,0.15);color:#00ffb4">System 1 (Reflex)</span>
+        </div>
+        <div id="cognition-hud" class="keyvalues" style="padding:14px">
+          <!-- Real-time cognition, ponder, and structural remodeling metrics -->
+        </div>
+      </article>
+    </div>
+
     <!-- CONFIGURATION -->
     <article>
       <div class="panel-head">
@@ -182,6 +214,10 @@
             <option>delayed_match</option>
             <option>go_nogo</option>
             <option>button_sequence</option>
+            <option>ecosystem</option>
+            <option>predator_evasion</option>
+            <option>dynamic_arena</option>
+            <option>puzzle_chamber</option>
             <option>auto</option>
           </select>
         </label>

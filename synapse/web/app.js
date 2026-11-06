@@ -488,6 +488,63 @@ function world() {
     }
 
     // -----------------------------------------------------------------------
+    // Variable Terrain Zones & Friction Fields (Ice, Sand, Mud)
+    // -----------------------------------------------------------------------
+    (s.terrain_zones || []).forEach(tz => {
+      const p = project(tz.x, tz.y, 0);
+      const r = (tz.r || 1.5) * worldScale;
+      const colMap = {
+        ice: { fill: 'rgba(0, 220, 255, 0.22)', stroke: '#00e5ff', label: 'ICE [μ=0.25]' },
+        sand: { fill: 'rgba(237, 188, 117, 0.25)', stroke: '#edbc75', label: 'SAND [μ=2.4]' },
+        mud: { fill: 'rgba(100, 75, 55, 0.35)', stroke: '#8c6b4f', label: 'MUD [μ=1.8]' }
+      };
+      const info = colMap[tz.kind] || { fill: 'rgba(120, 150, 180, 0.2)', stroke: '#8fa5b8', label: tz.kind };
+
+      x.fillStyle = info.fill;
+      x.strokeStyle = info.stroke;
+      x.lineWidth = 1.4;
+      x.beginPath();
+      if (worldMode === 'iso') {
+        x.ellipse(p[0], p[1], r, r * 0.58, 0, 0, Math.PI * 2);
+      } else {
+        x.arc(p[0], p[1], r, 0, Math.PI * 2);
+      }
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = info.stroke;
+      x.font = '9px Consolas, monospace';
+      x.fillText(info.label, p[0] - 24, p[1] + 3);
+    });
+
+    // -----------------------------------------------------------------------
+    // Dynamic Sliding & Locked Barrier Gates
+    // -----------------------------------------------------------------------
+    (s.dynamic_gates || []).forEach(gate => {
+      const p1 = project(gate.x1, gate.y1, 0);
+      const p2 = project(gate.x2, gate.y2, 0);
+      const isOpen = Boolean(gate.open);
+
+      if (isOpen) {
+        x.strokeStyle = 'rgba(93, 224, 193, 0.35)';
+        x.lineWidth = 2.0;
+        x.setLineDash([4, 4]);
+        x.beginPath(); x.moveTo(p1[0], p1[1]); x.lineTo(p2[0], p2[1]); x.stroke();
+        x.setLineDash([]);
+        x.fillStyle = '#5de0c1';
+        x.font = '8px Consolas, monospace';
+        x.fillText('GATE OPEN', (p1[0] + p2[0]) / 2 - 20, (p1[1] + p2[1]) / 2 - 4);
+      } else {
+        x.strokeStyle = gate.locked ? '#ec7c8d' : '#ff9900';
+        x.lineWidth = 4.0;
+        x.beginPath(); x.moveTo(p1[0], p1[1]); x.lineTo(p2[0], p2[1]); x.stroke();
+        x.fillStyle = gate.locked ? '#ec7c8d' : '#ff9900';
+        x.font = '8px Consolas, monospace';
+        x.fillText(gate.locked ? 'LOCKED GATE' : 'GATE CLOSED', (p1[0] + p2[0]) / 2 - 24, (p1[1] + p2[1]) / 2 - 4);
+      }
+    });
+
+    // -----------------------------------------------------------------------
     // Objects / Targets / Food / Buttons (Depth sorted)
     // -----------------------------------------------------------------------
     const objects = (s.objects || []).filter(o => o.visible !== false);
@@ -527,6 +584,44 @@ function world() {
       x.fillStyle = '#8b9daf';
       x.font = '9px Consolas, monospace';
       x.fillText(o.kind || 'obj', p[0] + rad + 3, p[1] - 3);
+    });
+
+    // -----------------------------------------------------------------------
+    // Autonomous Moving Predators & Hazard Drones
+    // -----------------------------------------------------------------------
+    (s.predators || []).forEach(pred => {
+      const pp = project(pred.x, pred.y, 0.1);
+      const prad = Math.max(4, (pred.r || 0.35) * worldScale);
+      const col = pred.color === 'purple' ? '#b066ff' : '#ec7c8d';
+
+      // Pulsing threat aura
+      const aura = x.createRadialGradient(pp[0], pp[1], 0, pp[0], pp[1], prad * 2.2);
+      aura.addColorStop(0, pred.color === 'purple' ? 'rgba(176, 102, 255, 0.35)' : 'rgba(236, 124, 141, 0.35)');
+      aura.addColorStop(1, 'transparent');
+      x.fillStyle = aura;
+      x.beginPath();
+      x.arc(pp[0], pp[1], prad * 2.2, 0, Math.PI * 2);
+      x.fill();
+
+      // Drone Chassis
+      x.fillStyle = col;
+      x.beginPath();
+      x.arc(pp[0], pp[1], prad, 0, Math.PI * 2);
+      x.fill();
+
+      // Heading Vector
+      const pth = Number(pred.th || 0);
+      const pTipX = pred.x + Math.cos(pth) * 0.6;
+      const pTipY = pred.y + Math.sin(pth) * 0.6;
+      const pTipP = project(pTipX, pTipY, 0.1);
+
+      x.strokeStyle = '#ffffff';
+      x.lineWidth = 2.0;
+      x.beginPath(); x.moveTo(pp[0], pp[1]); x.lineTo(pTipP[0], pTipP[1]); x.stroke();
+
+      x.fillStyle = col;
+      x.font = '9px Consolas, monospace';
+      x.fillText(`PREDATOR · ${pred.kind || 'stalker'}`, pp[0] + prad + 4, pp[1] - 2);
     });
 
     // -----------------------------------------------------------------------
@@ -615,6 +710,20 @@ function world() {
       x.moveTo(ap[0], ap[1]);
       x.lineTo(ap[0] + hx, ap[1] + hy);
       x.stroke();
+    }
+
+    // Ambient Illumination & Day/Night Cycle
+    if (typeof s.ambient_light === 'number') {
+      const amb = s.ambient_light;
+      if (amb < 0.85) {
+        const darkAlpha = Math.max(0, Math.min(0.65, (0.85 - amb) * 0.75));
+        x.fillStyle = `rgba(5, 12, 24, ${darkAlpha.toFixed(3)})`;
+        x.fillRect(0, 0, w, h);
+      }
+      x.fillStyle = amb < 0.75 ? '#8fa5b8' : '#edbc75';
+      x.font = '10px Consolas, monospace';
+      const icon = amb < 0.75 ? '🌙 NIGHT' : '☀️ DAY';
+      x.fillText(`${icon} (Light ${Math.round(amb * 100)}%)`, w - 140, 22);
     }
 
     // Status overlay text
@@ -848,6 +957,76 @@ function render(s) {
     d.append(name, value);
     return d;
   }));
+
+  // Homeostatic Vitals HUD
+  const homeo = s.telemetry?.homeostasis || {};
+  const vitals = homeo.vitals || {};
+  if ($('thrust-governor')) {
+    const gov = Math.round((homeo.max_allowed_thrust ?? 1.0) * 100);
+    $('thrust-governor').textContent = `Thrust Limit: ${gov}%`;
+    $('thrust-governor').style.color = gov < 50 ? '#ec7c8d' : (gov < 90 ? '#edbc75' : '#00ffb4');
+  }
+  if ($('vitals-hud')) {
+    const vitalSpecs = [
+      { name: 'Energy (Metabolic reserve)', val: vitals.energy ?? 0.85, col: '#5de0c1' },
+      { name: 'Stamina (Dynamic effort)', val: vitals.stamina ?? 1.00, col: '#edbc75' },
+      { name: 'Health (Integrity)', val: vitals.health ?? 1.00, col: '#4ae582' },
+      { name: 'Threat Proximity', val: vitals.threat ?? 0.00, col: '#ec7c8d' },
+      { name: 'Hunger Drive', val: vitals.hunger ?? 0.15, col: '#bc85e6' }
+    ];
+    $('vitals-hud').replaceChildren(...vitalSpecs.map(v => {
+      const row = document.createElement('div');
+      row.className = 'vital-row';
+      const label = document.createElement('div');
+      label.className = 'vital-label';
+      const pct = Math.max(0, Math.min(100, Math.round(v.val * 100)));
+      label.innerHTML = `<span>${v.name}</span><span>${pct}%</span>`;
+      const track = document.createElement('div');
+      track.className = 'vital-track';
+      const fill = document.createElement('div');
+      fill.className = 'vital-fill';
+      fill.style.width = `${pct}%`;
+      fill.style.background = v.col;
+      track.appendChild(fill);
+      row.append(label, track);
+      return row;
+    }));
+  }
+
+  // MiMoMix Cognition & Neurogenesis HUD
+  const mimomix = s.telemetry?.mimomix || {};
+  const neuro = s.telemetry?.neurogenesis || {};
+  if ($('mimomix-badge')) {
+    const engaged = mimomix.system_engaged || 'System 1 (Reflex)';
+    $('mimomix-badge').textContent = engaged;
+    if (engaged.includes('System 2')) {
+      $('mimomix-badge').style.background = 'rgba(255,100,200,0.25)';
+      $('mimomix-badge').style.color = '#ff64c8';
+    } else {
+      $('mimomix-badge').style.background = 'rgba(0,255,180,0.15)';
+      $('mimomix-badge').style.color = '#00ffb4';
+    }
+  }
+  if ($('cognition-hud')) {
+    const cogMetrics = [
+      ['Deliberation Mode', mimomix.system_engaged || 'System 1 (Reflex)'],
+      ['Ponder Steps', `${mimomix.ponder_steps || 0} / 4 ACT steps`],
+      ['Ponder Cost', Number(mimomix.ponder_cost || 0).toFixed(4)],
+      ['Confidence', `${Math.round((mimomix.confidence || 1.0) * 100)}%`],
+      ['Synapses Born', neuro.synapses_born ?? 0],
+      ['Synapses Pruned', neuro.synapses_pruned ?? 0],
+      ['Active Synapses', neuro.active_synapses ?? s.graph?.edges?.length ?? '—']
+    ];
+    $('cognition-hud').replaceChildren(...cogMetrics.map(([k, val]) => {
+      const d = document.createElement('div');
+      d.className = 'kv';
+      const name = document.createElement('span'), v = document.createElement('b');
+      name.textContent = k;
+      v.textContent = val;
+      d.append(name, v);
+      return d;
+    }));
+  }
 
   if (s.telemetry && signalHistory.at(-1)?.ticks !== s.telemetry.ticks) signalHistory.push(s.telemetry);
   signalHistory = signalHistory.slice(-100);

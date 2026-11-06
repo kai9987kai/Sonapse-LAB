@@ -8,12 +8,12 @@ import numpy as np
 from .config import ROOT
 from .agent import IntegratedAgent
 from .stateio import save_state,load_state
-from graftbrain.world import World,TASKS
+from .complex_world import ComplexWorld, ALL_TASKS as TASKS
 
 class LabRuntime:
     def __init__(self,config,output_root=None):
         self.config=config; self.output_root=Path(output_root or ROOT/'state')
-        self.agent=IntegratedAgent(config); self.world=World(seed=config.seed,curriculum=config.task)
+        self.agent=IntegratedAgent(config); self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
     def step(self,steps=1,learn=False,camera=None,action=None):
         if type(steps) is not int or not 1<=steps<=10000: raise ValueError('steps must be integer 1..10000')
@@ -28,6 +28,14 @@ class LabRuntime:
                 self.last_action=out['action']
                 act=out['action']
             self.obs,reward,done,info=self.world.step(act)
+            if hasattr(self.agent, 'homeostasis'):
+                self.agent.homeostasis.step(
+                    applied_action=act,
+                    reward=float(reward),
+                    hazard_dist=info.get('min_hazard_dist', 10.0),
+                    consumed_food=float(reward) > 0.3,
+                    in_friction_zone=info.get('in_friction_zone', False)
+                )
             if learn:
                 self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done)
                 self.agent.feedback(reward,done)
@@ -47,6 +55,8 @@ class LabRuntime:
         return self.output_root/(name+'.pt')
     def _world_state(self):
         d=deepcopy(self.world.__dict__); d['rng']=self.world.rng.bit_generator.state
+        if hasattr(self.world, 'rng_complex'):
+            d['rng_complex']=self.world.rng_complex.bit_generator.state
         d['history']={k:list(v) for k,v in d['history'].items()}
         # Explicit object references preserve mutations through st and objects.
         def encode(v):
@@ -64,6 +74,10 @@ class LabRuntime:
         data=load_state(self._path(name))
         if data.get('schema')!=1 or not self.config.matches_saved(data.get('config')): raise ValueError('runtime checkpoint/config mismatch')
         self.agent.import_state(data['agent']); d=data['world']; rng=np.random.default_rng(); rng.bit_generator.state=d['rng']; d['rng']=rng
+        if 'rng_complex' in d and hasattr(self.world, 'rng_complex'):
+            rng_c = np.random.default_rng()
+            rng_c.bit_generator.state = d['rng_complex']
+            d['rng_complex'] = rng_c
         d['history']={k:deque(v,maxlen=50) for k,v in d['history'].items()}
         def decode(v):
             if isinstance(v,dict):
@@ -77,7 +91,7 @@ class LabRuntime:
     def reset(self,task=None,seed=None):
         cfg=replace(self.config,task=task or self.config.task,seed=self.config.seed if seed is None else seed)
         if seed is not None:
-            self.config=cfg; self.agent=IntegratedAgent(cfg); self.world=World(seed=cfg.seed,curriculum=cfg.task)
+            self.config=cfg; self.agent=IntegratedAgent(cfg); self.world=ComplexWorld(seed=cfg.seed,curriculum=cfg.task)
         else:
             self.config=cfg; self.agent.config=cfg; self.world.curriculum=cfg.task; self.world.reset(None if cfg.task=='auto' else cfg.task); self.agent.reset_episode()
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
