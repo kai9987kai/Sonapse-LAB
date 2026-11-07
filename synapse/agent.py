@@ -117,6 +117,9 @@ class IntegratedAgent:
         self.spiking_engine=None
         self.glymphatic_engine=None
         self.kuramoto_engine=None
+        self.archimedes_engine=None
+        self.memory_carrier_nexus=None
+        self.cross_graft_engine=None
         self.comm_fabric=None
         self.overflow_mini_brain=None
         self.grafted_diffusion=None
@@ -196,6 +199,18 @@ class IntegratedAgent:
                 from .quantum_kuramoto import QuantumKuramotoEngine
                 self.kuramoto_engine = QuantumKuramotoEngine(num_oscillators=min(32, self.brain.n), seed=self.config.seed)
                 self.modules['kuramoto_engine'] = self.kuramoto_engine
+            if getattr(self.config, 'archimedes_buoyancy', False) and getattr(self, 'archimedes_engine', None) is None:
+                from .archimedes_buoyancy import ArchimedesBuoyancyEngine
+                self.archimedes_engine = ArchimedesBuoyancyEngine(seed=self.config.seed)
+                self.modules['archimedes_engine'] = self.archimedes_engine
+            if getattr(self.config, 'memory_carrier_nexus', False) and getattr(self, 'memory_carrier_nexus', None) is None:
+                from .memory_carrier import MemoryCarrierNexus
+                self.memory_carrier_nexus = MemoryCarrierNexus(dimension=min(64, self.brain.n), seed=self.config.seed)
+                self.modules['memory_carrier_nexus'] = self.memory_carrier_nexus
+            if getattr(self.config, 'cross_connectome_graft', False) and getattr(self, 'cross_graft_engine', None) is None:
+                from .cross_graft import CrossConnectomeGraft
+                self.cross_graft_engine = CrossConnectomeGraft(node_dim=min(64, self.brain.n), seed=self.config.seed)
+                self.modules['cross_graft_engine'] = self.cross_graft_engine
             if getattr(self.config, 'neural_comm_enabled', False) and self.comm_fabric is None:
                 from .neural_comm import NeuralCommFabric
                 from .neural_comm_channels import CommChannelSpec
@@ -360,6 +375,9 @@ class IntegratedAgent:
         if getattr(self, 'spiking_engine', None) is not None: self.spiking_engine.reset()
         if getattr(self, 'glymphatic_engine', None) is not None: self.glymphatic_engine.reset()
         if getattr(self, 'kuramoto_engine', None) is not None: self.kuramoto_engine.reset()
+        if getattr(self, 'archimedes_engine', None) is not None: self.archimedes_engine.reset()
+        if getattr(self, 'memory_carrier_nexus', None) is not None: self.memory_carrier_nexus.reset()
+        if getattr(self, 'cross_graft_engine', None) is not None: self.cross_graft_engine.reset()
         if getattr(self, 'comm_fabric', None) is not None: self.comm_fabric.reset()
         if getattr(self, 'neurowave_x2', None) is not None: self.neurowave_x2.reset()
         if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
@@ -663,6 +681,21 @@ class IntegratedAgent:
         if getattr(self, 'kuramoto_engine', None) is not None:
             _, kur_telem = self.kuramoto_engine.step()
             self.last_telemetry['quantum_kuramoto'] = kur_telem.to_dict()
+        if getattr(self, 'archimedes_engine', None) is not None:
+            pos = (float(self.last_features[0]), float(self.last_features[1])) if len(self.last_features) >= 2 else (0.0, 0.0)
+            vel = (float(self.last_features[2]), float(self.last_features[3])) if len(self.last_features) >= 4 else (0.0, 0.0)
+            _, _, arch_telem = self.archimedes_engine.step(pos, vel, vertical_thrust=float(executed[0]) if len(executed) > 0 else 0.0)
+            self.last_telemetry['archimedes_buoyancy'] = arch_telem.to_dict()
+        if getattr(self, 'memory_carrier_nexus', None) is not None:
+            k_vec = torch.tensor(self.last_features[:min(64, self.brain.n)], dtype=torch.float32)
+            if learn:
+                v_vec = torch.tensor(executed[:min(64, len(executed))], dtype=torch.float32)
+                self.memory_carrier_nexus.store(k_vec, v_vec, carrier_idx=self.ticks % 16)
+            _, _ = self.memory_carrier_nexus.retrieve(k_vec, carrier_idx=self.ticks % 16)
+            self.last_telemetry['memory_carrier_nexus'] = self.memory_carrier_nexus.telemetry.to_dict()
+        if getattr(self, 'cross_graft_engine', None) is not None:
+            _, graft_telem = self.cross_graft_engine(r[:min(64, self.brain.n)], context=torch.tensor(self.last_features[:min(64, len(self.last_features))], dtype=torch.float32))
+            self.last_telemetry['cross_connectome_graft'] = graft_telem.to_dict()
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'comm_fabric', None) is not None:
@@ -940,6 +973,9 @@ class IntegratedAgent:
         if getattr(self, 'spiking_engine', None) is not None: state['spiking_engine'] = self.spiking_engine.export_state()
         if getattr(self, 'glymphatic_engine', None) is not None: state['glymphatic_engine'] = self.glymphatic_engine.export_state()
         if getattr(self, 'kuramoto_engine', None) is not None: state['kuramoto_engine'] = self.kuramoto_engine.export_state()
+        if getattr(self, 'archimedes_engine', None) is not None: state['archimedes_engine'] = self.archimedes_engine.export_state()
+        if getattr(self, 'memory_carrier_nexus', None) is not None: state['memory_carrier_nexus'] = self.memory_carrier_nexus.export_state()
+        if getattr(self, 'cross_graft_engine', None) is not None: state['cross_graft_engine'] = self.cross_graft_engine.export_state()
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
         state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
@@ -1068,6 +1104,12 @@ class IntegratedAgent:
             self.glymphatic_engine.import_state(state['glymphatic_engine'])
         if getattr(self, 'kuramoto_engine', None) is not None and state.get('kuramoto_engine') is not None:
             self.kuramoto_engine.import_state(state['kuramoto_engine'])
+        if getattr(self, 'archimedes_engine', None) is not None and state.get('archimedes_engine') is not None:
+            self.archimedes_engine.import_state(state['archimedes_engine'])
+        if getattr(self, 'memory_carrier_nexus', None) is not None and state.get('memory_carrier_nexus') is not None:
+            self.memory_carrier_nexus.import_state(state['memory_carrier_nexus'])
+        if getattr(self, 'cross_graft_engine', None) is not None and state.get('cross_graft_engine') is not None:
+            self.cross_graft_engine.import_state(state['cross_graft_engine'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:

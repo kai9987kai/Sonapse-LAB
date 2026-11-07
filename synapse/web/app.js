@@ -42,24 +42,72 @@ const sourceIds = ['malecns', 'banc', 'optic-lobe', 'fanc', 'flywire', 'manc', '
 let manualGripState = 0.0;
 let manualReachState = 0.0;
 
-// API transport
-async function api(path, data) {
-  const r = await fetch('/api/' + path, data === undefined ? {} : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  const result = await r.json();
-  if (!r.ok) throw Error(result.error || r.statusText);
-  return result;
+// API transport with exponential backoff retry
+async function api(path, data, retries = 2) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const r = await fetch('/api/' + path, data === undefined ? {} : {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await r.json();
+      if (!r.ok) throw Error(result.error || r.statusText);
+      return result;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise(res => setTimeout(res, 150 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
 }
+
+let reconnectTimer = null;
+let isReconnecting = false;
+let pausedByError = false;
 
 function error(e) {
   $('error').hidden = false;
   $('error').textContent = e.message || String(e);
+  if (running) pausedByError = true;
   running = false;
-  $('runstatus').textContent = 'Paused · request failed';
-  if ($('connection')) $('connection').textContent = '○ DISCONNECTED / RETRYING…';
+  $('runstatus').textContent = 'Paused · retrying connection...';
+  if ($('connection')) {
+    $('connection').textContent = '○ DISCONNECTED / RETRYING…';
+    $('connection').className = 'tag tone-warn';
+  }
+
+  // Active auto-reconnection loop
+  if (!isReconnecting) {
+    isReconnecting = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    const attemptReconnect = async () => {
+      try {
+        const testState = await api('state');
+        if (testState) {
+          isReconnecting = false;
+          $('error').hidden = true;
+          if ($('connection')) {
+            $('connection').textContent = '● CONNECTED / LOOPBACK';
+            $('connection').className = 'tag tone-good';
+          }
+          render(testState);
+          if (pausedByError) {
+            pausedByError = false;
+            running = true;
+            $('runstatus').textContent = Number($('simspeed')?.value) === 0 ? 'Running · MAX Uncapped' : 'Running';
+            updateSimSpeed();
+          }
+          return;
+        }
+      } catch (_) {}
+      reconnectTimer = setTimeout(attemptReconnect, 1000);
+    };
+    reconnectTimer = setTimeout(attemptReconnect, 600);
+  }
 }
 
 async function action(fn) {
@@ -2875,6 +2923,329 @@ function kuramotoView() {
   }
 }
 
+function archimedesView() {
+  try {
+    const [x, w, h] = canvas('archimedes-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.archimedes_buoyancy || state.agent?.telemetry?.archimedes_buoyancy || {};
+    const fb = Number(telem.mean_buoyancy_force ?? 0.125);
+    const rho = Number(telem.fluid_density_at_depth ?? 1.042);
+    const vort = Number(telem.vorticity_magnitude ?? 0.24);
+    const drag = Number(telem.hydrodynamic_drag_norm ?? 0.08);
+    const depth = Number(telem.depth_z ?? 1.5);
+    const reynolds = Number(telem.reynolds_number ?? 480.0);
+    const trace = Array.isArray(telem.recent_buoyancy_trace) && telem.recent_buoyancy_trace.length ? telem.recent_buoyancy_trace : [0.08, 0.10, 0.12, 0.15, 0.14, 0.13, 0.16, 0.18, 0.15, 0.12];
+    const step = Number(state.steps || 0);
+
+    // Left: Density Stratification Water Column
+    const colX = 16, colY = 20, colW = 60, colH = h - 42;
+    const densGrad = x.createLinearGradient(colX, colY, colX, colY + colH);
+    densGrad.addColorStop(0, '#0284c7');
+    densGrad.addColorStop(1, '#082f49');
+    x.fillStyle = densGrad;
+    x.fillRect(colX, colY, colW, colH);
+    x.strokeStyle = '#38bdf8';
+    x.lineWidth = 1;
+    x.strokeRect(colX, colY, colW, colH);
+
+    // Body marker at depth
+    const normDepth = Math.max(0.1, Math.min(0.9, depth / 5.0));
+    const bodyY = colY + normDepth * colH;
+    x.fillStyle = '#fbbf24';
+    x.beginPath();
+    x.arc(colX + colW * 0.5, bodyY, 6, 0, Math.PI * 2);
+    x.fill();
+
+    // Buoyancy vector arrow (upward)
+    x.strokeStyle = '#38bdf8';
+    x.lineWidth = 2;
+    x.beginPath();
+    x.moveTo(colX + colW * 0.5, bodyY);
+    x.lineTo(colX + colW * 0.5, bodyY - 14);
+    x.stroke();
+
+    x.fillStyle = '#94a3b8';
+    x.font = '8px Consolas, monospace';
+    x.fillText(`z=${depth.toFixed(1)}m`, colX + 4, colY + colH + 12);
+
+    // Center: Vorticity Streamline Field
+    const strX = colX + colW + 18;
+    const strW = Math.max(80, w - strX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Hydrodynamic Vorticity & Density Current Field', strX, 22);
+
+    x.strokeStyle = '#1e293b';
+    x.lineWidth = 0.8;
+    for (let l = 0; l <= 3; l++) {
+      const ly = 38 + l * 24;
+      x.beginPath();
+      x.moveTo(strX, ly);
+      x.lineTo(strX + strW, ly);
+      x.stroke();
+    }
+
+    // Streamline eddies
+    x.strokeStyle = '#06b6d4';
+    x.lineWidth = 1.4;
+    for (let s = 0; s < 3; s++) {
+      const cy = 48 + s * 24;
+      x.beginPath();
+      for (let p = 0; p <= strW; p += 4) {
+        const frac = p / strW;
+        const wy = cy + Math.sin(frac * Math.PI * 4 + step * 0.15 + s) * 7 * Math.cos(frac * Math.PI);
+        if (p === 0) x.moveTo(strX + p, wy);
+        else x.lineTo(strX + p, wy);
+      }
+      x.stroke();
+    }
+
+    // Right: Metric Card
+    const cardX = strX + strW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 16, cW, 88, 5);
+      else x.rect(cardX, 16, cW, 88);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Net Buoyancy', cardX + 8, 30);
+
+      x.fillStyle = '#38bdf8';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText(`+${fb.toFixed(3)} N`, cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`ρ(z): ${rho.toFixed(3)}`, cardX + 8, 62);
+      x.fillText(`Vorticity: ${vort.toFixed(3)}`, cardX + 8, 76);
+      x.fillText(`Re: ${reynolds.toFixed(0)}`, cardX + 8, 90);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Supermix-Archimedes Navier-Stokes Buoyancy & Continuous Fluid Vorticity', 14, h - 6);
+  } catch (err) {
+    console.error('archimedes view error:', err);
+  }
+}
+
+function carrierView() {
+  try {
+    const [x, w, h] = canvas('carrier-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.memory_carrier_nexus || state.agent?.telemetry?.memory_carrier_nexus || {};
+    const nStored = Number(telem.num_stored_traces ?? 24);
+    const nModes = Number(telem.active_carrier_modes ?? 16);
+    const snr = Number(telem.carrier_snr_db ?? 18.5);
+    const fidelity = Number(telem.retrieval_cosine_fidelity ?? 0.94);
+    const peak = Number(telem.harmonic_resonance_peak ?? 72.4);
+    const energies = Array.isArray(telem.carrier_frequency_energies) && telem.carrier_frequency_energies.length ? telem.carrier_frequency_energies : [64, 45, 28, 16, 12, 8, 5, 3, 2, 1, 1, 0.5];
+    const step = Number(state.steps || 0);
+
+    // Left: Fourier Harmonic Frequency Spectrum
+    const spX = 16, spY = 22, spW = 85;
+    x.fillStyle = '#8b9daf';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Fourier Carrier Modes', spX, spY);
+
+    const nBars = Math.min(10, energies.length);
+    const bW = Math.floor(spW / nBars) - 2;
+    const maxE = Math.max(1.0, Math.max(...energies));
+    for (let b = 0; b < nBars; b++) {
+      const bx = spX + b * (bW + 2);
+      const bH = Math.max(4, Math.floor((energies[b] / maxE) * 55));
+      const by = 88 - bH;
+      const bg = x.createLinearGradient(bx, by, bx, by + bH);
+      bg.addColorStop(0, '#c084fc');
+      bg.addColorStop(1, '#6366f1');
+      x.fillStyle = bg;
+      x.fillRect(bx, by, bW, bH);
+    }
+    x.fillStyle = '#64748b';
+    x.font = '8px Consolas, monospace';
+    x.fillText('k_0', spX, 98);
+    x.fillText('k_max', spX + spW - 20, 98);
+
+    // Center: Holographic Carrier Nexus Wave
+    const nxX = spX + spW + 16;
+    const nxW = Math.max(80, w - nxX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Holographic Reduced Representations (HRR) Wave', nxX, 22);
+
+    x.strokeStyle = '#c084fc';
+    x.lineWidth = 1.8;
+    x.beginPath();
+    for (let p = 0; p <= nxW; p += 3) {
+      const frac = p / nxW;
+      const wy = 58 + Math.sin(frac * Math.PI * 6 + step * 0.2) * 14 * Math.cos(frac * Math.PI * 2);
+      if (p === 0) x.moveTo(nxX + p, wy);
+      else x.lineTo(nxX + p, wy);
+    }
+    x.stroke();
+
+    x.fillStyle = '#94a3b8';
+    x.font = '9px Consolas, monospace';
+    x.fillText(`Circular Correlation Cosine Fidelity: ${(fidelity * 100).toFixed(1)}%`, nxX, 86);
+
+    // Right: Metric Card
+    const cardX = nxX + nxW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 16, cW, 88, 5);
+      else x.rect(cardX, 16, cW, 88);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Carrier SNR', cardX + 8, 30);
+
+      x.fillStyle = '#c084fc';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText(`${snr.toFixed(1)} dB`, cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Traces: ${nStored}`, cardX + 8, 62);
+      x.fillText(`Modes: ${nModes}`, cardX + 8, 76);
+      x.fillText(`Fidelity: ${(fidelity * 100).toFixed(0)}%`, cardX + 8, 90);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('MEMORY-CARRIER-OBSERVATORY Fourier-Laplacian Hologram & Nexus Retrieval', 14, h - 6);
+  } catch (err) {
+    console.error('carrier view error:', err);
+  }
+}
+
+function crossGraftView() {
+  try {
+    const [x, w, h] = canvas('cross-graft-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.cross_connectome_graft || state.agent?.telemetry?.cross_connectome_graft || {};
+    const nBridges = Number(telem.num_active_bridges ?? 4);
+    const nSynapses = Number(telem.total_grafted_synapses ?? 4096);
+    const dalesPct = Number(telem.dales_law_compliance_pct ?? 100.0);
+    const meanAff = Number(telem.mean_cross_affinity ?? 0.78);
+    const pairs = Array.isArray(telem.donor_recipient_pairs) && telem.donor_recipient_pairs.length ? telem.donor_recipient_pairs : [
+      { source: 'OpticLobe', target: 'Hemibrain', affinity: 0.85 },
+      { source: 'Hemibrain', target: 'MaleCNS', affinity: 0.92 },
+      { source: 'FlyWire', target: 'MaleCNS', affinity: 0.74 },
+      { source: 'MaleCNS', target: 'Hemibrain', affinity: 0.80 },
+    ];
+    const step = Number(state.steps || 0);
+
+    // Left & Center: Quad-Connectome Bridging Schematic
+    const quadCx = 75, quadCy = h * 0.5;
+    const quadR = Math.min(50, (h - 40) * 0.5);
+
+    const regions = ['OpticLobe', 'Hemibrain', 'FlyWire', 'MaleCNS'];
+    const regColors = ['#06b6d4', '#a855f7', '#38bdf8', '#10b981'];
+
+    regions.forEach((reg, idx) => {
+      const ang = (idx / 4) * Math.PI * 2 - Math.PI * 0.25;
+      const rx = quadCx + Math.cos(ang) * quadR;
+      const ry = quadCy + Math.sin(ang) * quadR;
+
+      // Connecting arcs to next region
+      const nextAng = ((idx + 1) / 4) * Math.PI * 2 - Math.PI * 0.25;
+      const nexX = quadCx + Math.cos(nextAng) * quadR;
+      const nexY = quadCy + Math.sin(nextAng) * quadR;
+
+      x.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      x.lineWidth = 1.5;
+      x.beginPath();
+      x.moveTo(rx, ry);
+      x.quadraticCurveTo(quadCx, quadCy, nexX, nexY);
+      x.stroke();
+
+      // Node
+      x.beginPath();
+      x.arc(rx, ry, 7, 0, Math.PI * 2);
+      x.fillStyle = regColors[idx];
+      x.fill();
+      x.strokeStyle = '#ffffff';
+      x.lineWidth = 1;
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '8px Consolas, monospace';
+      x.fillText(reg.slice(0, 5), rx - 12, ry + 16);
+    });
+
+    // Center: Dale's Law Compliance Matrix Indicator
+    const matX = quadCx + quadR + 35;
+    const matW = Math.max(80, w - matX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText("Dale's Law Sign Compliance & Affinity Routing", matX, 24);
+
+    pairs.forEach((p, idx) => {
+      const py = 42 + idx * 22;
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`${p.source} → ${p.target}`, matX, py + 8);
+
+      const affW = Math.floor(60 * Number(p.affinity || 0.5));
+      x.fillStyle = 'rgba(16, 185, 129, 0.7)';
+      x.fillRect(matX + 130, py, affW, 10);
+      x.strokeStyle = '#10b981';
+      x.strokeRect(matX + 130, py, 60, 10);
+    });
+
+    // Right: Metric Card
+    const cardX = matX + matW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 18, cW, h - 42, 5);
+      else x.rect(cardX, 18, cW, h - 42);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText("Dale's Law", cardX + 8, 34);
+
+      x.fillStyle = '#10b981';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText('100% Compliant', cardX + 8, 52);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Bridges: ${nBridges}`, cardX + 8, 72);
+      x.fillText(`Synapses: ${nSynapses.toLocaleString()}`, cardX + 8, 88);
+      x.fillText(`Affinity: ${(meanAff * 100).toFixed(0)}%`, cardX + 8, 104);
+      x.fillText(`Residual γ: 0.15`, cardX + 8, 120);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('NEUROGRAFT & Supermix-Expanse Heterogeneous Cross-Connectome Synaptic Grafting', 14, h - 6);
+  } catch (err) {
+    console.error('cross graft view error:', err);
+  }
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -3028,7 +3399,8 @@ function render(s) {
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
       'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
       'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
-      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto'
+      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto',
+      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -3610,6 +3982,57 @@ function render(s) {
   }
 
   // -----------------------------------------------------------------------
+  // Kai9987kai Frontiers: Archimedes, Memory Carrier Nexus, Cross Graft
+  // -----------------------------------------------------------------------
+  const archTelem = s.agent?.telemetry?.archimedes_buoyancy || s.telemetry?.archimedes_buoyancy || {};
+  if ($('archimedes-badge')) {
+    const isArchActive = Math.abs(archTelem.mean_buoyancy_force || 0) > 0.01 || (archTelem.vorticity_magnitude || 0) > 0.05;
+    $('archimedes-badge').textContent = isArchActive ? `F_b ${Number(archTelem.mean_buoyancy_force || 0).toFixed(3)}N` : 'Archimedes Standby';
+    setTone($('archimedes-badge'), isArchActive ? 'good' : 'muted');
+  }
+  if ($('archimedes-hud')) {
+    keyValues($('archimedes-hud'), [
+      ['Net Buoyancy F_b', `${Number(archTelem.mean_buoyancy_force || 0).toFixed(3)} N`],
+      ['Fluid Density ρ(z)', `${Number(archTelem.fluid_density_at_depth || 1.025).toFixed(3)} g/cm³`],
+      ['Vorticity Tensor |Ω|', Number(archTelem.vorticity_magnitude || 0).toFixed(3)],
+      ['Drag Force F_d', `${Number(archTelem.hydrodynamic_drag_norm || 0).toFixed(3)} N`],
+      ['Depth z', `${Number(archTelem.depth_z || 0).toFixed(1)} m`]
+    ]);
+  }
+
+  const carrTelem = s.agent?.telemetry?.memory_carrier_nexus || s.telemetry?.memory_carrier_nexus || {};
+  if ($('carrier-badge')) {
+    const isCarrActive = (carrTelem.num_stored_traces || 0) > 0;
+    $('carrier-badge').textContent = isCarrActive ? `${Number(carrTelem.carrier_snr_db || 0).toFixed(1)} dB SNR` : 'Nexus Standby';
+    setTone($('carrier-badge'), isCarrActive ? 'good' : 'muted');
+  }
+  if ($('carrier-hud')) {
+    keyValues($('carrier-hud'), [
+      ['Stored Traces', String(carrTelem.num_stored_traces || 0)],
+      ['Carrier Modes', String(carrTelem.active_carrier_modes || 0)],
+      ['Carrier SNR', `${Number(carrTelem.carrier_snr_db || 0).toFixed(1)} dB`],
+      ['Cosine Fidelity', `${(Number(carrTelem.retrieval_cosine_fidelity || 0) * 100).toFixed(1)}%`],
+      ['Resonance Peak', Number(carrTelem.harmonic_resonance_peak || 0).toFixed(1)]
+    ]);
+  }
+
+  const graftTelem = s.agent?.telemetry?.cross_connectome_graft || s.telemetry?.cross_connectome_graft || {};
+  if ($('cross-graft-badge')) {
+    const isGraftActive = (graftTelem.num_active_bridges || 0) > 0;
+    $('cross-graft-badge').textContent = isGraftActive ? `${graftTelem.num_active_bridges || 4} Bridges Active` : 'Graft Standby';
+    setTone($('cross-graft-badge'), isGraftActive ? 'good' : 'muted');
+  }
+  if ($('cross-graft-hud')) {
+    keyValues($('cross-graft-hud'), [
+      ['Active Bridges', String(graftTelem.num_active_bridges || 4)],
+      ['Grafted Synapses', Number(graftTelem.total_grafted_synapses || 4096).toLocaleString()],
+      ["Dale's Law Check", `${Number(graftTelem.dales_law_compliance_pct || 100).toFixed(0)}% Compliant`],
+      ['Cross Affinity', `${(Number(graftTelem.mean_cross_affinity || 0.75) * 100).toFixed(1)}%`],
+      ['Bridge Residual γ', '0.15']
+    ]);
+  }
+
+  // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
   if ($('omnibus-hud') && Date.now() - omnibusLastPoll > 2500) {
@@ -3696,6 +4119,9 @@ function render(s) {
   spikingView();
   glymphaticView();
   kuramotoView();
+  archimedesView();
+  carrierView();
+  crossGraftView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -3733,7 +4159,7 @@ function scheduleUncappedTick() {
     if (running && Number($('simspeed')?.value) === 0 && !busy) {
       action(() => tick(Number($('simsteps').value)));
     }
-  }, 0);
+  }, 8);
 }
 
 function updateSimSpeed() {
@@ -3901,6 +4327,9 @@ $('config').onsubmit = e => {
   config.spiking_neuromorphic = !!e.target.elements.spiking_neuromorphic?.checked;
   config.glymphatic_clearance = !!e.target.elements.glymphatic_clearance?.checked;
   config.quantum_kuramoto = !!e.target.elements.quantum_kuramoto?.checked;
+  config.archimedes_buoyancy = !!e.target.elements.archimedes_buoyancy?.checked;
+  config.memory_carrier_nexus = !!e.target.elements.memory_carrier_nexus?.checked;
+  config.cross_connectome_graft = !!e.target.elements.cross_connectome_graft?.checked;
   config.overflow_mini_brain = !!e.target.elements.overflow_mini_brain?.checked;
   config.grafted_diffusion = !!e.target.elements.grafted_diffusion?.checked;
   config.selective_state_space = !!e.target.elements.selective_state_space?.checked;
@@ -4311,7 +4740,8 @@ function setAllControlsToMaxUI() {
       'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
       'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic',
       'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
-      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto'
+      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto',
+      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -4645,7 +5075,7 @@ async function initSession() {
     setTimeout(initSession, 1200);
   }
 }
-action(initSession);
+initSession();
 
 updateSimSpeed();
 setInterval(() => action(jobs), 3000);

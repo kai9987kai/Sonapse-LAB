@@ -191,6 +191,15 @@ class Workbench:
             if path=='/api/kuramoto/status':
                 engine = getattr(self.runtime.agent, 'kuramoto_engine', None)
                 return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/archimedes/status':
+                engine = getattr(self.runtime.agent, 'archimedes_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/memory_carrier/status':
+                engine = getattr(self.runtime.agent, 'memory_carrier_nexus', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/cross_graft/status':
+                engine = getattr(self.runtime.agent, 'cross_graft_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
             if path=='/api/tandem/status':
                 return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
@@ -250,6 +259,12 @@ class Workbench:
         if path=='/api/frontier_v4_assay':
             from .tandem_max import run_frontier_v4_assay
             return run_frontier_v4_assay(
+                self.runtime,
+                seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+            )
+        if path=='/api/supermix_archimedes_nexus_assay':
+            from .tandem_max import run_supermix_archimedes_nexus_assay
+            return run_supermix_archimedes_nexus_assay(
                 self.runtime,
                 seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
             )
@@ -678,12 +693,22 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
             except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                 pass
         def local(self):
-            host=self.headers.get('Host',''); parsed=urlparse('http://'+host)
-            if parsed.hostname not in ('127.0.0.1','localhost') or parsed.port != self.server.server_port: return False
-            origin=self.headers.get('Origin')
+            host = self.headers.get('Host', '')
+            parsed_host = urlparse('http://' + host)
+            if parsed_host.hostname not in ('127.0.0.1', 'localhost'):
+                return False
+            allowed_ports = {self.server.server_port, 8765, 8876}
+            if parsed_host.port is not None and parsed_host.port not in allowed_ports:
+                return False
+            origin = self.headers.get('Origin')
             if origin:
-                parsed=urlparse(origin)
-                if parsed.scheme!='http' or parsed.netloc!=host: return False
+                parsed_orig = urlparse(origin)
+                if parsed_orig.scheme != 'http':
+                    return False
+                if parsed_orig.hostname not in ('127.0.0.1', 'localhost'):
+                    return False
+                if parsed_orig.port is not None and parsed_orig.port not in allowed_ports:
+                    return False
             return True
         def do_GET(self):
             try:

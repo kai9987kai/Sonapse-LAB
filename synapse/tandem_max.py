@@ -287,6 +287,39 @@ def run_frontier_v4_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     }
 
 
+def run_supermix_archimedes_nexus_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Run Archimedes Hydrodynamic Buoyancy, Holographic Memory Nexus, and Cross-Connectome Grafting Assay."""
+    from .archimedes_buoyancy import ArchimedesBuoyancyEngine
+    from .memory_carrier import MemoryCarrierNexus
+    from .cross_graft import CrossConnectomeGraft
+
+    t0 = time.perf_counter()
+    agent = runtime.agent
+    archimedes = getattr(agent, 'archimedes_engine', None) or ArchimedesBuoyancyEngine(seed=seed)
+    nexus = getattr(agent, 'memory_carrier_nexus', None) or MemoryCarrierNexus(dimension=min(64, agent.brain.n), seed=seed)
+    cross_graft = getattr(agent, 'cross_graft_engine', None) or CrossConnectomeGraft(node_dim=min(64, agent.brain.n), seed=seed)
+
+    _, _, arch_report = archimedes.step(agent_pos=(1.5, 2.5), agent_vel=(0.4, 0.2), vertical_thrust=0.1)
+
+    k_vec = torch.randn(min(64, agent.brain.n))
+    v_vec = torch.randn(min(64, agent.brain.n))
+    nexus.store(k_vec, v_vec, carrier_idx=0)
+    _, _ = nexus.retrieve(k_vec, carrier_idx=0)
+    nexus_report = nexus.telemetry
+
+    soma_input = agent.brain.r[:min(64, agent.brain.n)].detach()
+    _, graft_report = cross_graft(soma_input)
+
+    return {
+        'status': 'completed',
+        'evidence_kind': 'supermix_archimedes_nexus_cross_graft_assay',
+        'archimedes_buoyancy': arch_report.to_dict(),
+        'memory_carrier_nexus': nexus_report.to_dict(),
+        'cross_connectome_graft': graft_report.to_dict(),
+        'wallclock_ms': round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+
+
 def run_causal_9arm_and_scorecard(
     runtime,
     steps_per_arm: int = 12,
@@ -582,6 +615,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
     apical_res_hyp_res = run_apical_reservoir_and_hyperbolic_assay(runtime, seed=seed)
     frontier_v4_res = run_frontier_v4_assay(runtime, seed=seed)
+    supermix_nexus_res = run_supermix_archimedes_nexus_assay(runtime, seed=seed)
 
     from .neural_comm_bench import SancfMatrixBenchmark
     sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
@@ -625,6 +659,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'frontier_v2_innovations': frontier_v2_res,
         'apical_reservoir_hyperbolic': apical_res_hyp_res,
         'frontier_v4_innovations': frontier_v4_res,
+        'supermix_archimedes_nexus': supermix_nexus_res,
         'sancf_comm_matrix': sancf_section_res,
         'neurowave_x2_assay': neurowave_x2_assay,
     }

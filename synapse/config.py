@@ -51,6 +51,9 @@ class SynapseConfig:
     spiking_neuromorphic: bool = False
     glymphatic_clearance: bool = False
     quantum_kuramoto: bool = False
+    archimedes_buoyancy: bool = False
+    memory_carrier_nexus: bool = False
+    cross_connectome_graft: bool = False
 
     # SANCF (Sonapse Adaptive Neural Communication Fabric) & Advanced Research Features
     neural_comm_enabled: bool = False
@@ -221,6 +224,9 @@ class SynapseConfig:
             spiking_neuromorphic=True,
             glymphatic_clearance=True,
             quantum_kuramoto=True,
+            archimedes_buoyancy=True,
+            memory_carrier_nexus=True,
+            cross_connectome_graft=True,
             neural_comm_enabled=True,
             neural_comm_mode='continuous',
             neural_comm_dim=24,
@@ -338,7 +344,7 @@ class SynapseConfig:
             'compute_threads': 1, 'graft_batch_size': 64, 'graft_updates': 2, 'connectome_mode': 'proxy',
             'structural_learning': True,
             'dendritic_ltc': False, 'oscillatory_coherence': False, 'verifiable_dpo': False,
-            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False, 'apical_amplification': False, 'spectral_reservoir': False, 'hyperbolic_manifold': False, 'spiking_neuromorphic': False, 'glymphatic_clearance': False, 'quantum_kuramoto': False,
+            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False, 'apical_amplification': False, 'spectral_reservoir': False, 'hyperbolic_manifold': False, 'spiking_neuromorphic': False, 'glymphatic_clearance': False, 'quantum_kuramoto': False, 'archimedes_buoyancy': False, 'memory_carrier_nexus': False, 'cross_connectome_graft': False,
             'neural_comm_enabled': False, 'neural_comm_mode': 'continuous', 'neural_comm_dim': 16,
             'neural_comm_precision_bits': 4, 'neural_comm_every': 1, 'neural_comm_max_messages': 4,
             'neural_comm_max_bits': 128, 'neural_comm_max_aux_current': 0.5,
