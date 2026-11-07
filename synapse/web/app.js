@@ -5079,3 +5079,16 @@ initSession();
 
 updateSimSpeed();
 setInterval(() => action(jobs), 3000);
+// Background SimWorker live synchronization loop
+setInterval(async () => {
+  try {
+    const sw = await api('sim-worker/status');
+    if (sw && sw.running && !running && !busy) {
+      const s = await api('state');
+      render(s);
+      if ($('runstatus')) {
+        $('runstatus').textContent = 'Running · Background SimWorker (' + Number(sw.measured_steps_per_sec || 0).toFixed(1) + ' steps/s)';
+      }
+    }
+  } catch (_) {}
+}, 400);

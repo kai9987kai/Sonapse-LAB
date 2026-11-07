@@ -560,7 +560,12 @@ class Workbench:
                 action = str(data.get('action', 'status'))
                 target_sps = data.get('target_sps')
                 if action == 'start':
-                    self.sim_worker.start()
+                    bs = data.get('batch_size')
+                    learn = data.get('learn', False)
+                    quota = data.get('quota')
+                    self.sim_worker.start(batch_size=bs, learn=bool(learn), quota=quota)
+                elif action == 'resume':
+                    self.sim_worker.resume()
                 elif action == 'pause':
                     self.sim_worker.pause()
                 elif action == 'stop':
