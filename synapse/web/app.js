@@ -12,6 +12,8 @@ let receipt = null;
 let signalHistory = [];
 let tickInterval = 125;
 let tickTimer = null;
+let uncappedLoopTimer = null;
+let liveSpsEma = 0;
 
 // View state for zero-warping renderers
 let worldMode = 'iso';      // 'iso' | 'top'
@@ -1279,7 +1281,7 @@ function render(s) {
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-      'dvgem_memory', 'tether_coordinator', 'programmed_connectome'
+      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -1320,6 +1322,7 @@ function render(s) {
     ['Simulation steps', s.steps ?? 0],
     ['Episode return', Number(s.world?.ep_return ?? 0).toFixed(3)],
     ['Neurons', s.graph?.neurons ?? '—'],
+    ['Steps / sec', liveSpsEma > 0 ? `${liveSpsEma.toFixed(1)} SPS` : (Number($('simspeed')?.value) === 0 ? 'MAX ∞' : '—')],
     ['Bridge', s.telemetry?.bridge_training ?? s.status?.bridge_training ?? '—']
   ];
   $('metrics').replaceChildren(...m.map(([label, value]) => {
@@ -1586,6 +1589,40 @@ function render(s) {
     keyValues($('tether-hud'), tetherMetrics);
   }
 
+  // Self-Organized Criticality (SOC) Avalanche & Reservoir Homeostat HUD
+  const crit = s.telemetry?.criticality_homeostat || {};
+  if ($('criticality-badge')) {
+    $('criticality-badge').textContent = crit.enabled ? `σ=${Number(crit.branching_sigma || 1).toFixed(3)} · ${crit.regime || 'critical'}` : 'Standby';
+    setTone($('criticality-badge'), crit.enabled ? (crit.regime === 'critical_avalanches' ? 'good' : 'warn') : 'muted');
+  }
+  if ($('criticality-hud')) {
+    const critMetrics = [
+      ['Branching Ratio σ_t', crit.enabled ? `σ_ema=${Number(crit.branching_sigma || 1).toFixed(4)} · σ_inst=${Number(crit.instant_sigma || 1).toFixed(4)}` : 'Disabled (enable in Session Config)'],
+      ['Homeostatic Gain g_crit', crit.enabled ? `g_crit=${Number(crit.critical_gain || 1).toFixed(4)} (target σ*=1.00)` : '—'],
+      ['Power-Law Exponent τ', crit.enabled ? `τ=${Number(crit.avalanche_exponent_tau || 1.5).toFixed(4)} · avalanches=${crit.avalanches_recorded || 0}` : '—'],
+      ['E/I Balance & Active %', crit.enabled ? `E/(E+I)=${Number(crit.ei_balance_ratio || 0.5).toFixed(3)} · active=${(Number(crit.active_neuron_fraction || 0) * 100).toFixed(1)}%` : '—'],
+      ['Dynamical Phase', crit.enabled ? (crit.regime || 'critical_avalanches') : 'baseline']
+    ];
+    keyValues($('criticality-hud'), critMetrics);
+  }
+
+  // Holographic VSA / HRR Compositional Working Memory HUD
+  const vsa = s.telemetry?.holographic_vsa || {};
+  if ($('vsa-badge')) {
+    $('vsa-badge').textContent = vsa.enabled ? `cos=${Number(vsa.retrieval_cosine || 0).toFixed(3)} · ${vsa.bound_episodes || 0} bound` : 'Standby';
+    setTone($('vsa-badge'), vsa.enabled ? 'good' : 'muted');
+  }
+  if ($('vsa-hud')) {
+    const vsaMetrics = [
+      ['Holographic Trace R^64', vsa.enabled ? `Active · ${vsa.bound_episodes || 0} episodes superposed` : 'Disabled (enable in Session Config)'],
+      ['Trace Norm ||M||₂', vsa.enabled ? `${Number(vsa.trace_norm || 0).toFixed(4)} (bounded ≤ 2.50)` : '—'],
+      ['Unbinding Resonance', vsa.enabled ? `max cosine=${Number(vsa.retrieval_cosine || 0).toFixed(4)}` : '—'],
+      ['Retrieval SNR (dB)', vsa.enabled ? `${Number(vsa.retrieval_snr_db || 0).toFixed(2)} dB` : '—'],
+      ['Binding Algebra', vsa.enabled ? 'FFT Circular Convolution (HRR)' : '—']
+    ];
+    keyValues($('vsa-hud'), vsaMetrics);
+  }
+
   // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
@@ -1671,13 +1708,45 @@ async function tick(steps = 1, learn = $('learn').checked, actionVec = null) {
   try {
     const payload = { steps, learn };
     if (actionVec) payload.action = actionVec;
-    render(await api('step', payload));
+    const t0 = performance.now();
+    const nextState = await api('step', payload);
+    const dtSec = Math.max(0.001, (performance.now() - t0) / 1000);
+    const instSps = steps / dtSec;
+    liveSpsEma = liveSpsEma > 0 ? 0.75 * liveSpsEma + 0.25 * instSps : instSps;
+    render(nextState);
+    if (running) {
+      const isUncapped = Number($('simspeed')?.value) === 0;
+      $('runstatus').textContent = isUncapped
+        ? `Running · MAX Uncapped (${liveSpsEma.toFixed(1)} steps/s)`
+        : `Running (${liveSpsEma.toFixed(1)} steps/s)`;
+    }
   } finally {
     busy = false;
+    if (running && Number($('simspeed')?.value) === 0) {
+      scheduleUncappedTick();
+    }
   }
 }
 
+function scheduleUncappedTick() {
+  if (uncappedLoopTimer) clearTimeout(uncappedLoopTimer);
+  uncappedLoopTimer = setTimeout(() => {
+    uncappedLoopTimer = null;
+    if (running && Number($('simspeed')?.value) === 0 && !busy) {
+      action(() => tick(Number($('simsteps').value)));
+    }
+  }, 0);
+}
+
 function updateSimSpeed() {
+  const rawSpeed = Number($('simspeed').value);
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  if (uncappedLoopTimer) { clearTimeout(uncappedLoopTimer); uncappedLoopTimer = null; }
+  if (rawSpeed === 0) {
+    tickInterval = 0;
+    if (running) scheduleUncappedTick();
+    return;
+  }
   tickInterval = Number($('simspeed').value) || 125;
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(() => {
@@ -1698,8 +1767,16 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   }
 });
 
-$('run').onclick = () => { running = true; $('runstatus').textContent = 'Running'; };
-$('pause').onclick = () => { running = false; $('runstatus').textContent = 'Paused'; };
+$('run').onclick = () => {
+  running = true;
+  $('runstatus').textContent = Number($('simspeed')?.value) === 0 ? 'Running · MAX Uncapped' : 'Running';
+  updateSimSpeed();
+};
+$('pause').onclick = () => {
+  running = false;
+  if (uncappedLoopTimer) { clearTimeout(uncappedLoopTimer); uncappedLoopTimer = null; }
+  $('runstatus').textContent = 'Paused';
+};
 $('step').onclick = () => action(() => tick(1));
 $('train').onclick = () => action(() => tick(32, true));
 for (const id of ['training-active', 'training-threads']) $(id).onchange = () => { $(id).dataset.dirty = 'true'; };
@@ -1811,6 +1888,8 @@ $('config').onsubmit = e => {
   config.verifiable_dpo = !!e.target.elements.verifiable_dpo?.checked;
   config.dvgem_memory = !!e.target.elements.dvgem_memory?.checked;
   config.tether_coordinator = !!e.target.elements.tether_coordinator?.checked;
+  config.criticality_homeostat = !!e.target.elements.criticality_homeostat?.checked;
+  config.holographic_vsa = !!e.target.elements.holographic_vsa?.checked;
   config.programmed_connectome = e.target.elements.programmed_connectome ? !!e.target.elements.programmed_connectome.checked : (state.config?.programmed_connectome ?? true);
   config.planner_algorithm = e.target.elements.planner_algorithm?.value || state.config?.planner_algorithm || 'experience_mpc';
   config.experience_planning = state.config?.experience_planning ?? false;
@@ -2104,6 +2183,15 @@ if ($('dvgem-tether-btn')) {
   });
 }
 
+if ($('criticality-vsa-btn')) {
+  $('criticality-vsa-btn').onclick = () => action(async () => {
+    show('criticalityvsaresult', { status: 'running Connectome Reservoir Criticality & 6-Pair Holographic VSA Binding Assay...' });
+    const res = await api('criticality_vsa', {});
+    show('criticalityvsaresult', res);
+    render(await api('state'));
+  });
+}
+
 if ($('controlled-study-btn')) {
   $('controlled-study-btn').onclick = () => action(async () => {
     show('controlledstudyresult', { status: 'running 6-Arm Continual Ablation Study across sequential stages...' });
@@ -2166,8 +2254,8 @@ if ($('training-intensive')) {
 
 function setAllControlsToMaxUI() {
   $('learn').checked = true;
-  if ($('simspeed')) { $('simspeed').value = '50'; updateSimSpeed(); }
-  if ($('simsteps')) $('simsteps').value = '16';
+  if ($('simspeed')) { $('simspeed').value = '0'; updateSimSpeed(); }
+  if ($('simsteps')) $('simsteps').value = '32';
   if ($('training-threads')) {
     const maxOpt = Math.max(...[...$('training-threads').options].filter(o => !o.disabled).map(o => Number(o.value) || 1));
     $('training-threads').value = String(maxOpt || 8);
@@ -2196,7 +2284,7 @@ function setAllControlsToMaxUI() {
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-      'dvgem_memory', 'tether_coordinator', 'programmed_connectome'
+      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -2262,6 +2350,7 @@ async function runTandemMaxMode() {
       show('spectralresult', res.section_03.spectral);
       show('diffusiondporesult', res.section_03.diffusion_dpo);
       if (res.section_03.dvgem_tether) show('dvgemtetherresult', res.section_03.dvgem_tether);
+      if (res.section_03.criticality_vsa) show('criticalityvsaresult', res.section_03.criticality_vsa);
     }
     // Populate Section 04 panels
     if (res.section_04) {
@@ -2295,7 +2384,8 @@ async function runTandemMaxMode() {
     await refreshTraining();
     omnibusLastPoll = 0;
     running = true;
-    $('runstatus').textContent = 'Running · Tandem Max Active';
+    $('runstatus').textContent = 'Running · Tandem Max Active (MAX Uncapped Speed)';
+    updateSimSpeed();
   } finally {
     if ($('btn-tandem-max')) {
       $('btn-tandem-max').disabled = false;

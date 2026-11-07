@@ -70,9 +70,10 @@
           <option value="125" selected>2x (125ms)</option>
           <option value="50">5x (50ms)</option>
           <option value="20">10x (20ms)</option>
+          <option value="0">MAX · Uncapped (∞ SPS)</option>
         </select>
       </label>
-      <label>Steps / tick <select id="simsteps" class="toolbar-select"><option selected>4</option><option>16</option><option>32</option></select></label>
+      <label>Steps / tick <select id="simsteps" class="toolbar-select"><option selected>4</option><option>16</option><option>32</option><option>64</option><option>128</option></select></label>
       <label>Quick Task:
         <select id="quicktask" class="toolbar-select">
           <option value="">(Current)</option>
@@ -382,6 +383,27 @@
         </div>
         <div id="tether-hud" class="keyvalues cognition-values"></div>
       </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Self-Organized Criticality (SOC) Avalanche &amp; Reservoir Homeostat</h2>
+            <span class="tag">BRANCHING RATIO σ_t · POWER-LAW τ · RESERVOIR MEMORY CAPACITY</span>
+          </div>
+          <span id="criticality-badge" class="tag cognition-tag">Criticality σ*</span>
+        </div>
+        <div id="criticality-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Holographic VSA / HRR Compositional Working Memory</h2>
+            <span class="tag">FFT CIRCULAR CONVOLUTION ⊛ · ROLE-FILLER UNBINDING R^64</span>
+          </div>
+          <span id="vsa-badge" class="tag thrust-tag">VSA Trace</span>
+        </div>
+        <div id="vsa-hud" class="keyvalues cognition-values"></div>
+      </article>
+      </article>
     </div>
 
     <!-- CONFIGURATION -->
@@ -448,6 +470,8 @@
         <label><input name="verifiable_dpo" type="checkbox"> Verifiable Preference DPO</label>
         <label><input name="dvgem_memory" type="checkbox"> Poseidon DV-GEM Belief Memory</label>
         <label><input name="tether_coordinator" type="checkbox"> Project TETHER + Poincaré/Lyapunov</label>
+        <label><input name="criticality_homeostat" type="checkbox"> SOC Criticality Homeostat</label>
+        <label><input name="holographic_vsa" type="checkbox"> Holographic VSA Memory</label>
         <label><input name="programmed_connectome" type="checkbox" checked> MaleCNS Programmed Prior</label>
         <button>Reset session</button>
       </form>
@@ -657,6 +681,14 @@
           <button id="dvgem-tether-btn" class="primary">Run 6-Arm DV-GEM &amp; TETHER Assay</button>
         </div>
         <pre id="dvgemtetherresult"></pre>
+      </article>
+      <article>
+        <h2>Connectome Echo-State Reservoir Criticality &amp; Holographic VSA Binding Assay</h2>
+        <p class="muted">Evaluates Jaeger Short-Term Memory Capacity (MC), chaotic time-series prediction NRMSE, branching ratio σ_t, and 6-pair circular convolution HRR unbinding SNR.</p>
+        <div class="toolbar">
+          <button id="criticality-vsa-btn" class="primary">Run SOC Reservoir &amp; VSA Binding Assay</button>
+        </div>
+        <pre id="criticalityvsaresult"></pre>
       </article>
     </div>
   </section>

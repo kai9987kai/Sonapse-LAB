@@ -239,3 +239,68 @@ def test_expanded_mega_arenas_continental_biosphere_and_chrono_tidepool(tmp_path
     assert res['status'] == 'completed'
     assert 'dvgem_6arm_lesion' in res
     assert 'tether_coordinator' in res
+
+
+def test_uncapped_speed_and_criticality_vsa_working_memory(tmp_path):
+    from pathlib import Path
+    from synapse.criticality_vsa import CriticalityAvalancheEngine, HolographicVSAWorkingMemory
+
+    # 1. Verify Uncapped Steps Per Second option in index.html & Max Mode wiring in app.js
+    web_root = Path(__file__).resolve().parent.parent / 'synapse' / 'web'
+    html_text = (web_root / 'index.html').read_text(encoding='utf-8')
+    js_text = (web_root / 'app.js').read_text(encoding='utf-8')
+    assert '<option value="0">MAX · Uncapped (∞ SPS)</option>' in html_text
+    assert 'scheduleUncappedTick' in js_text
+    assert "$('simspeed').value = '0'" in js_text
+
+    # 2. Verify CriticalityAvalancheEngine (frozen invariance + reservoir criticality assay)
+    crit = CriticalityAvalancheEngine(seed=42)
+    rng = np.random.default_rng(42)
+    rates = rng.normal(0.0, 0.35, size=(120,)).astype(np.float32)
+    pooled = torch.from_numpy(rng.normal(0.0, 0.25, size=(32,)).astype(np.float32))
+    before_crit = digest(crit.export_state())
+    mod_pooled, summary_frozen = crit.step(rates, pooled, learn=False)
+    assert digest(crit.export_state()) == before_crit
+    assert mod_pooled.shape == (32,)
+    assert summary_frozen['enabled'] is True
+
+    _, summary_learn = crit.step(rates, pooled, learn=True)
+    assert digest(crit.export_state()) != before_crit
+    assert 0.80 <= summary_learn['critical_gain'] <= 1.25
+    res_assay = crit.run_reservoir_criticality_assay(seed=42)
+    assert res_assay['schema'] == 'connectome-reservoir-criticality-v1'
+    assert res_assay['total_memory_capacity_mc'] > 0.5
+    assert 0.0 <= res_assay['chaotic_timeseries_nrmse'] < 2.0
+
+    # 3. Verify HolographicVSAWorkingMemory (FFT circular convolution + 6-pair binding assay)
+    vsa = HolographicVSAWorkingMemory(dim=64, seed=42)
+    obs = rng.normal(0.0, 0.3, size=(155,)).astype(np.float32)
+    act = np.array([0.8, -0.2, 0.1, 0.0, 0.0], dtype=np.float32)
+    vsa.record_transition(pooled.numpy(), obs, act, reward=0.75)
+    before_vsa = digest(vsa.export_state())
+    res_32, vsa_summary = vsa.step(pooled, obs, learn=False)
+    assert digest(vsa.export_state()) == before_vsa
+    assert res_32.shape == (32,)
+    assert vsa_summary['bound_episodes'] == 1
+    assert vsa_summary['trace_norm'] > 0.0
+
+    vsa_assay = vsa.run_vsa_binding_assay()
+    assert vsa_assay['schema'] == 'holographic-vsa-6pair-assay-v1'
+    assert vsa_assay['exact_selective_recovery'] is True
+    assert vsa_assay['separation_margin'] > 0.12
+
+    # 4. Verify live agent + Workbench endpoint integration
+    cfg = SynapseConfig(
+        nodes_per_source=16,
+        seed=7,
+        criticality_homeostat=True,
+        holographic_vsa=True,
+    )
+    wb = Workbench(config=cfg, output_root=tmp_path)
+    step_snap = wb.post('/api/step', {'steps': 2, 'learn': True})
+    assert step_snap['telemetry']['criticality_homeostat']['enabled'] is True
+    assert step_snap['telemetry']['holographic_vsa']['enabled'] is True
+    api_res = wb.post('/api/criticality_vsa', {'seed': 42})
+    assert api_res['status'] == 'completed'
+    assert 'reservoir_criticality_assay' in api_res
+    assert 'vsa_binding_assay' in api_res

@@ -171,6 +171,8 @@ class LabRuntime:
             'verifiable_dpo':deepcopy(self.last.get('verifiable_dpo',{'enabled':bool(self.config.verifiable_dpo)})),
             'dvgem':deepcopy(self.last.get('dvgem',{'enabled':bool(self.config.dvgem_memory)})),
             'tether_coordinator':deepcopy(self.last.get('tether_coordinator',{'enabled':bool(self.config.tether_coordinator)})),
+            'criticality_homeostat':deepcopy(self.last.get('criticality_homeostat',{'enabled':bool(self.config.criticality_homeostat)})),
+            'holographic_vsa':deepcopy(self.last.get('holographic_vsa',{'enabled':bool(self.config.holographic_vsa)})),
         }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()

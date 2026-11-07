@@ -206,8 +206,12 @@ class Workbench:
                 if type(dvgem) is not bool: raise ValueError('dvgem_memory must be boolean')
                 tether=data.get('tether_coordinator',getattr(self.runtime.config,'tether_coordinator',False))
                 if type(tether) is not bool: raise ValueError('tether_coordinator must be boolean')
+                criticality=data.get('criticality_homeostat',getattr(self.runtime.config,'criticality_homeostat',False))
+                if type(criticality) is not bool: raise ValueError('criticality_homeostat must be boolean')
+                vsa=data.get('holographic_vsa',getattr(self.runtime.config,'holographic_vsa',False))
+                if type(vsa) is not bool: raise ValueError('holographic_vsa must be boolean')
                 threads=integer(data.get('threads',self.runtime.config.compute_threads),'threads',1,__import__('os').cpu_count() or 1)
-                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,dendritic_ltc=dendritic,oscillatory_coherence=oscillatory,verifiable_dpo=dpo,dvgem_memory=dvgem,tether_coordinator=tether,compute_threads=threads)
+                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,dendritic_ltc=dendritic,oscillatory_coherence=oscillatory,verifiable_dpo=dpo,dvgem_memory=dvgem,tether_coordinator=tether,criticality_homeostat=criticality,holographic_vsa=vsa,compute_threads=threads)
                 from .compute import configure_torch
                 configure_torch(threads)
                 self.runtime.config=config; self.runtime.agent.config=config
@@ -418,6 +422,12 @@ class Workbench:
                     batch_size=integer(data.get('batch_size', 256), 'batch_size', 16, 1024),
                     online_steps=integer(data.get('online_steps', 12), 'online_steps', 1, 128),
                     workers=data.get('workers'),
+                )
+            if path=='/api/criticality_vsa':
+                from .tandem_max import run_criticality_and_vsa_assay
+                return run_criticality_and_vsa_assay(
+                    self.runtime,
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
                 )
             if path=='/api/tandem/max':
                 from .tandem_max import run_tandem_max_orchestration

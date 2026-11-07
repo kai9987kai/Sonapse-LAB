@@ -109,6 +109,8 @@ class IntegratedAgent:
         self.dpo_engine=None
         self.dvgem_memory=None
         self.tether_coordinator=None
+        self.criticality_homeostat=None
+        self.holographic_vsa=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -143,6 +145,12 @@ class IntegratedAgent:
             if getattr(self.config, 'tether_coordinator', False) and self.tether_coordinator is None:
                 from .dvgem_tether import TetherSuccessorCoordinator
                 self.tether_coordinator = TetherSuccessorCoordinator(seed=self.config.seed)
+            if getattr(self.config, 'criticality_homeostat', False) and self.criticality_homeostat is None:
+                from .criticality_vsa import CriticalityAvalancheEngine
+                self.criticality_homeostat = CriticalityAvalancheEngine(seed=self.config.seed)
+            if getattr(self.config, 'holographic_vsa', False) and self.holographic_vsa is None:
+                from .criticality_vsa import HolographicVSAWorkingMemory
+                self.holographic_vsa = HolographicVSAWorkingMemory(seed=self.config.seed)
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -196,6 +204,8 @@ class IntegratedAgent:
         if getattr(self, 'oscillatory_coherence', None) is not None: self.oscillatory_coherence.reset()
         if getattr(self, 'dvgem_memory', None) is not None: self.dvgem_memory.reset_state()
         if getattr(self, 'tether_coordinator', None) is not None: self.tether_coordinator.reset()
+        if getattr(self, 'criticality_homeostat', None) is not None: self.criticality_homeostat.reset()
+        if getattr(self, 'holographic_vsa', None) is not None: self.holographic_vsa.reset()
         self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
@@ -275,6 +285,13 @@ class IntegratedAgent:
                     read=self.evoked
                     gate_alpha=1.0
             pooled=self._pooled(read)
+            criticality_info = None
+            if getattr(self, 'criticality_homeostat', None) is not None:
+                pooled, criticality_info = self.criticality_homeostat.step(r.detach().numpy(), pooled, learn=learn)
+            vsa_info = None
+            if getattr(self, 'holographic_vsa', None) is not None:
+                vsa_delta, vsa_info = self.holographic_vsa.step(pooled, obs)
+                pooled = pooled + 0.04 * torch.tanh(vsa_delta)
             dendritic_info = None
             if getattr(self, 'dendritic_ltc', None) is not None:
                 apical_ctx = torch.cat([self.hidden[0, :16], self.intent, mbon])
@@ -295,6 +312,13 @@ class IntegratedAgent:
             if self.fast_weight_memory is not None:
                 fmem_out, _ = self.fast_weight_memory(pooled.unsqueeze(0))
                 pooled = pooled + 0.05 * torch.tanh(fmem_out.squeeze(0))
+            criticality_info = None
+            if getattr(self, 'criticality_homeostat', None) is not None:
+                pooled, criticality_info = self.criticality_homeostat.step(r.detach().numpy(), pooled, learn=learn)
+            vsa_info = None
+            if getattr(self, 'holographic_vsa', None) is not None:
+                vsa_res, vsa_info = self.holographic_vsa.step(pooled, obs, learn=learn)
+                pooled = pooled + 0.03 * torch.tanh(vsa_res)
             # Dormant candidates participate only when novelty recruits one; unused weights persist.
             novelty=float((r-previous).abs().mean()); preferred_expert=int(self.intent.argmax())%2
             if getattr(self.config, 'dormant_lifecycle', True):
@@ -395,6 +419,7 @@ class IntegratedAgent:
             v_res = float(min(self.homeostasis.state.energy, self.homeostasis.state.health)) if hasattr(self, 'homeostasis') else 1.0
             executed, dvgem_diag = self.dvgem_memory.query_and_gate(obs, executed, viability_reserve=v_res)
         tether_diag=None
+        # Holographic VSA transition recording is performed in observe_transition.
         if getattr(self, 'tether_coordinator', None) is not None:
             proposals = {'base_actor': base_act, 'neural_graft': graft_act, 'planner': planner_act, 'dvgem': executed.copy()}
             executed, tether_diag = self.tether_coordinator.coordinate_specialists(
@@ -422,6 +447,8 @@ class IntegratedAgent:
         if coherence_info is not None: self.last_telemetry['oscillatory_coherence']=coherence_info
         if dvgem_diag is not None: self.last_telemetry['dvgem']=dvgem_diag
         if tether_diag is not None: self.last_telemetry['tether_coordinator']=tether_diag
+        if criticality_info is not None: self.last_telemetry['criticality_homeostat']=criticality_info
+        if vsa_info is not None: self.last_telemetry['holographic_vsa']=vsa_info
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
@@ -493,6 +520,11 @@ class IntegratedAgent:
         if getattr(self, 'dvgem_memory', None) is not None and getattr(self, 'last_obs', None) is not None:
             v_res = float(min(self.homeostasis.state.energy, self.homeostasis.state.health)) if hasattr(self, 'homeostasis') else 1.0
             diagnostics['dvgem'] = self.dvgem_memory.record_transition(self.last_obs, executed, float(reward), observation, viability_reserve=v_res)
+        if getattr(self, 'holographic_vsa', None) is not None and getattr(self, 'last_obs', None) is not None:
+            diagnostics['holographic_vsa'] = self.holographic_vsa.record_transition(
+                self.last_features[:32], self.last_obs, executed, float(reward)
+            )
+        # Holographic VSA transition recording is performed in observe_transition.
         if getattr(self, 'tether_coordinator', None) is not None:
             diagnostics['tether_coordinator'] = self.tether_coordinator.update_successor_td(
                 state, executed, float(reward), next_state, executed, done=bool(done)
@@ -642,6 +674,8 @@ class IntegratedAgent:
         state['dpo_engine']=self.dpo_engine.export_state() if getattr(self,'dpo_engine',None) is not None else None
         state['dvgem_memory']=self.dvgem_memory.export_state() if getattr(self,'dvgem_memory',None) is not None else None
         state['tether_coordinator']=self.tether_coordinator.export_state() if getattr(self,'tether_coordinator',None) is not None else None
+        state['criticality_homeostat']=self.criticality_homeostat.export_state() if getattr(self,'criticality_homeostat',None) is not None else None
+        state['holographic_vsa']=self.holographic_vsa.export_state() if getattr(self,'holographic_vsa',None) is not None else None
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
         return state
@@ -740,6 +774,10 @@ class IntegratedAgent:
             self.dvgem_memory.import_state(state['dvgem_memory'])
         if getattr(self,'tether_coordinator',None) is not None and state.get('tether_coordinator') is not None:
             self.tether_coordinator.import_state(state['tether_coordinator'])
+        if getattr(self,'criticality_homeostat',None) is not None and state.get('criticality_homeostat') is not None:
+            self.criticality_homeostat.import_state(state['criticality_homeostat'])
+        if getattr(self,'holographic_vsa',None) is not None and state.get('holographic_vsa') is not None:
+            self.holographic_vsa.import_state(state['holographic_vsa'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))
         self.source_provenance=deepcopy(state.get('source_provenance',self.source_provenance))
 

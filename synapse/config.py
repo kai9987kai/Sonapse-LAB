@@ -43,6 +43,8 @@ class SynapseConfig:
     verifiable_dpo: bool = False
     dvgem_memory: bool = False
     tether_coordinator: bool = False
+    criticality_homeostat: bool = False
+    holographic_vsa: bool = False
 
     def __post_init__(self):
         for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
@@ -50,7 +52,7 @@ class SynapseConfig:
                     'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all',
                     'neural_graft','active_training','programmed_connectome','structural_learning',
                     'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-                    'dvgem_memory', 'tether_coordinator'):
+                    'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa'):
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
@@ -118,6 +120,8 @@ class SynapseConfig:
             verifiable_dpo=True,
             dvgem_memory=True,
             tether_coordinator=True,
+            criticality_homeostat=True,
+            holographic_vsa=True,
             compute_threads=min(4,os.cpu_count() or 1),
             connectome_mode='prefer_authentic',
         )
@@ -154,6 +158,8 @@ class SynapseConfig:
             verifiable_dpo=True,
             dvgem_memory=True,
             tether_coordinator=True,
+            criticality_homeostat=True,
+            holographic_vsa=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
@@ -184,7 +190,7 @@ class SynapseConfig:
                       'compute_threads':1,'graft_batch_size':64,'graft_updates':2,'connectome_mode':'proxy',
                       'structural_learning':True,
                       'dendritic_ltc':False,'oscillatory_coherence':False,'verifiable_dpo':False,
-                      'dvgem_memory':False,'tether_coordinator':False,
+                      'dvgem_memory':False,'tether_coordinator':False,'criticality_homeostat':False,'holographic_vsa':False,
                       'connectome_sources': ('flywire', 'manc', 'optic-lobe'), **saved}
         if isinstance(normalized.get('connectome_sources'), list):
             normalized['connectome_sources'] = tuple(normalized['connectome_sources'])

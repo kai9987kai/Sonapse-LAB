@@ -156,6 +156,31 @@ def run_dvgem_and_tether_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     }
 
 
+def run_criticality_and_vsa_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Run Connectome Echo-State Reservoir Criticality Assay and 6-Pair Holographic VSA Binding Assay."""
+    from .criticality_vsa import CriticalityAvalancheEngine, HolographicVSAWorkingMemory
+
+    t0 = time.perf_counter()
+    agent = runtime.agent
+    crit = getattr(agent, 'criticality_homeostat', None) or CriticalityAvalancheEngine(seed=seed)
+    vsa = getattr(agent, 'holographic_vsa', None) or HolographicVSAWorkingMemory(seed=seed)
+
+    rates = agent.brain.r.detach().numpy()
+    pooled = agent._pooled(agent.brain.r.detach())
+    _, live_crit_summary = crit.step(rates, pooled, learn=False)
+    reservoir_report = crit.run_reservoir_criticality_assay(seed=seed)
+    vsa_report = vsa.run_vsa_binding_assay()
+
+    return {
+        'status': 'completed',
+        'evidence_kind': 'connectome_reservoir_criticality_and_vsa_assay',
+        'live_criticality': live_crit_summary,
+        'reservoir_criticality_assay': reservoir_report,
+        'vsa_binding_assay': vsa_report,
+        'wallclock_ms': round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+
+
 def run_causal_9arm_and_scorecard(
     runtime,
     steps_per_arm: int = 12,
@@ -449,6 +474,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         }
         diffusion_dpo_res = run_diffusion_and_dpo_assay(runtime, horizon=5, seed=seed)
         dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
+        criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
 
         section_03 = {
             'section': '03 · Weight-Space Patches & Mechanistic Assays',
@@ -464,6 +490,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
             'spectral': spectral_res,
             'diffusion_dpo': diffusion_dpo_res,
             'dvgem_tether': dvgem_tether_res,
+            'criticality_vsa': criticality_vsa_res,
         }
 
         # -------------------------------------------------------------------
