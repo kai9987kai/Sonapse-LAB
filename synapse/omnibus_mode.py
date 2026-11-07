@@ -159,7 +159,12 @@ class OmnibusRunner:
         Recurrent state and synthetic physiology start identically in each episode.
         No outcome is observed by a learner and no live state is changed.
         """
-        candidate = deepcopy(agent)
+        try:
+            candidate = deepcopy(agent)
+        except Exception:
+            from .agent import IntegratedAgent
+            candidate = IntegratedAgent(agent.config)
+            candidate.import_state(agent.export_state())
         frozen = candidate.export_state()
         scores = {}
         for task in tasks:

@@ -956,6 +956,12 @@ class IntegratedAgent:
                 if isinstance(value,torch.Tensor) and value.shape==self.brain.graft_w.shape:
                     value[indices]=0
 
+    def __deepcopy__(self, memo):
+        cloned = IntegratedAgent(self.config)
+        cloned.import_state(self.export_state())
+        memo[id(self)] = cloned
+        return cloned
+
     def export_state(self):
         state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
         state['neural_graft']=self.neural_graft.export_state() if self.neural_graft is not None else None
