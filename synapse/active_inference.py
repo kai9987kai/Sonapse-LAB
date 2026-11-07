@@ -206,3 +206,31 @@ class ActiveInferenceEngine:
             "exploration_entropy_mean": round(float(np.mean([diag["policy_entropy"]])), 4),
             "action_norm": round(float(np.linalg.norm(act)), 4),
         }
+
+
+class ActiveInferenceAgent:
+    """Convenience agent interface wrapping ActiveInferenceEngine for active inference assays."""
+
+    def __init__(self, state_dim: int = 155, action_dim: int = 5, seed: int = 42) -> None:
+        self.engine = ActiveInferenceEngine(observation_dim=state_dim, action_dim=action_dim, seed=seed)
+        self.state_dim = int(state_dim)
+        self.action_dim = int(action_dim)
+
+    def select_action(self, obs: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
+        base_act = np.zeros(self.action_dim, dtype=np.float32)
+        candidates = [base_act]
+        for i in range(self.action_dim):
+            p = np.zeros(self.action_dim, dtype=np.float32)
+            p[i] = 0.2
+            candidates.append(p)
+        cand_arr = np.array(candidates, dtype=np.float32)
+        probs, diag = self.engine.evaluate_expected_free_energy(cand_arr, obs)
+        best_idx = int(np.argmax(probs))
+        tele = {
+            'efe_scores': [float(diag.get('min_efe', 0.0))] * self.action_dim,
+            'selected_epistemic_gain': float(diag.get('epistemic_gain', 0.0)),
+            'selected_pragmatic_value': float(diag.get('pragmatic_value', 0.0)),
+            'belief_entropy': float(diag.get('policy_entropy', 0.0)),
+        }
+        return cand_arr[best_idx], tele
+

@@ -231,6 +231,42 @@ function graph() {
       });
     }
 
+    // NeuroWave-X2 Dynamic Inter-Region Communication Arcs
+    const nwState = state.agent?.telemetry?.neurowave_x2 || state.neurowave_x2;
+    if (graphMode === '3d' && ($('graph-neurowave')?.checked ?? true) && nwState?.active_routes && Array.isArray(g.lod_clusters)) {
+      const nwTick = Number(state.steps || 0);
+      nwState.active_routes.forEach((r, rIdx) => {
+        const cSrc = g.lod_clusters[r.src % g.lod_clusters.length];
+        const cDst = g.lod_clusters[r.dst % g.lod_clusters.length];
+        if (!cSrc || !cDst) return;
+        const p0 = project3D(cSrc.center[0], cSrc.center[1], cSrc.center[2]);
+        const p1 = project3D(cDst.center[0], cDst.center[1], cDst.center[2]);
+        const arcZ = Math.max(cSrc.center[2], cDst.center[2]) + 0.35;
+        const midP = project3D((cSrc.center[0] + cDst.center[0]) * 0.5, (cSrc.center[1] + cDst.center[1]) * 0.5, arcZ);
+
+        x.save();
+        x.beginPath();
+        x.moveTo(p0.x, p0.y);
+        x.quadraticCurveTo(midP.x, midP.y, p1.x, p1.y);
+        x.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        x.lineWidth = 1.6;
+        x.setLineDash([4, 4]);
+        x.stroke();
+
+        // Flowing wave packet
+        const t = (nwTick * 0.06 + rIdx * 0.22) % 1.0;
+        const qx = (1 - t) * (1 - t) * p0.x + 2 * (1 - t) * t * midP.x + t * t * p1.x;
+        const qy = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * midP.y + t * t * p1.y;
+        x.beginPath();
+        x.arc(qx, qy, 3.2, 0, Math.PI * 2);
+        x.fillStyle = '#67e8f9';
+        x.shadowColor = '#06b6d4';
+        x.shadowBlur = 6;
+        x.fill();
+        x.restore();
+      });
+    }
+
     // Optional MaleCNS 128-node Programmed Prior & Neural Graft Outer Cortical Ring
     const graftSummary = state.training?.graft || {};
     if (graftSummary.enabled) {
@@ -2098,6 +2134,27 @@ function render(s) {
       ['PID Redundancy Index', `${Number(te.redundancy_index || 0).toFixed(4)}`]
     ];
     keyValues($('te-hud'), teMetrics);
+  }
+
+  // -----------------------------------------------------------------------
+  // Sonapse NeuroWave-X2 Observatory Telemetry
+  // -----------------------------------------------------------------------
+  const nw = s.agent?.telemetry?.neurowave_x2 || s.neurowave_x2 || {};
+  if ($('neurowave-badge')) {
+    const isNwActive = nw.num_active_routes > 0 || (nw.history_wire_bits && nw.history_wire_bits.length > 0);
+    $('neurowave-badge').textContent = isNwActive ? `X2-${(nw.current_protocol || 'adaptive').toUpperCase()}` : 'X2 Standby';
+    setTone($('neurowave-badge'), isNwActive ? 'good' : 'muted');
+  }
+  if ($('neurowave-hud')) {
+    const nwMetrics = [
+      ['Active Protocol', String(nw.current_protocol || 'adaptive')],
+      ['Active Routes', String(nw.num_active_routes || (nw.active_routes ? nw.active_routes.length : 0))],
+      ['Recent Wire Bits / Step', `${Number(nw.wire_bits_recent_avg || 0).toFixed(1)} bits`],
+      ['Analytical Compute', `${Number(nw.flops_recent_avg || 0).toFixed(0)} FLOPs`],
+      ['Packet Drop Rate', `${(Number(nw.drop_rate || 0) * 100).toFixed(2)}%`],
+      ['Topology / Basis Version', `Topo v${nw.topology_version || 1} • Basis v${nw.basis_version || 1}`]
+    ];
+    keyValues($('neurowave-hud'), nwMetrics);
   }
 
   // -----------------------------------------------------------------------

@@ -126,6 +126,7 @@ class IntegratedAgent:
         self.thermodynamics=None
         self.metaplasticity_bcm=None
         self.transfer_entropy=None
+        self.neurowave_x2=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -185,6 +186,31 @@ class IntegratedAgent:
                     topology_strategy=getattr(self.config, 'neural_comm_topology', 'hybrid_causal'),
                     seed=self.config.seed,
                 )
+            if getattr(self.config, 'neurowave_x2_enabled', False) and self.neurowave_x2 is None:
+                from .neurowave_x2 import NeuroWaveX2Config, NeuroWaveX2Fabric
+                nw_cfg = NeuroWaveX2Config(
+                    enabled=True,
+                    residual_gain=float(getattr(self.config, 'neurowave_x2_gamma', 0.0)),
+                    protocol=str(getattr(self.config, 'neurowave_x2_protocol', 'adaptive')),
+                    message_dimension=int(getattr(self.config, 'neurowave_x2_dimension', 16)),
+                    precision_bits=int(getattr(self.config, 'neurowave_x2_precision_bits', 32)),
+                    spectral_modes=int(getattr(self.config, 'neurowave_x2_spectral_modes', 8)),
+                    spectral_basis=str(getattr(self.config, 'neurowave_x2_spectral_basis', 'hybrid')),
+                    phase_enabled=bool(getattr(self.config, 'neurowave_x2_phase', True)),
+                    structural_plasticity=bool(getattr(self.config, 'neurowave_x2_plasticity', False)),
+                    development_mode=bool(getattr(self.config, 'neurowave_x2_development', False)),
+                    development_level=int(getattr(self.config, 'neurowave_x2_development_level', 0)),
+                )
+                num_src = getattr(self.graph, 'num_sources', 8) or 8
+                self.neurowave_x2 = NeuroWaveX2Fabric(
+                    config=nw_cfg,
+                    num_regions=num_src,
+                    neurons_per_region=max(16, self.brain.n // max(1, num_src)),
+                    total_neurons=self.brain.n,
+                    seed=self.config.seed,
+                )
+                if self.comm_fabric is None:
+                    self.comm_fabric = self.neurowave_x2
             if getattr(self.config, 'overflow_mini_brain', False) and self.overflow_mini_brain is None:
                 from .grafted_sections import OverflowMiniBrain
                 self.overflow_mini_brain = OverflowMiniBrain(num_neurons=256, sensory_dim=155, motor_dim=5)
@@ -301,6 +327,7 @@ class IntegratedAgent:
         if getattr(self, 'criticality_homeostat', None) is not None: self.criticality_homeostat.reset()
         if getattr(self, 'holographic_vsa', None) is not None: self.holographic_vsa.reset()
         if getattr(self, 'comm_fabric', None) is not None: self.comm_fabric.reset()
+        if getattr(self, 'neurowave_x2', None) is not None: self.neurowave_x2.reset()
         if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
         if getattr(self, 'selective_ssm', None) is not None: self.selective_ssm.reset_state()
         if getattr(self, 'event_backend', None) is not None: self.event_backend.reset()
@@ -574,6 +601,8 @@ class IntegratedAgent:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'comm_fabric', None) is not None:
             self.last_telemetry['sancf'] = self.comm_fabric.get_telemetry_dict()
+        if getattr(self, 'neurowave_x2', None) is not None:
+            self.last_telemetry['neurowave_x2'] = self.neurowave_x2.get_telemetry_dict()
         if getattr(self, 'graph_diffusion', None) is not None and graph_diff_info is not None:
             self.last_telemetry['graph_diffusion'] = graph_diff_info
         if getattr(self, 'thermodynamics', None) is not None:
@@ -840,6 +869,7 @@ class IntegratedAgent:
         state['criticality_homeostat']=self.criticality_homeostat.export_state() if getattr(self,'criticality_homeostat',None) is not None else None
         state['holographic_vsa']=self.holographic_vsa.export_state() if getattr(self,'holographic_vsa',None) is not None else None
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
+        state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
         state['selective_ssm']=self.selective_ssm.state_dict() if getattr(self,'selective_ssm',None) is not None else None
         state['grafted_diffusion']=self.grafted_diffusion.export_state() if getattr(self,'grafted_diffusion',None) is not None else None
@@ -956,6 +986,8 @@ class IntegratedAgent:
             self.holographic_vsa.import_state(state['holographic_vsa'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
+        if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:
+            self.neurowave_x2.import_state(state['neurowave_x2'])
         if getattr(self,'overflow_mini_brain',None) is not None and state.get('overflow_mini_brain') is not None:
             self.overflow_mini_brain.load_state_dict(state['overflow_mini_brain'])
         if getattr(self,'selective_ssm',None) is not None and state.get('selective_ssm') is not None:

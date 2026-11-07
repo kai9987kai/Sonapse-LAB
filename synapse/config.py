@@ -74,6 +74,20 @@ class SynapseConfig:
     metaplasticity_bcm: bool = False
     transfer_entropy: bool = False
 
+    # Sonapse NeuroWave-X2 Advanced Neural Communication Platform (default OFF)
+    neurowave_x2_enabled: bool = False
+    neurowave_x2_gamma: float = 0.0
+    neurowave_x2_protocol: str = 'adaptive'
+    neurowave_x2_dimension: int = 16
+    neurowave_x2_precision_bits: int = 32
+    neurowave_x2_spectral_modes: int = 8
+    neurowave_x2_spectral_basis: str = 'hybrid'
+    neurowave_x2_phase: bool = True
+    neurowave_x2_plasticity: bool = False
+    neurowave_x2_development: bool = False
+    neurowave_x2_development_level: int = 0
+    neurowave_x2_dendritic: bool = False
+
     def __post_init__(self):
         bool_keys = (
             'experience_planning', 'surprise_memory', 'experimental_cognition',
@@ -85,7 +99,8 @@ class SynapseConfig:
             'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain',
             'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
             'meta_plasticity', 'causal_world_model', 'relational_memory',
-            'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy'
+            'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
+            'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic'
         )
         for key in bool_keys:
             if type(getattr(self, key)) is not bool:
@@ -118,6 +133,10 @@ class SynapseConfig:
             raise ValueError('neural_comm_max_aux_current must be in [0.0, 5.0]')
         if not 0.0 <= self.neural_comm_drop_rate <= 1.0:
             raise ValueError('neural_comm_drop_rate must be in [0.0, 1.0]')
+        if not 0.0 <= self.neurowave_x2_gamma <= 5.0:
+            raise ValueError('neurowave_x2_gamma must be in [0.0, 5.0]')
+        if not 1 <= self.neurowave_x2_dimension <= 512:
+            raise ValueError('neurowave_x2_dimension must be in [1, 512]')
 
         if self.readout not in {'absolute', 'evoked', 'persistent_evoked'}:
             raise ValueError('unsupported graph readout')

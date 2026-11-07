@@ -54,12 +54,12 @@ def test_web_workbench_assets_integrity():
     for task_name in ('hyper_boreal_tundra', 'subterranean_abyss', 'vortex_maelstrom'):
         assert task_name in index_html, f"Task {task_name} missing in index.html"
 
-    # Frontier V2 visualization toggles
-    for vis_toggle in ('graph-streamlines', 'graph-cluster-halos', 'world-terrain-mesh', 'world-wind-streamlines', 'world-retina-cam'):
+    # Frontier V2 & NeuroWave-X2 visualization toggles
+    for vis_toggle in ('graph-streamlines', 'graph-cluster-halos', 'graph-neurowave', 'world-terrain-mesh', 'world-wind-streamlines', 'world-retina-cam'):
         assert f'id="{vis_toggle}"' in index_html, f"Toggle #{vis_toggle} missing in index.html"
 
-    # Frontier V2 telemetry cards
-    for hud_card in ('thermo-hud', 'bcm-hud', 'te-hud'):
+    # Frontier V2 & NeuroWave-X2 telemetry cards
+    for hud_card in ('thermo-hud', 'bcm-hud', 'te-hud', 'neurowave-hud'):
         assert f'id="{hud_card}"' in index_html, f"HUD card #{hud_card} missing in index.html"
 
     # JavaScript visualization routines
