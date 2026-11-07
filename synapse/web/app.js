@@ -59,6 +59,7 @@ function error(e) {
   $('error').textContent = e.message || String(e);
   running = false;
   $('runstatus').textContent = 'Paused · request failed';
+  if ($('connection')) $('connection').textContent = '○ DISCONNECTED / RETRYING…';
 }
 
 async function action(fn) {
@@ -3505,11 +3506,14 @@ async function runTandemMaxMode() {
     const res = await api('tandem/max', {
       total_neurons: Math.max(8000, neurons),
       task,
-      pretrain_steps: 32,
-      pretrain_updates: 16,
-      batch_size: 256,
-      live_steps: 12,
-      omnibus_steps_per_task: 6
+      pretrain_steps: 16,
+      pretrain_updates: 8,
+      batch_size: 128,
+      live_steps: 8,
+      omnibus_steps_per_task: 2,
+      omnibus_eval_steps: 2,
+      six_arm_steps: 4,
+      causal_9arm_steps: 4
     });
 
     // Populate Section 01 panels
@@ -3771,16 +3775,23 @@ if ($('btn-run-ablation')) {
   });
 }
 
-action(async () => {
-  render(await api('state'));
-  catalogItems = items(await api('capabilities'));
-  renderCatalog();
-  await checkpoints();
-  await jobs();
-  await refreshTraining();
-  await refreshInventory();
-  show('skills-result', await api('reusable_skills'));
-});
+async function initSession() {
+  try {
+    const s = await api('state');
+    render(s);
+    catalogItems = items(await api('capabilities'));
+    renderCatalog();
+    await checkpoints();
+    await jobs();
+    await refreshTraining();
+    await refreshInventory();
+    show('skills-result', await api('reusable_skills'));
+  } catch (err) {
+    if ($('connection')) $('connection').textContent = 'Connecting… (synchronizing connectome)';
+    setTimeout(initSession, 1200);
+  }
+}
+action(initSession);
 
 updateSimSpeed();
 setInterval(() => action(jobs), 3000);

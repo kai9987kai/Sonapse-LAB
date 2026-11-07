@@ -401,13 +401,13 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
 
         pretrain_receipt = pretrain_runtime(
             runtime,
-            steps=int(data.get('pretrain_steps', 32)),
-            updates=int(data.get('pretrain_updates', 16)),
-            batch_size=int(data.get('batch_size', 256)),
+            steps=int(data.get('pretrain_steps', 16)),
+            updates=int(data.get('pretrain_updates', 8)),
+            batch_size=int(data.get('batch_size', 128)),
             apply=True,
             workers=workers,
         )
-        runtime.step(steps=int(data.get('live_steps', 12)), learn=True)
+        runtime.step(steps=int(data.get('live_steps', 8)), learn=True)
         plan_preview = workbench.post('/api/experience/preview', {
             'horizon': 5,
             'memory': True,
@@ -415,14 +415,15 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         })
 
         omnibus_tasks = data.get('omnibus_tasks') or (list(OMNIBUS_CURRICULUM) + ['quantum_bifurcation', 'cybernetic_sanctuary'])
-        omnibus_steps = int(data.get('omnibus_steps_per_task', 6))
+        omnibus_steps = int(data.get('omnibus_steps_per_task', 2))
+        eval_steps = int(data.get('omnibus_eval_steps', 2))
         workbench.omnibus_runner = OmnibusRunner(
             total_neurons=neurons,
             seed=seed,
             steps_per_task=max(2, min(100, omnibus_steps)),
             curriculum_tasks=list(omnibus_tasks),
             output_dir=workbench.root,
-            eval_steps=int(data.get('omnibus_eval_steps', 10)),
+            eval_steps=eval_steps,
             eval_episodes=1,
         )
         omnibus_receipt = workbench.omnibus_runner.run_full_curriculum().to_dict()

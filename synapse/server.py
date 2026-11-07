@@ -636,7 +636,7 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
     if host not in ('127.0.0.1','localhost'): raise ValueError('server must bind to IPv4 loopback')
     app=Workbench(runtime,config,output_root); web=Path(__file__).parent/'web'
     class Handler(BaseHTTPRequestHandler):
-        timeout=60
+        timeout=600
         def log_message(self,*args): pass
         def send(self,status,data,content='application/json'):
             try:
@@ -682,6 +682,18 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
 def serve(host='127.0.0.1',port=8765,**kwargs):
     server=create_server(host,port,**kwargs)
     print(f'SYNAPSE workbench: http://{host}:{server.server_port}',flush=True)
+    alt_port = 8876 if server.server_port == 8765 else 8765
+    alt_server = None
+    try:
+        alt_server = create_server(host, alt_port, runtime=server.workbench.runtime, config=kwargs.get('config'), output_root=kwargs.get('output_root'))
+        threading.Thread(target=alt_server.serve_forever, daemon=True, name=f'synapse-alt-{alt_port}').start()
+        print(f'SYNAPSE workbench dual-listener: http://{host}:{alt_server.server_port}', flush=True)
+    except Exception:
+        pass
     try: server.serve_forever()
     except KeyboardInterrupt: pass
-    finally: server.server_close()
+    finally:
+        server.server_close()
+        if alt_server:
+            try: alt_server.server_close()
+            except Exception: pass
