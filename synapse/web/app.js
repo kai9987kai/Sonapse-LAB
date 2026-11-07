@@ -282,6 +282,64 @@ function graph() {
       const point = { x: w / 2 + rx * scale * perspective, y: h / 2 + ry * scale * perspective, z: depth, node };
       nodeScreenPositions.set(node.id, point); return point;
     }).sort((a, b) => b.z - a.z);
+
+    const project3D = (px, py, pz = 0) => {
+      const rx = px * cosY - pz * sinY;
+      const rz = px * sinY + pz * cosY;
+      const ry = py * cosX - rz * sinX;
+      const depth = py * sinX + rz * cosX;
+      const perspective = 3 / (3 + depth);
+      return [w / 2 + rx * scale * perspective, h / 2 + ry * scale * perspective, depth];
+    };
+
+    // 3D Causal Geodesic Streamlines between Neuropil Clusters
+    if (graphMode === '3d' && ($('graph-streamlines')?.checked ?? true) && Array.isArray(g.streamlines)) {
+      const photonPhase = ((Number(state.steps || 0) % 25) / 25);
+      g.streamlines.forEach((sl, slIdx) => {
+        if (!sl.p0 || !sl.p1) return;
+        const pt0 = project3D(sl.p0[0], sl.p0[1], sl.p0[2]);
+        const pt1 = project3D(sl.p1[0], sl.p1[1], sl.p1[2]);
+        const midZ = (sl.p0[2] + sl.p1[2]) * 0.5 + 0.35;
+        const midPt = project3D((sl.p0[0] + sl.p1[0]) * 0.5, (sl.p0[1] + sl.p1[1]) * 0.5, midZ);
+
+        x.strokeStyle = sl.flow_type === 'sensory_to_central' ? 'rgba(93, 224, 193, 0.40)' : 'rgba(237, 188, 117, 0.40)';
+        x.lineWidth = 1.6;
+        x.setLineDash([4, 3]);
+        x.beginPath();
+        x.moveTo(pt0[0], pt0[1]);
+        x.quadraticCurveTo(midPt[0], midPt[1], pt1[0], pt1[1]);
+        x.stroke();
+        x.setLineDash([]);
+
+        const tArc = (photonPhase + slIdx * 0.18) % 1.0;
+        const px = (1 - tArc) * (1 - tArc) * pt0[0] + 2 * (1 - tArc) * tArc * midPt[0] + tArc * tArc * pt1[0];
+        const py = (1 - tArc) * (1 - tArc) * pt0[1] + 2 * (1 - tArc) * tArc * midPt[1] + tArc * tArc * pt1[1];
+        x.fillStyle = '#ffffff';
+        x.beginPath();
+        x.arc(px, py, 2.2, 0, Math.PI * 2);
+        x.fill();
+      });
+    }
+
+    // 3D LOD Neuropil Cluster Spheres & Origin Tags
+    if (graphMode === '3d' && ($('graph-cluster-halos')?.checked ?? true) && Array.isArray(g.lod_clusters)) {
+      g.lod_clusters.forEach(c => {
+        const cp = project3D(c.x, c.y, c.z);
+        const cr = Math.max(14, (c.radius || 0.45) * scale * 0.38 * (3 / (3 + cp[2])));
+        x.strokeStyle = c.role === 'sensory' ? 'rgba(93,224,193,0.30)' : c.role === 'central' ? 'rgba(128,170,255,0.30)' : 'rgba(237,188,117,0.30)';
+        x.lineWidth = 1.0;
+        x.setLineDash([2, 3]);
+        x.beginPath();
+        x.arc(cp[0], cp[1], cr, 0, Math.PI * 2);
+        x.stroke();
+        x.setLineDash([]);
+
+        x.fillStyle = c.role === 'sensory' ? '#5de0c1' : c.role === 'central' ? '#80aaff' : '#edbc75';
+        x.font = '8px Consolas, monospace';
+        x.fillText(`${c.dataset.toUpperCase()} (${c.role.slice(0, 4)}: ${c.node_count}N)`, cp[0] - cr * 0.8, cp[1] - cr - 3);
+      });
+    }
+
     let edgesDrawn = 0, graftsDrawn = 0;
     const pulsePhase = ((Number(state.steps || 0) % 20) / 20);
     const drawEdge = (edge, graft) => {
@@ -429,6 +487,170 @@ function world() {
     for (let i = 1; i < 4; i++) x.lineTo(bCorners[i][0], bCorners[i][1]);
     x.closePath();
     x.stroke();
+
+    // -----------------------------------------------------------------------
+    // Continuous 3D Topographic Elevation Wireframe Grid
+    // -----------------------------------------------------------------------
+    if (worldMode === 'iso' && ($('world-terrain-mesh')?.checked ?? true) && (s.elevation_hills?.length || s.elevation_grid?.length)) {
+      const getZ = (px, py) => {
+        let z = 0.0;
+        for (const hill of s.elevation_hills || []) {
+          const dx = px - hill.x, dy = py - hill.y;
+          const sig = hill.sigma || 1.5;
+          z += (hill.height || 0) * Math.exp(-(dx * dx + dy * dy) / (2.0 * sig * sig));
+        }
+        return z;
+      };
+
+      const step = arenaHalf > 6.0 ? 1.5 : 1.0;
+      for (let gx = -gridLimit; gx <= gridLimit; gx += step) {
+        x.beginPath();
+        let started = false;
+        for (let gy = -gridLimit; gy <= gridLimit; gy += step * 0.5) {
+          const gz = getZ(gx, gy);
+          const p = project(gx, gy, gz);
+          if (!started) { x.moveTo(p[0], p[1]); started = true; }
+          else x.lineTo(p[0], p[1]);
+        }
+        x.strokeStyle = 'rgba(74, 103, 127, 0.28)';
+        x.lineWidth = 0.6;
+        x.stroke();
+      }
+
+      for (let gy = -gridLimit; gy <= gridLimit; gy += step) {
+        x.beginPath();
+        let started = false;
+        for (let gx = -gridLimit; gx <= gridLimit; gx += step * 0.5) {
+          const gz = getZ(gx, gy);
+          const p = project(gx, gy, gz);
+          if (!started) { x.moveTo(p[0], p[1]); started = true; }
+          else x.lineTo(p[0], p[1]);
+        }
+        x.strokeStyle = 'rgba(74, 103, 127, 0.28)';
+        x.lineWidth = 0.6;
+        x.stroke();
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Dynamic Convective Wind Particle Streamlines
+    // -----------------------------------------------------------------------
+    if (($('world-wind-streamlines')?.checked ?? true) && Array.isArray(s.wind_streamlines)) {
+      const windStep = Number(state.steps || 0);
+      s.wind_streamlines.forEach((wsl, idx) => {
+        const drift = ((windStep * 0.08 + idx * 0.22) % 1.0);
+        const wx0 = wsl.x, wy0 = wsl.y;
+        const wx1 = wsl.x + (wsl.vx || 0) * 8.0;
+        const wy1 = wsl.y + (wsl.vy || 0) * 8.0;
+        const pStart = project(wx0, wy0, 0.1);
+        const pEnd = project(wx1, wy1, 0.1);
+
+        x.strokeStyle = 'rgba(93, 224, 193, 0.18)';
+        x.lineWidth = 1.0;
+        x.setLineDash([3, 4]);
+        x.beginPath();
+        x.moveTo(pStart[0], pStart[1]);
+        x.lineTo(pEnd[0], pEnd[1]);
+        x.stroke();
+        x.setLineDash([]);
+
+        const ppx = wx0 + (wx1 - wx0) * drift;
+        const ppy = wy0 + (wy1 - wy0) * drift;
+        const pp = project(ppx, ppy, 0.12);
+        x.fillStyle = 'rgba(0, 229, 255, 0.65)';
+        x.beginPath();
+        x.arc(pp[0], pp[1], 1.6, 0, Math.PI * 2);
+        x.fill();
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // 3D Geothermal Convection Geysers & Steam Vents
+    // -----------------------------------------------------------------------
+    (s.thermal_geysers || []).forEach(vent => {
+      const vp = project(vent.x, vent.y, 0.05);
+      const vr = (vent.r || 1.6) * worldScale;
+      const pulse = ((Number(state.steps || 0) % 25) / 25);
+      const pr = vr * (0.4 + 0.6 * pulse);
+
+      const ventAura = x.createRadialGradient(vp[0], vp[1], 1, vp[0], vp[1], vr);
+      ventAura.addColorStop(0, 'rgba(255, 123, 114, 0.35)');
+      ventAura.addColorStop(0.6, 'rgba(255, 166, 87, 0.15)');
+      ventAura.addColorStop(1, 'transparent');
+      x.fillStyle = ventAura;
+      x.beginPath();
+      if (worldMode === 'iso') x.ellipse(vp[0], vp[1], vr, vr * 0.58, 0, 0, Math.PI * 2);
+      else x.arc(vp[0], vp[1], vr, 0, Math.PI * 2);
+      x.fill();
+
+      x.strokeStyle = 'rgba(255, 166, 87, 0.6)';
+      x.lineWidth = 1.2;
+      x.beginPath();
+      if (worldMode === 'iso') x.ellipse(vp[0], vp[1], pr, pr * 0.58, 0, 0, Math.PI * 2);
+      else x.arc(vp[0], vp[1], pr, 0, Math.PI * 2);
+      x.stroke();
+
+      x.fillStyle = '#ffa657';
+      x.font = '8px Consolas, monospace';
+      x.fillText(`GEYSER [${vent.temp?.toUpperCase() || 'HOT'}]`, vp[0] - 25, vp[1] - 4);
+    });
+
+    // -----------------------------------------------------------------------
+    // Oceanic Vortex Maelstrom Whirlpool
+    // -----------------------------------------------------------------------
+    (s.vortices || []).forEach(vortex => {
+      const vcp = project(vortex.x, vortex.y, 0.0);
+      const vr = (vortex.r || 4.5) * worldScale;
+      const spinAngle = (Number(state.steps || 0) * 0.06) % (Math.PI * 2);
+
+      for (let arm = 0; arm < 3; arm++) {
+        const offset = arm * (Math.PI * 2 / 3) + spinAngle;
+        x.strokeStyle = 'rgba(0, 229, 255, 0.32)';
+        x.lineWidth = 1.6;
+        x.beginPath();
+        for (let t = 0.2; t <= 1.0; t += 0.05) {
+          const rCur = t * vr;
+          const aCur = offset + t * Math.PI * 1.8;
+          const px = vortex.x + Math.cos(aCur) * (rCur / worldScale);
+          const py = vortex.y + Math.sin(aCur) * (rCur / worldScale);
+          const pt = project(px, py, -t * 0.4);
+          if (t === 0.2) x.moveTo(pt[0], pt[1]);
+          else x.lineTo(pt[0], pt[1]);
+        }
+        x.stroke();
+      }
+
+      x.fillStyle = '#00e5ff';
+      x.font = '8px Consolas, monospace';
+      x.fillText('MAELSTROM EYE', vcp[0] - 28, vcp[1] - 4);
+    });
+
+    // -----------------------------------------------------------------------
+    // Bioluminescent Flora Clusters
+    // -----------------------------------------------------------------------
+    (s.bioluminescent_flora || []).forEach(flora => {
+      const fp = project(flora.x, flora.y, 0.08);
+      const fr = Math.max(6, (flora.r || 1.5) * worldScale * 0.45);
+      const col = flora.color || '#39ff14';
+
+      const g = x.createRadialGradient(fp[0], fp[1], 1, fp[0], fp[1], fr * 2.2);
+      g.addColorStop(0, col);
+      g.addColorStop(0.5, 'rgba(57, 255, 20, 0.20)');
+      g.addColorStop(1, 'transparent');
+      x.fillStyle = g;
+      x.beginPath();
+      x.arc(fp[0], fp[1], fr * 2.2, 0, Math.PI * 2);
+      x.fill();
+
+      x.fillStyle = col;
+      x.beginPath();
+      x.arc(fp[0], fp[1], 3.2, 0, Math.PI * 2);
+      x.fill();
+
+      x.fillStyle = col;
+      x.font = '7px Consolas, monospace';
+      x.fillText('LUMEN FLORA', fp[0] - 20, fp[1] - fr - 2);
+    });
 
     if (!a) {
       x.fillStyle = '#8b9daf';
@@ -690,44 +912,98 @@ function world() {
     });
 
     // -----------------------------------------------------------------------
-    // Autonomous Moving Predators & Hazard Drones
+    // -----------------------------------------------------------------------
+    // Autonomous Moving Predators & Hierarchical Hazard Ecology
     // -----------------------------------------------------------------------
     (s.predators || []).forEach(pred => {
-      const pp = project(pred.x, pred.y, 0.1);
+      const pAlt = Number(pred.altitude || 0.1);
+      const pp = project(pred.x, pred.y, pAlt);
       const prad = Math.max(4, (pred.r || 0.35) * worldScale);
-      const col = pred.color === 'purple' ? '#b066ff' : '#ec7c8d';
+      const col = pred.color === 'purple' ? '#b066ff' : (pred.color === '#ff0055' ? '#ff0055' : (pred.color === '#ec4899' ? '#ec4899' : '#ec7c8d'));
+      const pth = Number(pred.th || 0);
+
+      // Floor Shadow for elevated creatures (like Aerial Raptor)
+      if (pAlt > 0.3 && worldMode === 'iso') {
+        const sp = project(pred.x, pred.y, 0.0);
+        x.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        x.beginPath();
+        x.ellipse(sp[0], sp[1], prad * 1.5, prad * 0.8, 0, 0, Math.PI * 2);
+        x.fill();
+      }
 
       // Pulsing threat aura
       const aura = x.createRadialGradient(pp[0], pp[1], 0, pp[0], pp[1], prad * 2.2);
-      aura.addColorStop(0, pred.color === 'purple' ? 'rgba(176, 102, 255, 0.35)' : 'rgba(236, 124, 141, 0.35)');
+      aura.addColorStop(0, pred.state === 'dive' ? 'rgba(255, 30, 30, 0.55)' : (pred.color === 'purple' ? 'rgba(176, 102, 255, 0.35)' : 'rgba(236, 124, 141, 0.35)'));
       aura.addColorStop(1, 'transparent');
       x.fillStyle = aura;
       x.beginPath();
       x.arc(pp[0], pp[1], prad * 2.2, 0, Math.PI * 2);
       x.fill();
 
-      // Drone Chassis
-      x.fillStyle = col;
-      x.beginPath();
-      x.arc(pp[0], pp[1], prad, 0, Math.PI * 2);
-      x.fill();
+      // Drone / Creature Body
+      if (pred.kind === 'aerial_raptor') {
+        // Raptor Delta Wings
+        x.fillStyle = col;
+        x.beginPath();
+        const wingSpan = prad * 1.8;
+        const wx1 = pp[0] + Math.cos(pth + 2.4) * wingSpan;
+        const wy1 = pp[1] + Math.sin(pth + 2.4) * wingSpan;
+        const wx2 = pp[0] + Math.cos(pth - 2.4) * wingSpan;
+        const wy2 = pp[1] + Math.sin(pth - 2.4) * wingSpan;
+        const noseX = pp[0] + Math.cos(pth) * (prad * 1.4);
+        const noseY = pp[1] + Math.sin(pth) * (prad * 1.4);
+        x.moveTo(noseX, noseY);
+        x.lineTo(wx1, wy1);
+        x.lineTo(pp[0] - Math.cos(pth) * (prad * 0.6), pp[1] - Math.sin(pth) * (prad * 0.6));
+        x.lineTo(wx2, wy2);
+        x.closePath();
+        x.fill();
 
-      // Heading Vector
-      const pth = Number(pred.th || 0);
-      const pTipX = pred.x + Math.cos(pth) * 0.6;
-      const pTipY = pred.y + Math.sin(pth) * 0.6;
-      const pTipP = project(pTipX, pTipY, 0.1);
+        if (pred.state === 'dive') {
+          // Diving strike ray toward ground
+          x.strokeStyle = '#ff3333';
+          x.lineWidth = 1.8;
+          x.beginPath();
+          x.moveTo(pp[0], pp[1]);
+          x.lineTo(pp[0] + Math.cos(pth) * 35, pp[1] + Math.sin(pth) * 35);
+          x.stroke();
+        }
+      } else if (pred.kind === 'abyssal_leviathan') {
+        // Leviathan with acoustic sonar pulse waves
+        x.fillStyle = '#ff0055';
+        x.beginPath();
+        x.arc(pp[0], pp[1], prad * 1.3, 0, Math.PI * 2);
+        x.fill();
 
-      x.strokeStyle = '#ffffff';
-      x.lineWidth = 2.0;
-      x.beginPath(); x.moveTo(pp[0], pp[1]); x.lineTo(pTipP[0], pTipP[1]); x.stroke();
+        const pulseR = ((Number(state.steps || 0) % 20) / 20) * prad * 3.5;
+        x.strokeStyle = 'rgba(255, 0, 85, 0.55)';
+        x.lineWidth = 1.2;
+        x.beginPath();
+        x.arc(pp[0], pp[1], pulseR, 0, Math.PI * 2);
+        x.stroke();
+      } else {
+        // Standard / Stalker / Pack Drone
+        x.fillStyle = col;
+        x.beginPath();
+        x.arc(pp[0], pp[1], prad, 0, Math.PI * 2);
+        x.fill();
+
+        // Heading Vector
+        const pTipX = pred.x + Math.cos(pth) * 0.6;
+        const pTipY = pred.y + Math.sin(pth) * 0.6;
+        const pTipP = project(pTipX, pTipY, pAlt);
+
+        x.strokeStyle = '#ffffff';
+        x.lineWidth = 2.0;
+        x.beginPath(); x.moveTo(pp[0], pp[1]); x.lineTo(pTipP[0], pTipP[1]); x.stroke();
+      }
 
       x.fillStyle = col;
       x.font = '9px Consolas, monospace';
-      x.fillText(`PREDATOR · ${pred.kind || 'stalker'}`, pp[0] + prad + 4, pp[1] - 2);
+      const stateTag = pred.state ?  [] : (pred.alerted ? ' [ALERT]' : '');
+      x.fillText(${(pred.kind || 'stalker').toUpperCase()}, pp[0] + prad + 4, pp[1] - 2);
     });
 
-    // -----------------------------------------------------------------------
     // Cooperative Helper Drones & Protective Shield Aura
     // -----------------------------------------------------------------------
     (s.helper_drones || []).forEach(helper => {
@@ -943,18 +1219,93 @@ function world() {
       x.stroke();
     }
 
-    // Ambient Illumination & Day/Night Cycle
-    if (typeof s.ambient_light === 'number') {
-      const amb = s.ambient_light;
+    // -----------------------------------------------------------------------
+    // Celestial Diurnal Arc (Sun / Moon Astronomical Cycle)
+    // -----------------------------------------------------------------------
+    if (typeof s.celestial_angle === 'number' || typeof s.ambient_light === 'number') {
+      const cAng = s.celestial_angle ?? 0.0;
+      const isDay = Math.sin(cAng) >= 0;
+      const ambPct = Math.round((s.ambient_light ?? 1.0) * 100);
+
+      const amb = s.ambient_light ?? 1.0;
       if (amb < 0.85) {
         const darkAlpha = Math.max(0, Math.min(0.65, (0.85 - amb) * 0.75));
-        x.fillStyle = `rgba(5, 12, 24, ${darkAlpha.toFixed(3)})`;
+        x.fillStyle = 
+gba(5, 12, 24, );
         x.fillRect(0, 0, w, h);
       }
-      x.fillStyle = amb < 0.75 ? '#8fa5b8' : '#edbc75';
-      x.font = '10px Consolas, monospace';
-      const icon = amb < 0.75 ? '🌙 NIGHT' : '☀️ DAY';
-      x.fillText(`${icon} (Light ${Math.round(amb * 100)}%)`, w - 140, 22);
+
+      // Orbital indicator in top-left
+      const arcCx = 45, arcCy = 42, arcR = 18;
+      x.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      x.lineWidth = 1.0;
+      x.beginPath();
+      x.arc(arcCx, arcCy, arcR, 0, Math.PI * 2);
+      x.stroke();
+
+      const bodyX = arcCx + Math.cos(cAng) * arcR;
+      const bodyY = arcCy - Math.sin(cAng) * arcR;
+
+      if (isDay) {
+        x.fillStyle = '#fbbf24';
+        x.beginPath();
+        x.arc(bodyX, bodyY, 4.0, 0, Math.PI * 2);
+        x.fill();
+        x.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+        x.lineWidth = 1.2;
+        x.beginPath();
+        x.arc(bodyX, bodyY, 6.5, 0, Math.PI * 2);
+        x.stroke();
+      } else {
+        x.fillStyle = '#e2e8f0';
+        x.beginPath();
+        x.arc(bodyX, bodyY, 3.5, 0, Math.PI * 2);
+        x.fill();
+      }
+
+      x.fillStyle = isDay ? '#fbbf24' : '#94a3b8';
+      x.font = '8px Consolas, monospace';
+      x.fillText(isDay ? SOLAR % : LUNAR %, arcCx - 20, arcCy + arcR + 10);
+    }
+
+    // -----------------------------------------------------------------------
+    // Retinotopic Camera Viewfinder mini-HUD
+    // -----------------------------------------------------------------------
+    if ((world-retina-cam?.checked ?? true) && Array.isArray(s.rays) && s.rays.length > 0) {
+      const vW = 100, vH = 50;
+      const vX = w - vW - 14, vY = h - vH - 14;
+      x.fillStyle = 'rgba(8, 17, 26, 0.85)';
+      x.strokeStyle = '#20364c';
+      x.lineWidth = 1.0;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(vX, vY, vW, vH, 4);
+      else x.rect(vX, vY, vW, vH);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#5de0c1';
+      x.font = '8px Consolas, monospace';
+      x.fillText(RETINA [ RAYS 120 deg], vX + 5, vY + 10);
+
+      const rOriginX = vX + vW / 2;
+      const rOriginY = vY + vH - 5;
+      const rLen = 28;
+
+      s.rays.forEach((ray, rIdx) => {
+        if (!Array.isArray(ray) || ray.length < 2) return;
+        const rayAngle = -Math.PI / 2 + ((rIdx / (s.rays.length - 1)) - 0.5) * (Math.PI * 2 / 3);
+        const rayDist = Math.hypot(ray[0] - a.x, ray[1] - a.y);
+        const normDist = Math.max(0.1, Math.min(1.0, rayDist / 5.0));
+        const rx = rOriginX + Math.cos(rayAngle) * (rLen * normDist);
+        const ry = rOriginY + Math.sin(rayAngle) * (rLen * normDist);
+
+        x.strokeStyle = normDist < 0.4 ? 'rgba(236, 124, 141, 0.75)' : normDist < 0.7 ? 'rgba(237, 188, 117, 0.65)' : 'rgba(93, 224, 193, 0.55)';
+        x.lineWidth = 0.9;
+        x.beginPath();
+        x.moveTo(rOriginX, rOriginY);
+        x.lineTo(rx, ry);
+        x.stroke();
+      });
     }
 
     // Status overlay text
@@ -1693,6 +2044,60 @@ function render(s) {
       ['Sandbox Security Invariant', 'Strict synthetic in-memory; zero unconstrained host access']
     ];
     keyValues($('world4d-hud'), wMetrics);
+  }
+
+  // -----------------------------------------------------------------------
+  // Frontier V2 Advancements HUD: Thermodynamics, BCM Metaplasticity, Transfer Entropy
+  // -----------------------------------------------------------------------
+  const thermo = s.telemetry?.thermodynamics || {};
+  if ($('thermo-badge')) {
+    const sDot = Number(thermo.entropy_production_rate ?? 0);
+    $('thermo-badge').textContent = `S_dot = ${sDot.toFixed(2)} nats/step`;
+    setTone($('thermo-badge'), sDot > 0 ? 'good' : 'muted');
+  }
+  if ($('thermo-hud')) {
+    const thermoMetrics = [
+      ['Entropy Production Rate S_dot', `${Number(thermo.entropy_production_rate || 0).toFixed(4)} nats/step`],
+      ['Broken Detailed Balance ||J||_F', `${Number(thermo.broken_detailed_balance_norm || 0).toFixed(4)}`],
+      ['Arrow-of-Time Jensen-Shannon D_JS', `${Number(thermo.arrow_of_time_asymmetry || 0).toFixed(4)}`],
+      ['Thermodynamic Efficiency eta', `${Number(thermo.thermodynamic_efficiency || 0).toFixed(2)}%`],
+      ['Non-Equilibrium Steady State (NESS)', thermo.is_ness ? 'Active Steady State' : 'Relaxation Phase']
+    ];
+    keyValues($('thermo-hud'), thermoMetrics);
+  }
+
+  const bcm = s.telemetry?.bcm_metaplasticity || {};
+  if ($('bcm-badge')) {
+    const meanThresh = Number(bcm.mean_sliding_threshold ?? 0.5);
+    $('bcm-badge').textContent = `theta_M = ${meanThresh.toFixed(3)}`;
+    setTone($('bcm-badge'), 'good');
+  }
+  if ($('bcm-hud')) {
+    const bcmMetrics = [
+      ['BCM Sliding Threshold theta_M(t)', `${Number(bcm.mean_sliding_threshold || 0.5).toFixed(4)} [${Number(bcm.min_threshold || 0).toFixed(3)}..${Number(bcm.max_threshold || 1.5).toFixed(3)}]`],
+      ['Turrigiano Synaptic Scaling s(t)', `${Number(bcm.turrigiano_scaling_factor || 1.0).toFixed(4)}`],
+      ['Modification Gain phi(r, theta_M)', `${Number(bcm.mean_modification_gain || 0).toFixed(4)}`],
+      ['Homeostatic Target Activity r*', `${Number(bcm.target_rate || 0.1).toFixed(3)}`],
+      ['Metaplastic State Updates', `${bcm.step_count || 0} ticks`]
+    ];
+    keyValues($('bcm-hud'), bcmMetrics);
+  }
+
+  const te = s.telemetry?.transfer_entropy || {};
+  if ($('te-badge')) {
+    const teSC = Number(te.te_sensory_to_central ?? 0);
+    $('te-badge').textContent = `TE S->C = ${teSC.toFixed(3)}`;
+    setTone($('te-badge'), teSC > 0 ? 'good' : 'muted');
+  }
+  if ($('te-hud')) {
+    const teMetrics = [
+      ['Directed TE Sensory -> Central', `${Number(te.te_sensory_to_central || 0).toFixed(4)} bits`],
+      ['Directed TE Central -> Motor', `${Number(te.te_central_to_motor || 0).toFixed(4)} bits`],
+      ['Total Inter-Connectome Flux', `${Number(te.te_inter_connectome_flux || 0).toFixed(4)} bits`],
+      ['PID Synergy Index', `${Number(te.synergy_index || 0).toFixed(4)}`],
+      ['PID Redundancy Index', `${Number(te.redundancy_index || 0).toFixed(4)}`]
+    ];
+    keyValues($('te-hud'), teMetrics);
   }
 
   // -----------------------------------------------------------------------

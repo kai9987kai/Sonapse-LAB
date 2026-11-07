@@ -341,6 +341,8 @@ class Workbench:
                     if isinstance(cfg.get('connectome_sources'),list): cfg['connectome_sources']=tuple(cfg['connectome_sources'])
                     from .runtime import LabRuntime
                     self.runtime=LabRuntime(SynapseConfig(**cfg),output_root=self.root)
+                    if hasattr(self, 'sim_worker') and self.sim_worker is not None:
+                        self.sim_worker.runtime = self.runtime
                     self.receipts.clear()
                     return self.runtime.snapshot()
                 return self.runtime.reset(task=data.get('task'),seed=data.get('seed'))
@@ -637,11 +639,14 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
         timeout=60
         def log_message(self,*args): pass
         def send(self,status,data,content='application/json'):
-            raw=json.dumps(data,allow_nan=False,default=str).encode() if content=='application/json' else data
-            self.send_response(status); self.send_header('Content-Type',content); self.send_header('Content-Length',str(len(raw)))
-            self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Cache-Control','no-store')
-            self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'")
-            self.end_headers(); self.wfile.write(raw)
+            try:
+                raw=json.dumps(data,allow_nan=False,default=str).encode() if content=='application/json' else data
+                self.send_response(status); self.send_header('Content-Type',content); self.send_header('Content-Length',str(len(raw)))
+                self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Cache-Control','no-store')
+                self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'")
+                self.end_headers(); self.wfile.write(raw)
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                pass
         def local(self):
             host=self.headers.get('Host',''); parsed=urlparse('http://'+host)
             if parsed.hostname not in ('127.0.0.1','localhost') or parsed.port != self.server.server_port: return False

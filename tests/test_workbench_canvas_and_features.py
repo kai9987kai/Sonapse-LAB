@@ -50,6 +50,22 @@ def test_web_workbench_assets_integrity():
     assert 'isoSin = Math.sin(Math.PI / 6)' in app_js
     assert 'worldScale' in app_js
 
+    # New complex tasks in quicktask and config dropdowns
+    for task_name in ('hyper_boreal_tundra', 'subterranean_abyss', 'vortex_maelstrom'):
+        assert task_name in index_html, f"Task {task_name} missing in index.html"
+
+    # Frontier V2 visualization toggles
+    for vis_toggle in ('graph-streamlines', 'graph-cluster-halos', 'world-terrain-mesh', 'world-wind-streamlines', 'world-retina-cam'):
+        assert f'id="{vis_toggle}"' in index_html, f"Toggle #{vis_toggle} missing in index.html"
+
+    # Frontier V2 telemetry cards
+    for hud_card in ('thermo-hud', 'bcm-hud', 'te-hud'):
+        assert f'id="{hud_card}"' in index_html, f"HUD card #{hud_card} missing in index.html"
+
+    # JavaScript visualization routines
+    for js_feature in ('graph-streamlines', 'cluster-halos', 'terrain-mesh', 'wind-streamlines', 'retina-cam', 'aerial_raptor', 'abyssal_leviathan', 'vortices'):
+        assert js_feature in app_js, f"JS feature {js_feature} missing in app.js"
+
 
 def test_isometric_projection_mathematical_invariants():
     """Verify mathematically that the isometric projection preserves uniform aspect ratio without warping."""

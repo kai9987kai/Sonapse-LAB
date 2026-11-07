@@ -96,6 +96,9 @@
           <option value="cybernetic_sanctuary">cybernetic_sanctuary (Cooperative Helper Drones)</option>
           <option value="continental_biosphere">continental_biosphere (17x17 Mega-Biome + Wormholes)</option>
           <option value="chrono_tidepool_citadel">chrono_tidepool_citadel (15x15 Aliased Surge + Portals)</option>
+          <option value="hyper_boreal_tundra">hyper_boreal_tundra (18x18 Glacial Mega-Biome &amp; Frost Raptor)</option>
+          <option value="subterranean_abyss">subterranean_abyss (Dark Cavern &amp; Blind Leviathan)</option>
+          <option value="vortex_maelstrom">vortex_maelstrom (Central Whirlpool &amp; Coriolis Drag)</option>
           <option value="world4d_tesseract_bypass">world4d_tesseract_bypass (4D Hypercube Navigation)</option>
           <option value="digital_tool_arena">digital_tool_arena (Permissioned Synthetic Tool Arena)</option>
         </select>
@@ -159,6 +162,8 @@
           <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option>4000</option><option>6000</option><option>6500</option><option selected>8000</option></select></label>
           <label>Edge budget<select id="graph-edges"><option>0</option><option>200</option><option>500</option><option selected>1600</option><option>3200</option></select></label>
           <label class="toggle-label"><input id="graph-grafts" type="checkbox" checked> Executing graft links</label>
+          <label class="toggle-label"><input id="graph-streamlines" type="checkbox" checked> 3D Causal Streamlines</label>
+          <label class="toggle-label"><input id="graph-cluster-halos" type="checkbox" checked> Neuropil Halos</label>
           <button id="graph-camera-reset" title="Reset orbit and zoom">Reset view</button>
         </div>
         <div class="canvas-wrap">
@@ -186,7 +191,7 @@
           <canvas id="world" height="350"></canvas>
           <div id="world-tooltip" class="canvas-tooltip"></div>
         </div>
-        <div class="world-controls"><label><input id="world-trails" type="checkbox" checked> Recent trajectory</label><label><input id="world-goals" type="checkbox" checked> Goal markers</label><button id="world-clear-trail">Clear trail</button></div>
+        <div class="world-controls"><label><input id="world-trails" type="checkbox" checked> Recent trajectory</label><label><input id="world-goals" type="checkbox" checked> Goal markers</label><label><input id="world-terrain-mesh" type="checkbox" checked> 3D Terrain Heightmap</label><label><input id="world-wind-streamlines" type="checkbox" checked> Wind Particles</label><label><input id="world-retina-cam" type="checkbox" checked> Retinotopic Viewfinder</label><button id="world-clear-trail">Clear trail</button></div>
         <div id="world-legend" class="world-legend" aria-label="World legend"></div>
         <p id="world-summary" class="canvas-caption"></p>
         <div class="teleop-bar">
@@ -471,6 +476,40 @@
       </article>
     </div>
 
+    <!-- FRONTIER V2 ADVANCEMENTS DASHBOARD -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Non-Equilibrium Thermodynamics &amp; Dissipation</h2>
+            <span class="tag">S_DOT PRODUCTION &bull; BROKEN DETAILED BALANCE &bull; TIME ASYMMETRY</span>
+          </div>
+          <span id="thermo-badge" class="tag thrust-tag">S_dot Active</span>
+        </div>
+        <div id="thermo-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>BCM Metaplasticity &amp; Turrigiano Scaling</h2>
+            <span class="tag">SLIDING THRESHOLD &theta;_M(t) &bull; HOMEOSTATIC SCALING s(t)</span>
+          </div>
+          <span id="bcm-badge" class="tag cognition-tag">BCM Active</span>
+        </div>
+        <div id="bcm-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Directed Transfer Entropy &amp; PID Synergy</h2>
+            <span class="tag">S&rarr;C &bull; C&rarr;M FLUX TENSOR &bull; SYNERGY VS REDUNDANCY</span>
+          </div>
+          <span id="te-badge" class="tag thrust-tag">TE Flux Active</span>
+        </div>
+        <div id="te-hud" class="keyvalues cognition-values"></div>
+      </article>
+    </div>
+
     <!-- CONFIGURATION -->
     <article>
       <div class="panel-head">
@@ -502,6 +541,9 @@
             <option>cybernetic_sanctuary</option>
             <option>continental_biosphere</option>
             <option>chrono_tidepool_citadel</option>
+            <option>hyper_boreal_tundra</option>
+            <option>subterranean_abyss</option>
+            <option>vortex_maelstrom</option>
             <option>world4d_tesseract_bypass</option>
             <option>digital_tool_arena</option>
             <option>auto</option>

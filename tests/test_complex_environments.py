@@ -159,3 +159,91 @@ def test_puzzle_chamber_button_unlock_and_goal_reward():
     assert done is True
     assert info.get("outcome") == "success"
     assert reward >= 5.0
+
+
+def test_hyper_boreal_tundra_features_and_predators():
+    world = ComplexWorld(seed=42)
+    obs = world.reset("hyper_boreal_tundra")
+    assert obs.shape == (155,)
+    assert getattr(world, "arena_half") == 9.0
+    assert len(world.thermal_geysers) >= 2
+    assert len(world.elevation_hills) >= 2
+
+    # Verify presence of aerial raptor predator and ground stalker
+    kinds = [p["kind"] for p in world.predators]
+    assert "aerial_raptor" in kinds
+    assert "ground_stalker" in kinds
+    assert "pack_leader" in kinds
+
+    # Test snapshot contains streamlines, geysers, elevation grid
+    snap = world.snapshot()
+    assert "wind_streamlines" in snap
+    assert len(snap["wind_streamlines"]) == 16
+    assert "thermal_geysers" in snap
+    assert len(snap["thermal_geysers"]) == 2
+    assert "elevation_grid" in snap
+    assert len(snap["elevation_grid"]) == 11
+    assert "celestial_angle" in snap
+
+    # Test step execution with neutral action
+    zero_action = np.zeros(5, dtype=np.float32)
+    obs, reward, done, info = world.step(zero_action)
+    assert obs.shape == (155,)
+    assert np.isfinite(obs).all()
+
+
+def test_subterranean_abyss_flora_and_leviathan():
+    world = ComplexWorld(seed=42)
+    obs = world.reset("subterranean_abyss")
+    assert obs.shape == (155,)
+    assert getattr(world, "arena_half") == 8.0
+    assert len(world.bioluminescent_flora) >= 4
+    assert len(world.sound_tripwires) >= 2
+
+    # Check abyssal leviathan predator
+    leviathan = next((p for p in world.predators if p["kind"] == "abyssal_leviathan"), None)
+    assert leviathan is not None
+    assert leviathan["state"] == "dormant"
+
+    # Step slowly: leviathan remains dormant
+    slow_action = np.array([0.05, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    world.step(slow_action)
+    assert leviathan["state"] == "dormant"
+
+    # Step at high speed: triggers acoustic perception -> leviathan alerts and enters pursuit
+    fast_action = np.array([0.9, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    world.step(fast_action)
+    assert leviathan["state"] == "pursuit"
+    assert leviathan["alerted"] is True
+
+    snap = world.snapshot()
+    assert "bioluminescent_flora" in snap
+    assert len(snap["bioluminescent_flora"]) == 4
+
+
+def test_vortex_maelstrom_mechanics_and_wormholes():
+    world = ComplexWorld(seed=42)
+    obs = world.reset("vortex_maelstrom")
+    assert obs.shape == (155,)
+    assert getattr(world, "arena_half") == 8.0
+    assert len(world.vortices) >= 1
+    assert len(world.wormholes) == 2
+
+    vortex = world.vortices[0]
+    assert vortex["pull"] > 0
+    assert vortex["spin"] > 0
+
+    snap = world.snapshot()
+    assert "vortices" in snap
+    assert len(snap["vortices"]) == 1
+    assert "wormholes" in snap
+    assert len(snap["wormholes"]) == 2
+
+    # Position agent near wormhole alpha -> step -> agent should teleport to target
+    wh = world.wormholes[0]
+    world.a["x"] = wh["x"]
+    world.a["y"] = wh["y"]
+    zero_action = np.zeros(5, dtype=np.float32)
+    _, _, _, info = world.step(zero_action)
+    assert info.get("wormhole_teleported") is True
+

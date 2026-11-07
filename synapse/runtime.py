@@ -187,7 +187,7 @@ class LabRuntime:
         }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
-        indices=np.linspace(0,g.n-1,min(6500,g.n)).astype(int)
+        indices=np.linspace(0,g.n-1,min(8000,g.n)).astype(int)
         edge_indices=np.linspace(0,len(g.base_pre)-1,min(3200,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}
@@ -199,6 +199,15 @@ class LabRuntime:
         indices_set=set(indices.tolist())
         graft_rows=[i for i,(pre,post) in enumerate(zip(g.graft_pre,g.graft_post)) if pre in indices_set and post in indices_set and bool(self.agent.plasticity.active_mask[i])]
         result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:2400]]
+        if not hasattr(self, '_cached_observatory_struct') or self._cached_observatory_struct is None:
+            try:
+                from .observatory import NeuralObservatory
+                obs = NeuralObservatory(self.agent)
+                self._cached_observatory_struct = obs.get_structure_payload()
+            except Exception:
+                self._cached_observatory_struct = {}
+        result['graph']['lod_clusters'] = self._cached_observatory_struct.get('lod_clusters', [])
+        result['graph']['streamlines'] = self._cached_observatory_struct.get('streamlines', [])
         result['graph']['layout_scope']='schematic source/role layout; coordinates are not measured anatomy'
         return result
     def _path(self,name):
@@ -248,6 +257,7 @@ class LabRuntime:
         self.obs=data['obs']; self.total_steps=data['steps']; self.recent=data['recent']; self.last=data['last']; self.last_action=data['last_action']
         return self.snapshot()
     def reset(self,task=None,seed=None):
+        self._cached_observatory_struct = None
         cfg=replace(self.config,task=task or self.config.task,seed=self.config.seed if seed is None else seed)
         if seed is not None:
             self.config=cfg; self.agent=IntegratedAgent(cfg)
