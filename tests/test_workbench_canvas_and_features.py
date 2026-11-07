@@ -22,7 +22,7 @@ def test_web_workbench_assets_integrity():
     app_js = (web_dir / 'app.js').read_text(encoding='utf-8')
 
     # All canvases must be present
-    for canvas_id in ('graph', 'world', 'signals', 'gauges', 'predictive'):
+    for canvas_id in ('graph', 'world', 'signals', 'gauges', 'predictive', 'dendritic-canvas', 'oscillatory-canvas', 'criticality-canvas', 'vsa-canvas', 'causal-entropy-canvas', 'neurowave-canvas'):
         assert f'id="{canvas_id}"' in index_html, f"Canvas #{canvas_id} missing in index.html"
 
     # View toggle controls
@@ -42,6 +42,8 @@ def test_web_workbench_assets_integrity():
     assert '350px' in style_css
     assert '#signals, #gauges, #predictive' in style_css
     assert '185px' in style_css
+    assert '#dendritic-canvas, #oscillatory-canvas, #criticality-canvas, #vsa-canvas, #causal-entropy-canvas, #neurowave-canvas' in style_css
+    assert '150px' in style_css
     assert 'box-sizing: border-box' in style_css
 
     # JavaScript must include ResizeObserver, zero-warping projection and DPI transform handling
@@ -63,7 +65,7 @@ def test_web_workbench_assets_integrity():
         assert f'id="{hud_card}"' in index_html, f"HUD card #{hud_card} missing in index.html"
 
     # JavaScript visualization routines
-    for js_feature in ('graph-streamlines', 'cluster-halos', 'terrain-mesh', 'wind-streamlines', 'retina-cam', 'aerial_raptor', 'abyssal_leviathan', 'vortices'):
+    for js_feature in ('graph-streamlines', 'cluster-halos', 'terrain-mesh', 'wind-streamlines', 'retina-cam', 'aerial_raptor', 'abyssal_leviathan', 'vortices', 'dendriticView', 'oscillatoryView', 'criticalityView', 'vsaView', 'causalEntropyView', 'neurowaveView'):
         assert js_feature in app_js, f"JS feature {js_feature} missing in app.js"
 
 

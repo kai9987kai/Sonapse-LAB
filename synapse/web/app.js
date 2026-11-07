@@ -1527,6 +1527,634 @@ function predictiveView() {
   }
 }
 
+// -------------------------------------------------------------------------
+// Live Architecture Canvases (Frontier V2 & NeuroWave-X2)
+// -------------------------------------------------------------------------
+function dendriticView() {
+  try {
+    const [x, w, h] = canvas('dendritic-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry || {};
+    const d = telem.dendritic_ltc || {};
+    const meanTau = Number(d.mean_tau ?? 16.2);
+    const minTau = Number(d.min_tau ?? 4.0);
+    const maxTau = Number(d.max_tau ?? 32.0);
+    const dspikeRate = Number(d.dspike_rate ?? 0.14);
+    const apicalNorm = Number(d.apical_weight_norm ?? 1.85);
+    const step = Number(state.steps || 0);
+
+    const treeCx = Math.min(130, w * 0.28);
+    const somaY = h - 22;
+    const trunkTopY = 50;
+
+    x.strokeStyle = '#4ade80';
+    x.lineWidth = 1.8;
+    [[-35, 12], [-18, 16], [18, 16], [35, 12]].forEach(([dx, dy]) => {
+      x.beginPath();
+      x.moveTo(treeCx, somaY);
+      x.quadraticCurveTo(treeCx + dx * 0.5, somaY + dy * 0.5, treeCx + dx, somaY + dy);
+      x.stroke();
+    });
+
+    x.fillStyle = '#065f46';
+    x.strokeStyle = '#34d399';
+    x.lineWidth = 2;
+    x.beginPath();
+    x.arc(treeCx, somaY - 4, 7, 0, Math.PI * 2);
+    x.fill();
+    x.stroke();
+
+    const trunkGrad = x.createLinearGradient(treeCx, somaY - 11, treeCx, trunkTopY);
+    trunkGrad.addColorStop(0, '#10b981');
+    trunkGrad.addColorStop(1, '#a855f7');
+    x.strokeStyle = trunkGrad;
+    x.lineWidth = 3.0;
+    x.beginPath();
+    x.moveTo(treeCx, somaY - 11);
+    x.lineTo(treeCx, trunkTopY);
+    x.stroke();
+
+    const tuftBranches = [
+      [treeCx - 45, 18], [treeCx - 20, 14], [treeCx + 20, 14], [treeCx + 45, 18],
+      [treeCx - 60, 28], [treeCx + 60, 28]
+    ];
+    x.strokeStyle = '#c084fc';
+    x.lineWidth = 1.5;
+    tuftBranches.forEach(([tx, ty]) => {
+      x.beginPath();
+      x.moveTo(treeCx, trunkTopY);
+      x.quadraticCurveTo((treeCx + tx) * 0.5, (trunkTopY + ty) * 0.5 + 4, tx, ty);
+      x.stroke();
+    });
+
+    if (dspikeRate > 0.05 || (step % 5 === 0)) {
+      const pulsePhase = (Date.now() * 0.004) % (Math.PI * 2);
+      const activeBranch = tuftBranches[step % tuftBranches.length];
+      const haloR = 4 + 3 * Math.sin(pulsePhase);
+      x.fillStyle = 'rgba(251, 191, 36, 0.85)';
+      x.shadowColor = '#f59e0b';
+      x.shadowBlur = 10;
+      x.beginPath();
+      x.arc(activeBranch[0], activeBranch[1], Math.max(2, haloR), 0, Math.PI * 2);
+      x.fill();
+      x.shadowBlur = 0;
+    }
+
+    const cardStartX = treeCx + 75;
+    const cardW = Math.max(110, (w - cardStartX - 20) / 3);
+    const metrics = [
+      { label: 'Time Constant \u03c4_mean', val: `${meanTau.toFixed(1)} ms`, sub: `[\u03c4_min: ${minTau.toFixed(0)}, \u03c4_max: ${maxTau.toFixed(0)}]`, col: '#5de0c1' },
+      { label: 'Dendritic dSpike Rate', val: `${(dspikeRate * 100).toFixed(1)}%`, sub: 'NMDA Plateau Events', col: '#fbbf24' },
+      { label: 'Apical Weight Norm', val: apicalNorm.toFixed(3), sub: 'Conductance Scaled', col: '#c084fc' }
+    ];
+
+    metrics.forEach((m, idx) => {
+      const mx = cardStartX + idx * (cardW + 8);
+      if (mx + cardW > w - 8) return;
+      x.fillStyle = '#0f1a26';
+      x.strokeStyle = '#1e3347';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(mx, 18, cardW, 76, 5);
+      else x.rect(mx, 18, cardW, 76);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText(m.label, mx + 8, 34);
+
+      x.fillStyle = m.col;
+      x.font = '15px Consolas, monospace';
+      x.fillText(m.val, mx + 8, 58);
+
+      x.fillStyle = '#5c7387';
+      x.font = '8px Consolas, monospace';
+      x.fillText(m.sub, mx + 8, 80);
+    });
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Multi-Compartment Liquid Time-Constant (LTC) & Apical/Basal Dendritic Arbor', 12, h - 6);
+  } catch (err) {
+    console.error('dendritic view error:', err);
+  }
+}
+
+function oscillatoryView() {
+  try {
+    const [x, w, h] = canvas('oscillatory-canvas');
+    if (!x) return;
+
+    const osc = state.telemetry?.oscillatory_coherence || {};
+    const r = Math.max(0, Math.min(1, Number(osc.kuramoto_order_r ?? 0.68)));
+    const psi = Number(osc.kuramoto_psi ?? (Date.now() * 0.0015 % (Math.PI * 2)));
+    const dominant = String(osc.dominant_band || 'gamma').toUpperCase();
+    const gain = Number(osc.ctc_routing_gain ?? (1.0 + r * 0.5));
+    const rawPhases = osc.regional_phases;
+    const phases = Array.isArray(rawPhases) && rawPhases.length ? rawPhases : [0.2, 0.9, 1.7, 2.4, 3.2, 4.1, 4.9, 5.7];
+
+    const wheelCx = 65, wheelCy = Math.floor(h / 2) - 4, wheelR = 44;
+    x.strokeStyle = '#1e3852';
+    x.lineWidth = 1.5;
+    x.beginPath();
+    x.arc(wheelCx, wheelCy, wheelR, 0, Math.PI * 2);
+    x.stroke();
+
+    x.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+    x.beginPath();
+    x.moveTo(wheelCx - wheelR, wheelCy); x.lineTo(wheelCx + wheelR, wheelCy);
+    x.moveTo(wheelCx, wheelCy - wheelR); x.lineTo(wheelCx, wheelCy + wheelR);
+    x.stroke();
+
+    phases.forEach((p) => {
+      const angle = Number(p);
+      const px = wheelCx + Math.cos(angle) * wheelR;
+      const py = wheelCy + Math.sin(angle) * wheelR;
+      x.strokeStyle = 'rgba(100, 200, 255, 0.25)';
+      x.lineWidth = 1;
+      x.beginPath();
+      x.moveTo(wheelCx, wheelCy);
+      x.lineTo(px, py);
+      x.stroke();
+
+      x.fillStyle = '#38bdf8';
+      x.beginPath();
+      x.arc(px, py, 2.5, 0, Math.PI * 2);
+      x.fill();
+    });
+
+    const rx = wheelCx + Math.cos(psi) * (wheelR * r);
+    const ry = wheelCy + Math.sin(psi) * (wheelR * r);
+    x.strokeStyle = '#f43f5e';
+    x.lineWidth = 2.5;
+    x.beginPath();
+    x.moveTo(wheelCx, wheelCy);
+    x.lineTo(rx, ry);
+    x.stroke();
+
+    x.fillStyle = '#f43f5e';
+    x.shadowColor = '#f43f5e';
+    x.shadowBlur = 8;
+    x.beginPath();
+    x.arc(rx, ry, 4, 0, Math.PI * 2);
+    x.fill();
+    x.shadowBlur = 0;
+
+    const waveStartX = 145;
+    const waveEndX = Math.min(w - 180, waveStartX + 220);
+    const waveW = Math.max(80, waveEndX - waveStartX);
+    const waveMidY = wheelCy;
+    x.strokeStyle = 'rgba(93, 224, 193, 0.3)';
+    x.lineWidth = 1;
+    x.setLineDash([2, 2]);
+    x.beginPath();
+    x.moveTo(waveStartX, waveMidY);
+    x.lineTo(waveStartX + waveW, waveMidY);
+    x.stroke();
+    x.setLineDash([]);
+
+    x.strokeStyle = '#5de0c1';
+    x.lineWidth = 2;
+    x.beginPath();
+    for (let i = 0; i <= waveW; i += 2) {
+      const normX = i / waveW;
+      const waveVal = Math.cos(normX * Math.PI * 4 - psi) * (20 * r);
+      const wy = waveMidY - waveVal;
+      if (i === 0) x.moveTo(waveStartX + i, wy);
+      else x.lineTo(waveStartX + i, wy);
+    }
+    x.stroke();
+
+    const barStartX = waveStartX + waveW + 20;
+    const bands = [
+      { name: '\u03b8 Theta (4-8Hz)', power: dominant === 'THETA' ? 0.85 : 0.42, active: dominant === 'THETA', col: '#60a5fa' },
+      { name: '\u03b2 Beta (15-30Hz)', power: dominant === 'BETA' ? 0.78 : 0.35, active: dominant === 'BETA', col: '#c084fc' },
+      { name: '\u03b3 Gamma (30-80Hz)', power: dominant === 'GAMMA' ? 0.92 : 0.55, active: dominant === 'GAMMA', col: '#f43f5e' }
+    ];
+
+    bands.forEach((b, i) => {
+      const by = 22 + i * 26;
+      x.fillStyle = b.active ? '#e2e8f0' : '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText(b.name, barStartX, by + 10);
+
+      const bW = Math.max(50, w - barStartX - 100);
+      x.fillStyle = '#0f1a26';
+      x.fillRect(barStartX + 95, by, bW, 12);
+
+      x.fillStyle = b.col;
+      x.fillRect(barStartX + 95, by, bW * b.power, 12);
+    });
+
+    x.fillStyle = '#5de0c1';
+    x.font = '11px Consolas, monospace';
+    x.fillText(`R(t): ${r.toFixed(3)} \u00b7 Gain: ${gain.toFixed(2)}x`, barStartX, 105);
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Kuramoto Phase Order & Communication-Through-Coherence (CTC) Gating', 12, h - 6);
+  } catch (err) {
+    console.error('oscillatory view error:', err);
+  }
+}
+
+function criticalityView() {
+  try {
+    const [x, w, h] = canvas('criticality-canvas');
+    if (!x) return;
+
+    const cr = state.telemetry?.criticality_homeostat || {};
+    const th = state.telemetry?.thermodynamics || {};
+    const sigma = Math.max(0.2, Math.min(2.0, Number(cr.branching_ratio_sigma ?? 1.002)));
+    const avalanche = Number(cr.recent_avalanche_size ?? 16);
+    const entropyRate = Number(th.entropy_production_rate ?? 0.038);
+    const dissipation = Number(th.dissipation_flux ?? 0.082);
+
+    const gaugeX = 20, gaugeW = Math.min(200, (w - 60) * 0.42), gaugeY = 48, gaugeH = 14;
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`Branching Ratio \u03c3: ${sigma.toFixed(3)}`, gaugeX, 32);
+
+    x.fillStyle = '#0f1a26';
+    x.fillRect(gaugeX, gaugeY, gaugeW, gaugeH);
+
+    const sigmaNorm = Math.max(0, Math.min(1, (sigma - 0.5) / 1.0));
+    const meterGrad = x.createLinearGradient(gaugeX, 0, gaugeX + gaugeW, 0);
+    meterGrad.addColorStop(0, '#38bdf8');
+    meterGrad.addColorStop(0.5, '#10b981');
+    meterGrad.addColorStop(1, '#ef4444');
+    x.fillStyle = meterGrad;
+    x.fillRect(gaugeX, gaugeY, gaugeW * sigmaNorm, gaugeH);
+
+    const targetX = gaugeX + gaugeW * 0.5;
+    x.strokeStyle = '#ffffff';
+    x.lineWidth = 2;
+    x.beginPath();
+    x.moveTo(targetX, gaugeY - 4);
+    x.lineTo(targetX, gaugeY + gaugeH + 4);
+    x.stroke();
+
+    x.fillStyle = '#5c7387';
+    x.font = '8px Consolas, monospace';
+    x.fillText('Subcritical', gaugeX, gaugeY + gaugeH + 14);
+    x.fillText('\u03c3* = 1.00', targetX - 16, gaugeY + gaugeH + 14);
+    x.fillText('Supercritical', gaugeX + gaugeW - 55, gaugeY + gaugeH + 14);
+
+    const avStartX = gaugeX + gaugeW + 28;
+    const avW = Math.max(80, (w - avStartX - 150));
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`Avalanche S: ${avalanche}`, avStartX, 32);
+
+    const avBars = [1.0, 0.65, 0.42, 0.28, 0.18, 0.11, 0.07, 0.04];
+    const barW = Math.max(6, Math.floor(avW / avBars.length) - 3);
+    avBars.forEach((p, idx) => {
+      const bx = avStartX + idx * (barW + 3);
+      const bH = Math.floor(p * 45);
+      const by = 88 - bH;
+      x.fillStyle = idx === 0 ? '#10b981' : '#059669';
+      x.fillRect(bx, by, barW, bH);
+    });
+
+    const thermoX = avStartX + avW + 18;
+    if (thermoX < w - 40) {
+      x.fillStyle = '#0f1a26';
+      x.strokeStyle = '#1e3347';
+      x.lineWidth = 1;
+      const thW = w - thermoX - 15;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(thermoX, 18, thW, 76, 5);
+      else x.rect(thermoX, 18, thW, 76);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Dissipation \u1e60_prod', thermoX + 8, 34);
+
+      x.fillStyle = '#fbbf24';
+      x.font = '14px Consolas, monospace';
+      x.fillText(`${entropyRate.toFixed(4)}`, thermoX + 8, 56);
+
+      x.fillStyle = '#60a5fa';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Flux: ${dissipation.toFixed(3)}`, thermoX + 8, 76);
+    }
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Self-Organized Criticality (SOC) Branching Ratio & Thermodynamic Entropy Dissipation', 12, h - 6);
+  } catch (err) {
+    console.error('criticality view error:', err);
+  }
+}
+
+function vsaView() {
+  try {
+    const [x, w, h] = canvas('vsa-canvas');
+    if (!x) return;
+
+    const vsa = state.telemetry?.holographic_vsa || {};
+    const cap = Math.max(0, Math.min(1, Number(vsa.capacity_used ?? 0.34)));
+    const sim = Number(vsa.retrieval_cosine ?? 0.86);
+    const dim = Number(vsa.dimension ?? 10000);
+    const rawSpec = vsa.unbinding_spectrum;
+    const spec = Array.isArray(rawSpec) && rawSpec.length ? rawSpec : [0.94, 0.78, 0.55, 0.32, 0.21, 0.14, 0.08, 0.02];
+
+    const radarCx = 65, radarCy = Math.floor(h / 2) - 4, radarR = 44;
+    x.strokeStyle = '#1e3852';
+    x.lineWidth = 1.2;
+    x.beginPath();
+    x.arc(radarCx, radarCy, radarR, 0, Math.PI * 2);
+    x.stroke();
+
+    x.strokeStyle = 'rgba(192, 132, 252, 0.25)';
+    x.beginPath();
+    x.arc(radarCx, radarCy, radarR * 0.6, 0, Math.PI * 2);
+    x.stroke();
+
+    x.strokeStyle = '#c084fc';
+    x.lineWidth = 3.5;
+    x.beginPath();
+    x.arc(radarCx, radarCy, radarR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cap);
+    x.stroke();
+
+    const step = Number(state.steps || 0);
+    for (let i = 0; i < 24; i++) {
+      const thAngle = (i / 24) * Math.PI * 2 + step * 0.02;
+      const distRatio = 0.3 + 0.65 * ((i * 7) % 11) / 11;
+      const px = radarCx + Math.cos(thAngle) * (radarR * distRatio);
+      const py = radarCy + Math.sin(thAngle) * (radarR * distRatio);
+      x.fillStyle = (i % 2 === 0) ? '#a855f7' : '#38bdf8';
+      x.fillRect(px - 1.5, py - 1.5, 3, 3);
+    }
+
+    const barStartX = 140;
+    const barAreaW = Math.max(100, w - barStartX - 150);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Clean-Up Memory Cosine Spectrum', barStartX, 28);
+
+    const barW = Math.max(8, Math.floor(barAreaW / spec.length) - 4);
+    spec.forEach((val, idx) => {
+      const v = Number(val);
+      const bx = barStartX + idx * (barW + 4);
+      const bH = Math.max(3, Math.floor(v * 54));
+      const by = 90 - bH;
+      x.fillStyle = idx === 0 ? '#c084fc' : '#6b21a8';
+      x.fillRect(bx, by, barW, bH);
+    });
+
+    const kpiX = barStartX + barAreaW + 16;
+    if (kpiX < w - 30) {
+      x.fillStyle = '#0f1a26';
+      x.strokeStyle = '#1e3347';
+      x.lineWidth = 1;
+      const kW = w - kpiX - 12;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(kpiX, 18, kW, 76, 5);
+      else x.rect(kpiX, 18, kW, 76);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Vector Dim', kpiX + 8, 34);
+
+      x.fillStyle = '#c084fc';
+      x.font = '14px Consolas, monospace';
+      x.fillText(`${dim.toLocaleString()}-D`, kpiX + 8, 54);
+
+      x.fillStyle = '#5de0c1';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Cos: +${sim.toFixed(3)}`, kpiX + 8, 74);
+    }
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Holographic Vector Symbolic Architecture (10,000-D HRR Circular Resonator)', 12, h - 6);
+  } catch (err) {
+    console.error('vsa view error:', err);
+  }
+}
+
+function causalEntropyView() {
+  try {
+    const [x, w, h] = canvas('causal-entropy-canvas');
+    if (!x) return;
+
+    const te = state.telemetry?.transfer_entropy || {};
+    const bcm = state.telemetry?.metaplasticity_bcm || {};
+    const flux = Number(te.causal_flux ?? 0.042);
+    const mte = Number(te.mean_transfer_entropy ?? 0.058);
+    const thetaM = Number(bcm.mean_sliding_threshold ?? 0.28);
+    const step = Number(state.steps || 0);
+
+    const netCx = 80, netCy = Math.floor(h / 2) - 4;
+    const nodes = [
+      { id: 'S', label: 'Sensory', x: netCx - 45, y: netCy + 22, col: '#38bdf8' },
+      { id: 'C', label: 'Central', x: netCx, y: netCy - 28, col: '#a855f7' },
+      { id: 'M', label: 'Motor', x: netCx + 45, y: netCy + 22, col: '#f43f5e' }
+    ];
+
+    const edges = [
+      [nodes[0], nodes[1]],
+      [nodes[1], nodes[2]],
+      [nodes[0], nodes[2]]
+    ];
+
+    edges.forEach(([src, dst], i) => {
+      x.strokeStyle = 'rgba(93, 224, 193, 0.45)';
+      x.lineWidth = 1.8;
+      x.beginPath();
+      x.moveTo(src.x, src.y);
+      x.lineTo(dst.x, dst.y);
+      x.stroke();
+
+      const tProgress = ((step * 0.1 + i * 0.33) % 1.0);
+      const px = src.x + (dst.x - src.x) * tProgress;
+      const py = src.y + (dst.y - src.y) * tProgress;
+      x.fillStyle = '#5de0c1';
+      x.shadowColor = '#5de0c1';
+      x.shadowBlur = 6;
+      x.beginPath();
+      x.arc(px, py, 3, 0, Math.PI * 2);
+      x.fill();
+      x.shadowBlur = 0;
+    });
+
+    nodes.forEach(n => {
+      x.fillStyle = '#08131d';
+      x.strokeStyle = n.col;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(n.x, n.y, 11, 0, Math.PI * 2);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = n.col;
+      x.font = 'bold 10px Consolas, monospace';
+      x.fillText(n.id, n.x - 3, n.y + 3);
+    });
+
+    const bcmStartX = 165;
+    const bcmW = Math.max(90, (w - bcmStartX - 160));
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`BCM Threshold \u03b8_M: ${thetaM.toFixed(3)}`, bcmStartX, 28);
+
+    x.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    x.lineWidth = 1;
+    x.beginPath();
+    x.moveTo(bcmStartX, 70);
+    x.lineTo(bcmStartX + bcmW, 70);
+    x.stroke();
+
+    x.strokeStyle = '#f59e0b';
+    x.lineWidth = 2;
+    x.beginPath();
+    for (let i = 0; i <= bcmW; i += 2) {
+      const yNorm = i / bcmW * 1.5;
+      const phiVal = yNorm * (yNorm - thetaM);
+      const py = 70 - phiVal * 28;
+      if (i === 0) x.moveTo(bcmStartX + i, py);
+      else x.lineTo(bcmStartX + i, py);
+    }
+    x.stroke();
+
+    x.fillStyle = '#ef4444';
+    x.font = '8px Consolas, monospace';
+    x.fillText('LTD (< \u03b8)', bcmStartX + 4, 86);
+    x.fillStyle = '#10b981';
+    x.fillText('LTP (> \u03b8)', bcmStartX + bcmW - 45, 86);
+
+    const teX = bcmStartX + bcmW + 16;
+    if (teX < w - 25) {
+      x.fillStyle = '#0f1a26';
+      x.strokeStyle = '#1e3347';
+      x.lineWidth = 1;
+      const tW = w - teX - 10;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(teX, 18, tW, 76, 5);
+      else x.rect(teX, 18, tW, 76);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Transfer Entropy', teX + 8, 34);
+
+      x.fillStyle = '#38bdf8';
+      x.font = '14px Consolas, monospace';
+      x.fillText(`${mte.toFixed(4)}`, teX + 8, 54);
+
+      x.fillStyle = '#5de0c1';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Flux: ${flux.toFixed(3)}`, teX + 8, 74);
+    }
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Directed Transfer Entropy Flux Tensor (S\u2192C\u2192M) & BCM Homeostatic Threshold', 12, h - 6);
+  } catch (err) {
+    console.error('causal entropy view error:', err);
+  }
+}
+
+function neurowaveView() {
+  try {
+    const [x, w, h] = canvas('neurowave-canvas');
+    if (!x) return;
+
+    const nw = state.telemetry?.neurowave_x2 || state.telemetry?.neurowave || {};
+    const proto = String(nw.current_protocol || 'adaptive').toUpperCase();
+    const rawModes = nw.spectral_mode_energies;
+    const modes = Array.isArray(rawModes) && rawModes.length ? rawModes : [0.88, 0.74, 0.62, 0.51, 0.42, 0.33, 0.25, 0.18, 0.12, 0.08, 0.05, 0.02];
+    const routes = Number(nw.num_active_routes ?? (Array.isArray(nw.active_routes) ? nw.active_routes.length : 8));
+    const phaseGain = Number(nw.phase_alignment_gain ?? 0.94);
+    const step = Number(state.steps || 0);
+
+    const specStartX = 18;
+    const specAreaW = Math.min(180, (w - 60) * 0.4);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Graph-Laplacian Spectral Carriers', specStartX, 28);
+
+    const modeW = Math.max(6, Math.floor(specAreaW / modes.length) - 3);
+    modes.forEach((val, idx) => {
+      const v = Number(val);
+      const bx = specStartX + idx * (modeW + 3);
+      const bH = Math.max(4, Math.floor(v * 58));
+      const by = 92 - bH;
+
+      const barGrad = x.createLinearGradient(bx, by, bx, by + bH);
+      barGrad.addColorStop(0, '#38bdf8');
+      barGrad.addColorStop(1, '#a855f7');
+      x.fillStyle = barGrad;
+      x.fillRect(bx, by, modeW, bH);
+    });
+
+    x.fillStyle = '#5c7387';
+    x.font = '8px Consolas, monospace';
+    x.fillText('\u03bb_0', specStartX, 102);
+    x.fillText(`\u03bb_${modes.length - 1}`, specStartX + specAreaW - 16, 102);
+
+    const waveStartX = specStartX + specAreaW + 20;
+    const waveAreaW = Math.max(70, w - waveStartX - 150);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('CTC Dynamic Carrier Wave', waveStartX, 28);
+
+    x.strokeStyle = '#c084fc';
+    x.lineWidth = 1.8;
+    x.beginPath();
+    for (let i = 0; i <= waveAreaW; i += 2) {
+      const frac = i / waveAreaW;
+      const wy = 62 + Math.sin(frac * Math.PI * 6 + step * 0.25) * 18 * Math.cos(frac * Math.PI * 2);
+      if (i === 0) x.moveTo(waveStartX + i, wy);
+      else x.lineTo(waveStartX + i, wy);
+    }
+    x.stroke();
+
+    const cardX = waveStartX + waveAreaW + 16;
+    if (cardX < w - 25) {
+      x.fillStyle = '#0f1a26';
+      x.strokeStyle = '#1e3347';
+      x.lineWidth = 1;
+      const cW = w - cardX - 10;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 18, cW, 76, 5);
+      else x.rect(cardX, 18, cW, 76);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#8b9daf';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Protocol', cardX + 8, 32);
+
+      x.fillStyle = '#38bdf8';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText(proto, cardX + 8, 48);
+
+      x.fillStyle = '#5de0c1';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Routes: ${routes}`, cardX + 8, 64);
+
+      x.fillStyle = '#c084fc';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`CTC Gain: ${phaseGain.toFixed(2)}x`, cardX + 8, 78);
+    }
+
+    x.fillStyle = '#647c90';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Sonapse NeuroWave-X2 Spectral Multiplexing & CTC Phase-Aware Transport', 12, h - 6);
+  } catch (err) {
+    console.error('neurowave view error:', err);
+  }
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -2232,6 +2860,12 @@ function render(s) {
   signals();
   gauges();
   predictiveView();
+  dendriticView();
+  oscillatoryView();
+  criticalityView();
+  vsaView();
+  causalEntropyView();
+  neurowaveView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -2424,6 +3058,22 @@ $('config').onsubmit = e => {
   config.tether_coordinator = !!e.target.elements.tether_coordinator?.checked;
   config.criticality_homeostat = !!e.target.elements.criticality_homeostat?.checked;
   config.holographic_vsa = !!e.target.elements.holographic_vsa?.checked;
+  config.neural_comm_enabled = !!e.target.elements.neural_comm_enabled?.checked;
+  config.neurowave_enabled = !!e.target.elements.neurowave_enabled?.checked;
+  config.neurowave_x2_enabled = !!e.target.elements.neurowave_x2_enabled?.checked;
+  config.neurowave_x2_phase = !!e.target.elements.neurowave_x2_phase?.checked;
+  config.neurowave_x2_plasticity = !!e.target.elements.neurowave_x2_plasticity?.checked;
+  config.neurowave_x2_development = !!e.target.elements.neurowave_x2_development?.checked;
+  config.neurowave_x2_dendritic = !!e.target.elements.neurowave_x2_dendritic?.checked;
+  config.overflow_mini_brain = !!e.target.elements.overflow_mini_brain?.checked;
+  config.grafted_diffusion = !!e.target.elements.grafted_diffusion?.checked;
+  config.selective_state_space = !!e.target.elements.selective_state_space?.checked;
+  config.multitimescale_learning = !!e.target.elements.multitimescale_learning?.checked;
+  config.meta_plasticity = !!e.target.elements.meta_plasticity?.checked;
+  config.causal_world_model = !!e.target.elements.causal_world_model?.checked;
+  config.relational_memory = !!e.target.elements.relational_memory?.checked;
+  config.verifier_rsi = !!e.target.elements.verifier_rsi?.checked;
+  config.event_driven_backend = !!e.target.elements.event_driven_backend?.checked;
   config.programmed_connectome = e.target.elements.programmed_connectome ? !!e.target.elements.programmed_connectome.checked : (state.config?.programmed_connectome ?? true);
   config.planner_algorithm = e.target.elements.planner_algorithm?.value || state.config?.planner_algorithm || 'experience_mpc';
   config.experience_planning = state.config?.experience_planning ?? false;
@@ -2822,7 +3472,8 @@ function setAllControlsToMaxUI() {
       'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain', 'grafted_diffusion',
       'selective_state_space', 'multitimescale_learning', 'meta_plasticity',
       'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend',
-      'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy'
+      'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
+      'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }

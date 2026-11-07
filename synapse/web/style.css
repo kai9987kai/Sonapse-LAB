@@ -302,6 +302,12 @@ canvas {
 #signals, #gauges, #predictive {
   height: 185px !important;
 }
+#dendritic-canvas, #oscillatory-canvas, #criticality-canvas, #vsa-canvas, #causal-entropy-canvas, #neurowave-canvas {
+  height: 150px !important;
+  margin-bottom: 8px;
+  background: rgba(6, 14, 22, 0.85);
+  border: 1px solid #1a2c3e;
+}
 
 /* View toggle pills */
 .view-toggle {

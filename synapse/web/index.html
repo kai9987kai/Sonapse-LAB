@@ -355,6 +355,7 @@
           </div>
           <span id="dendritic-badge" class="tag cognition-tag">Dendritic LTC</span>
         </div>
+        <canvas id="dendritic-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="dendritic-hud" class="keyvalues cognition-values"></div>
       </article>
       <article>
@@ -365,6 +366,7 @@
           </div>
           <span id="oscillatory-badge" class="tag thrust-tag">Kuramoto R(t)</span>
         </div>
+        <canvas id="oscillatory-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="oscillatory-hud" class="keyvalues cognition-values"></div>
       </article>
     </div>
@@ -399,6 +401,7 @@
           </div>
           <span id="criticality-badge" class="tag cognition-tag">Criticality σ*</span>
         </div>
+        <canvas id="criticality-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="criticality-hud" class="keyvalues cognition-values"></div>
       </article>
       <article>
@@ -409,6 +412,7 @@
           </div>
           <span id="vsa-badge" class="tag thrust-tag">VSA Trace</span>
         </div>
+        <canvas id="vsa-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="vsa-hud" class="keyvalues cognition-values"></div>
       </article>
     </div>
@@ -507,6 +511,7 @@
           </div>
           <span id="te-badge" class="tag thrust-tag">TE Flux Active</span>
         </div>
+        <canvas id="causal-entropy-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="te-hud" class="keyvalues cognition-values"></div>
       </article>
       <article>
@@ -517,6 +522,7 @@
           </div>
           <span id="neurowave-badge" class="tag metric-tag">X2 Standby</span>
         </div>
+        <canvas id="neurowave-canvas" height="150" class="live-sub-canvas"></canvas>
         <div id="neurowave-hud" class="keyvalues cognition-values"></div>
       </article>
     </div>
@@ -595,6 +601,11 @@
         <label><input name="programmed_connectome" type="checkbox" checked> MaleCNS Programmed Prior</label>
         <label><input name="neural_comm_enabled" type="checkbox"> SANCF Virtual Neural Communication Fabric</label>
         <label><input name="neurowave_enabled" type="checkbox"> NeuroWave Multiplexing Modes</label>
+        <label><input name="neurowave_x2_enabled" type="checkbox"> Sonapse NeuroWave-X2 Multiplexing</label>
+        <label><input name="neurowave_x2_phase" type="checkbox"> NeuroWave-X2 Phase Gating (CTC)</label>
+        <label><input name="neurowave_x2_plasticity" type="checkbox"> NeuroWave-X2 Causal Rewiring</label>
+        <label><input name="neurowave_x2_development" type="checkbox"> NeuroWave-X2 Multi-Stage Complexity</label>
+        <label><input name="neurowave_x2_dendritic" type="checkbox"> NeuroWave-X2 Dendritic Multiplexing</label>
         <label><input name="overflow_mini_brain" type="checkbox" checked> 256-N Overflow Mini-Brain</label>
         <label><input name="grafted_diffusion" type="checkbox"> Grafted Mini-Diffusion Policy</label>
         <label><input name="selective_state_space" type="checkbox"> Selective State-Space (Mamba)</label>

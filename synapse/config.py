@@ -234,8 +234,8 @@ class SynapseConfig:
         return cls(**cfg_dict)
 
     @classmethod
-    def max_tandem(cls, total_neurons: int = 6500, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
-        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, and full CPU compute."""
+    def max_tandem(cls, total_neurons: int = 8000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, NeuroWave-X2, and full CPU compute."""
         cfg_dict = dict(
             seed=seed,
             total_neurons=total_neurons,
@@ -283,6 +283,18 @@ class SynapseConfig:
             thermodynamics=True,
             metaplasticity_bcm=True,
             transfer_entropy=True,
+            neurowave_x2_enabled=True,
+            neurowave_x2_gamma=0.25,
+            neurowave_x2_protocol='adaptive',
+            neurowave_x2_dimension=32,
+            neurowave_x2_precision_bits=32,
+            neurowave_x2_spectral_modes=16,
+            neurowave_x2_spectral_basis='hybrid',
+            neurowave_x2_phase=True,
+            neurowave_x2_plasticity=True,
+            neurowave_x2_development=True,
+            neurowave_x2_development_level=6,
+            neurowave_x2_dendritic=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
