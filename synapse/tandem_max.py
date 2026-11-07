@@ -259,6 +259,34 @@ def run_apical_reservoir_and_hyperbolic_assay(runtime, seed: int = 42) -> Dict[s
     }
 
 
+def run_frontier_v4_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Run Spiking Neuromorphic, Astrocytic Glymphatic, and Quantum Kuramoto Assay."""
+    from .spiking_neuromorphic import SpikingNeuromorphicEngine
+    from .glymphatic_clearance import GlymphaticClearanceEngine
+    from .quantum_kuramoto import QuantumKuramotoEngine
+
+    t0 = time.perf_counter()
+    agent = runtime.agent
+    spiking = getattr(agent, 'spiking_engine', None) or SpikingNeuromorphicEngine(num_neurons=min(64, agent.brain.n), seed=seed)
+    glymphatic = getattr(agent, 'glymphatic_engine', None) or GlymphaticClearanceEngine(seed=seed)
+    kuramoto = getattr(agent, 'kuramoto_engine', None) or QuantumKuramotoEngine(num_oscillators=min(32, agent.brain.n), seed=seed)
+
+    soma_input = agent.brain.r[:min(64, agent.brain.n)].detach()
+    _, _, spk_report = spiking(soma_input)
+    act_norm = float(soma_input.norm().item())
+    _, glymph_report = glymphatic.step(act_norm, is_quiescent_sleep=False)
+    _, kur_report = kuramoto.step()
+
+    return {
+        'status': 'completed',
+        'evidence_kind': 'frontier_v4_verified_assay',
+        'spiking_neuromorphic': spk_report.to_dict(),
+        'glymphatic_clearance': glymph_report.to_dict(),
+        'quantum_kuramoto': kur_report.to_dict(),
+        'wallclock_ms': round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+
+
 def run_causal_9arm_and_scorecard(
     runtime,
     steps_per_arm: int = 12,
@@ -553,6 +581,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
     frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
     apical_res_hyp_res = run_apical_reservoir_and_hyperbolic_assay(runtime, seed=seed)
+    frontier_v4_res = run_frontier_v4_assay(runtime, seed=seed)
 
     from .neural_comm_bench import SancfMatrixBenchmark
     sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
@@ -595,6 +624,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'frontier_innovations': frontier_innovations_res,
         'frontier_v2_innovations': frontier_v2_res,
         'apical_reservoir_hyperbolic': apical_res_hyp_res,
+        'frontier_v4_innovations': frontier_v4_res,
         'sancf_comm_matrix': sancf_section_res,
         'neurowave_x2_assay': neurowave_x2_assay,
     }

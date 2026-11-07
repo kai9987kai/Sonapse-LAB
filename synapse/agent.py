@@ -114,6 +114,9 @@ class IntegratedAgent:
         self.apical_engine=None
         self.spectral_reservoir=None
         self.hyperbolic_manifold=None
+        self.spiking_engine=None
+        self.glymphatic_engine=None
+        self.kuramoto_engine=None
         self.comm_fabric=None
         self.overflow_mini_brain=None
         self.grafted_diffusion=None
@@ -181,6 +184,18 @@ class IntegratedAgent:
             if getattr(self.config, 'hyperbolic_manifold', False) and getattr(self, 'hyperbolic_manifold', None) is None:
                 from .hyperbolic_manifold import HyperbolicManifoldEngine
                 self.hyperbolic_manifold = HyperbolicManifoldEngine(seed=self.config.seed)
+            if getattr(self.config, 'spiking_neuromorphic', False) and getattr(self, 'spiking_engine', None) is None:
+                from .spiking_neuromorphic import SpikingNeuromorphicEngine
+                self.spiking_engine = SpikingNeuromorphicEngine(num_neurons=min(64, self.brain.n), seed=self.config.seed)
+                self.modules['spiking_engine'] = self.spiking_engine
+            if getattr(self.config, 'glymphatic_clearance', False) and getattr(self, 'glymphatic_engine', None) is None:
+                from .glymphatic_clearance import GlymphaticClearanceEngine
+                self.glymphatic_engine = GlymphaticClearanceEngine(seed=self.config.seed)
+                self.modules['glymphatic_engine'] = self.glymphatic_engine
+            if getattr(self.config, 'quantum_kuramoto', False) and getattr(self, 'kuramoto_engine', None) is None:
+                from .quantum_kuramoto import QuantumKuramotoEngine
+                self.kuramoto_engine = QuantumKuramotoEngine(num_oscillators=min(32, self.brain.n), seed=self.config.seed)
+                self.modules['kuramoto_engine'] = self.kuramoto_engine
             if getattr(self.config, 'neural_comm_enabled', False) and self.comm_fabric is None:
                 from .neural_comm import NeuralCommFabric
                 from .neural_comm_channels import CommChannelSpec
@@ -342,6 +357,9 @@ class IntegratedAgent:
         if getattr(self, 'holographic_vsa', None) is not None: self.holographic_vsa.reset()
         if getattr(self, 'apical_engine', None) is not None: self.apical_engine.reset()
         if getattr(self, 'spectral_reservoir', None) is not None: self.spectral_reservoir.reset()
+        if getattr(self, 'spiking_engine', None) is not None: self.spiking_engine.reset()
+        if getattr(self, 'glymphatic_engine', None) is not None: self.glymphatic_engine.reset()
+        if getattr(self, 'kuramoto_engine', None) is not None: self.kuramoto_engine.reset()
         if getattr(self, 'comm_fabric', None) is not None: self.comm_fabric.reset()
         if getattr(self, 'neurowave_x2', None) is not None: self.neurowave_x2.reset()
         if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
@@ -631,6 +649,20 @@ class IntegratedAgent:
         if getattr(self, 'hyperbolic_manifold', None) is not None:
             hyp_telem = self.hyperbolic_manifold.step(active_node_ids=list(range(min(4, self.brain.n))))
             self.last_telemetry['hyperbolic_manifold'] = hyp_telem.to_dict()
+        if getattr(self, 'spiking_engine', None) is not None:
+            _, _, spk_telem = self.spiking_engine(
+                r[:min(64, self.brain.n)],
+                neuromod_ach=getattr(self.neuromod.state, 'acetylcholine', 1.0) if hasattr(self, 'neuromod') else 1.0
+            )
+            self.last_telemetry['spiking_neuromorphic'] = spk_telem.to_dict()
+        if getattr(self, 'glymphatic_engine', None) is not None:
+            act_norm = float(r.norm().item()) if isinstance(r, torch.Tensor) else float(np.linalg.norm(r))
+            is_sleep = bool(getattr(self, 'in_sleep_phase', False))
+            _, glymph_telem = self.glymphatic_engine.step(act_norm, is_quiescent_sleep=is_sleep)
+            self.last_telemetry['glymphatic_clearance'] = glymph_telem.to_dict()
+        if getattr(self, 'kuramoto_engine', None) is not None:
+            _, kur_telem = self.kuramoto_engine.step()
+            self.last_telemetry['quantum_kuramoto'] = kur_telem.to_dict()
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'comm_fabric', None) is not None:
@@ -905,6 +937,9 @@ class IntegratedAgent:
         if getattr(self, 'apical_engine', None) is not None: state['apical_engine'] = self.apical_engine.export_state()
         if getattr(self, 'spectral_reservoir', None) is not None: state['spectral_reservoir'] = self.spectral_reservoir.export_state()
         if getattr(self, 'hyperbolic_manifold', None) is not None: state['hyperbolic_manifold'] = self.hyperbolic_manifold.export_state()
+        if getattr(self, 'spiking_engine', None) is not None: state['spiking_engine'] = self.spiking_engine.export_state()
+        if getattr(self, 'glymphatic_engine', None) is not None: state['glymphatic_engine'] = self.glymphatic_engine.export_state()
+        if getattr(self, 'kuramoto_engine', None) is not None: state['kuramoto_engine'] = self.kuramoto_engine.export_state()
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
         state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
@@ -1027,6 +1062,12 @@ class IntegratedAgent:
             self.spectral_reservoir.import_state(state['spectral_reservoir'])
         if getattr(self, 'hyperbolic_manifold', None) is not None and state.get('hyperbolic_manifold') is not None:
             self.hyperbolic_manifold.import_state(state['hyperbolic_manifold'])
+        if getattr(self, 'spiking_engine', None) is not None and state.get('spiking_engine') is not None:
+            self.spiking_engine.import_state(state['spiking_engine'])
+        if getattr(self, 'glymphatic_engine', None) is not None and state.get('glymphatic_engine') is not None:
+            self.glymphatic_engine.import_state(state['glymphatic_engine'])
+        if getattr(self, 'kuramoto_engine', None) is not None and state.get('kuramoto_engine') is not None:
+            self.kuramoto_engine.import_state(state['kuramoto_engine'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:

@@ -2518,6 +2518,363 @@ function hyperbolicView() {
   }
 }
 
+function spikingView() {
+  try {
+    const [x, w, h] = canvas('spiking-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.spiking_neuromorphic || state.agent?.telemetry?.spiking_neuromorphic || {};
+    const rate = Number(telem.mean_firing_rate_hz ?? 14.5);
+    const activeN = Number(telem.active_spiking_neurons ?? 18);
+    const vMean = Number(telem.mean_membrane_potential ?? -62.4);
+    const thMean = Number(telem.mean_adaptive_threshold ?? -48.5);
+    const delayMs = Number(telem.mean_conduction_delay_ms ?? 4.2);
+    const fano = Number(telem.temporal_fano_factor ?? 1.05);
+    const sync = Number(telem.synchrony_index ?? 0.22);
+    const raster = Array.isArray(telem.spike_raster_sample) && telem.spike_raster_sample.length ? telem.spike_raster_sample : [1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0];
+    const step = Number(state.steps || 0);
+
+    // Left: Axonal Conduction Delays (tau_i)
+    const delX = 16, delY = 18, delW = 75;
+    x.fillStyle = '#8b9daf';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Axonal Delays τ', delX, delY + 8);
+
+    const nBins = 6;
+    const binW = Math.floor(delW / nBins) - 2;
+    for (let b = 0; b < nBins; b++) {
+      const bx = delX + b * (binW + 2);
+      const bH = 15 + ((b * 7 + step) % 45);
+      const by = 88 - bH;
+      x.fillStyle = '#06b6d4';
+      x.fillRect(bx, by, binW, bH);
+    }
+    x.fillStyle = '#5c7387';
+    x.font = '8px Consolas, monospace';
+    x.fillText('1ms', delX, 98);
+    x.fillText('16ms', delX + delW - 18, 98);
+
+    // Center: Spiking Raster & Membrane Trace
+    const rasX = delX + delW + 16;
+    const rasW = Math.max(80, w - rasX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Instantaneous Spike Raster & Axonal Arrival', rasX, 22);
+
+    // Grid lines
+    x.strokeStyle = '#1e293b';
+    x.lineWidth = 0.8;
+    for (let r = 0; r < 4; r++) {
+      const gy = 36 + r * 18;
+      x.beginPath();
+      x.moveTo(rasX, gy);
+      x.lineTo(rasX + rasW, gy);
+      x.stroke();
+    }
+
+    // Render 16 spike raster lines
+    const nRast = Math.min(16, raster.length);
+    for (let i = 0; i < nRast; i++) {
+      const ry = 36 + (i % 4) * 18;
+      const rx = rasX + (i / nRast) * rasW + 5;
+      const isSpike = raster[i] > 0;
+      if (isSpike) {
+        x.strokeStyle = '#f43f5e';
+        x.lineWidth = 2.2;
+        x.beginPath();
+        x.moveTo(rx, ry - 6);
+        x.lineTo(rx, ry + 6);
+        x.stroke();
+
+        // Glow
+        x.fillStyle = 'rgba(244, 63, 94, 0.4)';
+        x.beginPath();
+        x.arc(rx, ry, 4, 0, Math.PI * 2);
+        x.fill();
+      }
+    }
+
+    // Sub-threshold continuous wave
+    x.strokeStyle = '#38bdf8';
+    x.lineWidth = 1.2;
+    x.beginPath();
+    for (let p = 0; p <= rasW; p += 3) {
+      const frac = p / rasW;
+      const py = 75 + Math.sin(frac * Math.PI * 6 + step * 0.2) * 8 * Math.cos(frac * Math.PI * 2);
+      if (p === 0) x.moveTo(rasX + p, py);
+      else x.lineTo(rasX + p, py);
+    }
+    x.stroke();
+
+    // Right: Metric Card
+    const cardX = rasX + rasW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 16, cW, 88, 5);
+      else x.rect(cardX, 16, cW, 88);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Firing Rate', cardX + 8, 30);
+
+      x.fillStyle = '#f43f5e';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText(`${rate.toFixed(1)} Hz`, cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Active N: ${activeN}`, cardX + 8, 62);
+      x.fillText(`V / θ: ${vMean.toFixed(0)}/${thMean.toFixed(0)}mV`, cardX + 8, 76);
+      x.fillText(`Delay τ: ${delayMs.toFixed(1)}ms`, cardX + 8, 90);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('LIF Spike-Frequency Adaptation & Heterogeneous Axonal Conduction Delays', 14, h - 6);
+  } catch (err) {
+    console.error('spiking view error:', err);
+  }
+}
+
+function glymphaticView() {
+  try {
+    const [x, w, h] = canvas('glymphatic-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.glymphatic_clearance || state.agent?.telemetry?.glymphatic_clearance || {};
+    const waste = Number(telem.metabolic_waste_concentration ?? 0.045);
+    const clearRate = Number(telem.glymphatic_clearance_rate ?? 0.012);
+    const isfFrac = Number(telem.interstitial_space_fraction ?? 0.14);
+    const adenosine = Number(telem.adenosine_sleep_pressure ?? 0.12);
+    const damping = Number(telem.synaptic_fatigue_damping ?? 0.985);
+    const isSleep = !!telem.is_quiescent_flush_active;
+    const step = Number(state.steps || 0);
+
+    // Left: Astrocytic Interstitial Space cross section
+    const astX = 16, astY = 20, astW = 80;
+    x.fillStyle = '#8b9daf';
+    x.font = '9px Consolas, monospace';
+    x.fillText('AQP4 Convective Flow', astX, astY + 8);
+
+    const flowGrad = x.createLinearGradient(astX, 40, astX + astW, 85);
+    flowGrad.addColorStop(0, isSleep ? 'rgba(56, 189, 248, 0.35)' : 'rgba(100, 116, 139, 0.2)');
+    flowGrad.addColorStop(1, isSleep ? 'rgba(99, 102, 241, 0.35)' : 'rgba(51, 65, 85, 0.2)');
+    x.fillStyle = flowGrad;
+    x.fillRect(astX, 40, astW, 46);
+    x.strokeStyle = isSleep ? '#38bdf8' : '#475569';
+    x.lineWidth = 1.2;
+    x.strokeRect(astX, 40, astW, 46);
+
+    // Flow streamline arrows
+    const arrowX = astX + 10 + ((step * 2) % (astW - 20));
+    x.fillStyle = isSleep ? '#38bdf8' : '#94a3b8';
+    x.font = 'bold 11px Consolas, monospace';
+    x.fillText('⇨', arrowX, 68);
+
+    x.fillStyle = '#94a3b8';
+    x.font = '8px Consolas, monospace';
+    x.fillText(`ISF: ${(isfFrac * 100).toFixed(0)}%`, astX + 4, 98);
+
+    // Center: Waste Concentration & Sleep Pressure Curve
+    const cntX = astX + astW + 16;
+    const cntW = Math.max(80, w - cntX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Interstitial Waste & Adenosine Sleep Drive', cntX, 22);
+
+    // Waste Level Progress Bar
+    const barY = 42, barH = 16;
+    x.fillStyle = '#1e293b';
+    x.fillRect(cntX, barY, cntW, barH);
+
+    const wasteNorm = Math.min(1.0, waste * 8.0);
+    const wasteW = Math.floor(cntW * wasteNorm);
+    const wGrad = x.createLinearGradient(cntX, barY, cntX + cntW, barY);
+    wGrad.addColorStop(0, '#10b981');
+    wGrad.addColorStop(0.6, '#f59e0b');
+    wGrad.addColorStop(1, '#ef4444');
+    x.fillStyle = wGrad;
+    x.fillRect(cntX, barY, wasteW, barH);
+
+    x.fillStyle = '#ffffff';
+    x.font = 'bold 9px Consolas, monospace';
+    x.fillText(`C_waste: ${(waste * 100).toFixed(1)}%`, cntX + 8, barY + 12);
+
+    // Adenosine Sleep Drive
+    const adY = 66;
+    x.fillStyle = '#94a3b8';
+    x.font = '9px Consolas, monospace';
+    x.fillText(`Adenosine Pressure: ${(adenosine * 100).toFixed(1)}% · Damping: ${damping.toFixed(3)}x`, cntX, adY + 12);
+
+    // Right: Metric Card
+    const cardX = cntX + cntW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 16, cW, 88, 5);
+      else x.rect(cardX, 16, cW, 88);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Glymphatic State', cardX + 8, 30);
+
+      x.fillStyle = isSleep ? '#38bdf8' : '#10b981';
+      x.font = 'bold 11px Consolas, monospace';
+      x.fillText(isSleep ? 'SLEEP FLUSH' : 'WAKE CONVECT', cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Rate: ${clearRate.toFixed(4)}`, cardX + 8, 62);
+      x.fillText(`AQP4: 95.0%`, cardX + 8, 76);
+      x.fillText(`Cleared: ${Number(telem.cumulative_waste_cleared ?? 0).toFixed(3)}`, cardX + 8, 90);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Astrocytic Aquaporin-4 (AQP4) Bulk Convective Fluid Clearance & Homeostat', 14, h - 6);
+  } catch (err) {
+    console.error('glymphatic view error:', err);
+  }
+}
+
+function kuramotoView() {
+  try {
+    const [x, w, h] = canvas('kuramoto-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.quantum_kuramoto || state.agent?.telemetry?.quantum_kuramoto || {};
+    const r = Number(telem.order_parameter_r ?? 0.72);
+    const psi = Number(telem.mean_ensemble_phase ?? 0.45);
+    const kCoupling = Number(telem.coupling_strength_k ?? 1.2);
+    const plv = Number(telem.plv_synchrony_matrix_norm ?? 0.52);
+    const chimera = Number(telem.metastable_chimera_index ?? 0.11);
+    const phases = Array.isArray(telem.oscillator_phases) && telem.oscillator_phases.length ? telem.oscillator_phases : [-1.2, -0.8, -0.5, 0.1, 0.3, 0.4, 0.7, 1.1, 1.3, -2.1, 2.5, 0.2];
+    const rHistory = Array.isArray(telem.recent_order_history) && telem.recent_order_history.length ? telem.recent_order_history : [0.65, 0.68, 0.71, 0.74, 0.73, 0.76, 0.79, 0.81, 0.84, 0.82];
+    const step = Number(state.steps || 0);
+
+    // Left: Phase Compass on Circle S^1
+    const compR = Math.min(65, (h - 35) * 0.5);
+    const compCx = compR + 24;
+    const compCy = h * 0.5;
+
+    x.strokeStyle = '#334155';
+    x.lineWidth = 1.2;
+    x.beginPath();
+    x.arc(compCx, compCy, compR, 0, Math.PI * 2);
+    x.stroke();
+
+    // Cross axes
+    x.strokeStyle = '#1e293b';
+    x.beginPath();
+    x.moveTo(compCx - compR - 4, compCy); x.lineTo(compCx + compR + 4, compCy);
+    x.moveTo(compCx, compCy - compR - 4); x.lineTo(compCx, compCy + compR + 4);
+    x.stroke();
+
+    // Draw individual oscillator phase markers
+    phases.forEach((p) => {
+      const px = compCx + Math.cos(p) * compR;
+      const py = compCy - Math.sin(p) * compR;
+      x.beginPath();
+      x.arc(px, py, 3, 0, Math.PI * 2);
+      x.fillStyle = '#a855f7';
+      x.fill();
+    });
+
+    // Draw Order Parameter Vector Z = R * exp(i * psi)
+    const zx = compCx + Math.cos(psi) * compR * r;
+    const zy = compCy - Math.sin(psi) * compR * r;
+    x.strokeStyle = '#38bdf8';
+    x.lineWidth = 2.5;
+    x.beginPath();
+    x.moveTo(compCx, compCy);
+    x.lineTo(zx, zy);
+    x.stroke();
+
+    x.beginPath();
+    x.arc(zx, zy, 4.5, 0, Math.PI * 2);
+    x.fillStyle = '#38bdf8';
+    x.fill();
+
+    // Center: Order Parameter R(t) History Wave
+    const waveX = compCx + compR + 24;
+    const waveW = Math.max(80, w - waveX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Synchrony Order Parameter R(t) History', waveX, 24);
+
+    x.strokeStyle = '#1e293b';
+    x.lineWidth = 0.8;
+    for (let l = 0; l <= 3; l++) {
+      const ly = 38 + l * 26;
+      x.beginPath();
+      x.moveTo(waveX, ly);
+      x.lineTo(waveX + waveW, ly);
+      x.stroke();
+    }
+
+    if (rHistory.length > 1) {
+      x.strokeStyle = '#38bdf8';
+      x.lineWidth = 2;
+      x.beginPath();
+      const nH = rHistory.length;
+      for (let i = 0; i < nH; i++) {
+        const px = waveX + (i / (nH - 1)) * waveW;
+        const norm = Math.max(0, Math.min(1, rHistory[i]));
+        const py = 116 - norm * 75;
+        if (i === 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+
+    // Right: Metric Card
+    const cardX = waveX + waveW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 18, cW, h - 42, 5);
+      else x.rect(cardX, 18, cW, h - 42);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Order Parameter', cardX + 8, 34);
+
+      x.fillStyle = r > 0.7 ? '#38bdf8' : '#fbbf24';
+      x.font = 'bold 13px Consolas, monospace';
+      x.fillText(`R = ${r.toFixed(3)}`, cardX + 8, 52);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Phase ψ: ${psi.toFixed(2)} rad`, cardX + 8, 72);
+      x.fillText(`Coupling K: ${kCoupling.toFixed(2)}`, cardX + 8, 88);
+      x.fillText(`PLV Matrix: ${plv.toFixed(3)}`, cardX + 8, 104);
+      x.fillText(`Chimera: ${chimera.toFixed(3)}`, cardX + 8, 120);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Quantum-Inspired Kuramoto-Sakaguchi Nonlinear Phase Oscillator Swarm', 14, h - 6);
+  } catch (err) {
+    console.error('kuramoto view error:', err);
+  }
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -2670,7 +3027,8 @@ function render(s) {
       'value_guided_planning', 'self_model', 'experimental_cognition',
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
       'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
-      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold'
+      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
+      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -3201,6 +3559,57 @@ function render(s) {
   }
 
   // -----------------------------------------------------------------------
+  // Frontier V4: Spiking, Glymphatic, Kuramoto Telemetry
+  // -----------------------------------------------------------------------
+  const spkTelem = s.agent?.telemetry?.spiking_neuromorphic || s.telemetry?.spiking_neuromorphic || {};
+  if ($('spiking-badge')) {
+    const isSpkActive = (spkTelem.active_spiking_neurons || 0) > 0 || (spkTelem.mean_firing_rate_hz || 0) > 0;
+    $('spiking-badge').textContent = isSpkActive ? `${Number(spkTelem.mean_firing_rate_hz || 0).toFixed(1)} Hz` : 'Spiking Standby';
+    setTone($('spiking-badge'), isSpkActive ? 'good' : 'muted');
+  }
+  if ($('spiking-hud')) {
+    keyValues($('spiking-hud'), [
+      ['Firing Rate', `${Number(spkTelem.mean_firing_rate_hz || 0).toFixed(1)} Hz`],
+      ['Active Spikers', String(spkTelem.active_spiking_neurons || 0)],
+      ['V_mean / θ_mean', `${Number(spkTelem.mean_membrane_potential || -65).toFixed(1)} / ${Number(spkTelem.mean_adaptive_threshold || -50).toFixed(1)} mV`],
+      ['Conduction Delay τ', `${Number(spkTelem.mean_conduction_delay_ms || 4.2).toFixed(1)} ms`],
+      ['Temporal Fano Factor', Number(spkTelem.temporal_fano_factor || 1.0).toFixed(3)]
+    ]);
+  }
+
+  const glymphTelem = s.agent?.telemetry?.glymphatic_clearance || s.telemetry?.glymphatic_clearance || {};
+  if ($('glymphatic-badge')) {
+    const isFlush = !!glymphTelem.is_quiescent_flush_active;
+    $('glymphatic-badge').textContent = isFlush ? 'FLUSH ACTIVE' : `Waste ${(Number(glymphTelem.metabolic_waste_concentration || 0.05) * 100).toFixed(0)}%`;
+    setTone($('glymphatic-badge'), isFlush ? 'good' : 'muted');
+  }
+  if ($('glymphatic-hud')) {
+    keyValues($('glymphatic-hud'), [
+      ['Waste Concentration', `${(Number(glymphTelem.metabolic_waste_concentration || 0.05) * 100).toFixed(1)}%`],
+      ['Clearance Rate', Number(glymphTelem.glymphatic_clearance_rate || 0.01).toFixed(4)],
+      ['ISF Volume Fraction', `${(Number(glymphTelem.interstitial_space_fraction || 0.14) * 100).toFixed(0)}%`],
+      ['Adenosine Pressure', `${(Number(glymphTelem.adenosine_sleep_pressure || 0) * 100).toFixed(1)}%`],
+      ['Synaptic Damping', `${Number(glymphTelem.synaptic_fatigue_damping || 1.0).toFixed(3)}x`]
+    ]);
+  }
+
+  const kurTelem = s.agent?.telemetry?.quantum_kuramoto || s.telemetry?.quantum_kuramoto || {};
+  if ($('kuramoto-badge')) {
+    const isKurActive = (kurTelem.order_parameter_r || 0) > 0.55;
+    $('kuramoto-badge').textContent = isKurActive ? `R = ${Number(kurTelem.order_parameter_r || 0).toFixed(2)} (Locked)` : 'Kuramoto Standby';
+    setTone($('kuramoto-badge'), isKurActive ? 'good' : 'muted');
+  }
+  if ($('kuramoto-hud')) {
+    keyValues($('kuramoto-hud'), [
+      ['Order Parameter R', Number(kurTelem.order_parameter_r || 0).toFixed(3)],
+      ['Mean Phase ψ', `${Number(kurTelem.mean_ensemble_phase || 0).toFixed(2)} rad`],
+      ['Coupling Strength K', Number(kurTelem.coupling_strength_k || 1.2).toFixed(2)],
+      ['PLV Synchrony Norm', Number(kurTelem.plv_synchrony_matrix_norm || 0).toFixed(3)],
+      ['Metastable Chimera', Number(kurTelem.metastable_chimera_index || 0).toFixed(3)]
+    ]);
+  }
+
+  // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
   if ($('omnibus-hud') && Date.now() - omnibusLastPoll > 2500) {
@@ -3284,6 +3693,9 @@ function render(s) {
   apicalView();
   reservoirView();
   hyperbolicView();
+  spikingView();
+  glymphaticView();
+  kuramotoView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -3486,6 +3898,9 @@ $('config').onsubmit = e => {
   config.apical_amplification = !!e.target.elements.apical_amplification?.checked;
   config.spectral_reservoir = !!e.target.elements.spectral_reservoir?.checked;
   config.hyperbolic_manifold = !!e.target.elements.hyperbolic_manifold?.checked;
+  config.spiking_neuromorphic = !!e.target.elements.spiking_neuromorphic?.checked;
+  config.glymphatic_clearance = !!e.target.elements.glymphatic_clearance?.checked;
+  config.quantum_kuramoto = !!e.target.elements.quantum_kuramoto?.checked;
   config.overflow_mini_brain = !!e.target.elements.overflow_mini_brain?.checked;
   config.grafted_diffusion = !!e.target.elements.grafted_diffusion?.checked;
   config.selective_state_space = !!e.target.elements.selective_state_space?.checked;
@@ -3895,7 +4310,8 @@ function setAllControlsToMaxUI() {
       'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend',
       'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
       'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic',
-      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold'
+      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
+      'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }

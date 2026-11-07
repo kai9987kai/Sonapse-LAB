@@ -182,6 +182,15 @@ class Workbench:
             if path=='/api/hyperbolic/status':
                 engine = getattr(self.runtime.agent, 'hyperbolic_manifold', None)
                 return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/spiking/status':
+                engine = getattr(self.runtime.agent, 'spiking_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/glymphatic/status':
+                engine = getattr(self.runtime.agent, 'glymphatic_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/kuramoto/status':
+                engine = getattr(self.runtime.agent, 'kuramoto_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
             if path=='/api/tandem/status':
                 return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
@@ -235,6 +244,12 @@ class Workbench:
         if path=='/api/apical_reservoir_hyperbolic':
             from .tandem_max import run_apical_reservoir_and_hyperbolic_assay
             return run_apical_reservoir_and_hyperbolic_assay(
+                self.runtime,
+                seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+            )
+        if path=='/api/frontier_v4_assay':
+            from .tandem_max import run_frontier_v4_assay
+            return run_frontier_v4_assay(
                 self.runtime,
                 seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
             )
