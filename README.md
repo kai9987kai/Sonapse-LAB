@@ -105,8 +105,12 @@ flowchart TD
 | **Unified Evaluation Scorecard** | Standalone metric calculations | Combines supplied returns, compute, Brier/ECE and failure inputs. Its CLI fixture is explicitly illustrative; it does not measure deployment performance. |
 | **Landmark Connectome Catalog (8 Datasets)** | Whole-animal multi-connectome substrate | Full integration of 8 datasets: MaleCNS v1.0, BANC, FlyEM Optic Lobe, FANC, FlyWire FAFB v783, MANC, Larval Drosophila, and Hemibrain with regional neuromodulation. |
 | **Multi-Connectome Hub** | Scalable cross-region routing | Unifies brain, optic, and cord neuropils with 93 biological interface sites, high-capacity scaling (>40,000 neurons/sec on CPU), and transactional weight-space editing. |
-| **Frontier Apex Omnibus Mode** | Full architectural & environmental integration | Single unified command `python -m synapse.cli omnibus` running all 11 complex environments (`forage`, `maze`, `push`, `delayed_match`, `ecosystem`, `predator_evasion`, `dynamic_arena`, `puzzle_chamber`, `apex_megasite`, `stealth_labyrinth`, `kinetic_foundry`) across 2,000 neurons (667/667/666) with efference self-model, uncertainty calibration, plasticity rank monitoring, and cryptographic SHA-256 evaluation receipts. |
+| **Frontier Apex Omnibus Mode** | Full architectural & environmental integration | Single unified command `python -m synapse.cli omnibus` running all 13 complex environments (`forage`, `maze`, `push`, `delayed_match`, `ecosystem`, `predator_evasion`, `dynamic_arena`, `puzzle_chamber`, `apex_megasite`, `stealth_labyrinth`, `kinetic_foundry`, `continental_biosphere`, `chrono_tidepool_citadel`) across **4,000 neurons** (`1334/1333/1333`) with efference self-model, uncertainty calibration, plasticity rank monitoring, and cryptographic SHA-256 evaluation receipts. |
 | **Executed-Transition Neural Graft** | Bounded residual actor, TD critic & sensory predictor | Zero-initialized residual policy (`synapse/neural_graft.py`) conditioned on 155-d observations, 64-d graph/donor features, 5-d baseline actions, and an optional 128-neuron MaleCNS sparse connectome prior (`load_programmed_graft`). Supports parallel rollout pretraining (`pretrain_runtime`) and online clipped policy optimization without mutating actor identity during auxiliary pretraining. |
+| **Active Dendritic Liquid Time-Constant (LTC) Sub-Graft** | Two-compartment apical/basal integration | Continuous-time ODE compartments (`synapse/dendritic_ltc.py`) with input-dependent liquid time-constants $\tau(x, c) \in [0.15, 4.0]$, NMDA coincidence plateau potentials, and local three-factor eligibility traces. |
+| **Oscillatory Phase-Coherence & Kuramoto Synchrony** | Multi-band ($\theta/\beta/\gamma$) cross-neuropil routing | Coupled Kuramoto phase oscillators (`synapse/oscillatory_coherence.py`) across FlyWire, MANC, and Optic-Lobe neuropils implementing Communication-Through-Coherence (CTC) gain modulation. |
+| **Poseidon DV-GEM Belief Memory & Reserve Guard** | Decision-value gated episodic memory | Recurrent GRU belief encoder (`synapse/dvgem_tether.py`), support/conflict screening, predictive viability reserve floor guard, decision-value admission gate ($\Delta Q - 0.5\,\text{conflict} > \theta_{\text{admit}}$), and 6-arm matched lesion assay (`intact`, `similarity`, `erased`, `shifted`, `donor`, `baseline`). |
+| **Project TETHER Specialist Gate, Successor Features & Poincaré/Lyapunov Monitor** | Specialist coordination, $\psi(s,a)$ & hyperbolic geometry | Continuous specialist reliability weighting & fallback gate $\tau \in [0, 1]$ (`synapse/dvgem_tether.py`), TD(0) Successor Features $Q(s, a) = \psi(s, a)^\top w_r$, Poincaré Ball $\mathbb{B}^3$ hyperbolic neuropil embedding, and Finite-Time Lyapunov Exponent $\lambda_{\max}$ stability tracking. |
 | **Verified Neuron-Level Connectome Caches** | Checksum-verified local connectome ingestion | Independent source-backed caches (`synapse/connectome_assets.py`) for `malecns`, `flywire`, `manc`, `optic-lobe`, `banc`, `hemibrain`, and `larval`, keeping catalog metadata, cell-type aggregates, induced subgraphs, and synthetic proxies explicitly distinct. |
 | **Live Weight-Space Screen & Bounded RSI** | Matched cloned-world numeric patch screening | Screens numeric weight edits (`screen_live_patch`, `run_live_rsi` in `synapse/live_programming.py`) on isolated cloned worlds across query and retention seeds before atomic application. |
 
@@ -115,9 +119,9 @@ flowchart TD
 
 Requires Python 3.10+ with PyTorch CPU, NumPy, and SciPy:
 
-New workbench sessions use **2,000 total neurons**, allocated 667/667/666 across
-the three default sources (FlyWire, MANC, Optic Lobe). The graph view includes all 2,000. Use
-`python -m synapse --total-neurons 2000 serve` or set **Total neurons** in the
+New workbench sessions use **4,000 total neurons**, allocated 1334/1333/1333 across
+the three default sources (FlyWire, MANC, Optic Lobe). The graph view includes all 4,000. Use
+`python -m synapse --total-neurons 4000 serve` or set **Total neurons** in the
 session controls. The older `--nodes 16` option still selects 16 per source for
 small experiments and compatible checkpoints. Run the 11-stage omnibus curriculum with
 `python -m synapse.cli omnibus`.

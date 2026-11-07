@@ -169,11 +169,13 @@ class LabRuntime:
             'dendritic_ltc':deepcopy(self.last.get('dendritic_ltc',{'enabled':bool(self.config.dendritic_ltc)})),
             'oscillatory_coherence':deepcopy(self.last.get('oscillatory_coherence',{'enabled':bool(self.config.oscillatory_coherence)})),
             'verifiable_dpo':deepcopy(self.last.get('verifiable_dpo',{'enabled':bool(self.config.verifiable_dpo)})),
+            'dvgem':deepcopy(self.last.get('dvgem',{'enabled':bool(self.config.dvgem_memory)})),
+            'tether_coordinator':deepcopy(self.last.get('tether_coordinator',{'enabled':bool(self.config.tether_coordinator)})),
         }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
-        indices=np.linspace(0,g.n-1,min(2000,g.n)).astype(int)
-        edge_indices=np.linspace(0,len(g.base_pre)-1,min(800,len(g.base_pre))).astype(int)
+        indices=np.linspace(0,g.n-1,min(4000,g.n)).astype(int)
+        edge_indices=np.linspace(0,len(g.base_pre)-1,min(1600,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}
         result={'config':self.config.to_dict(),'steps':self.total_steps,'world':self.world.snapshot(),'action':self.last_action.tolist(),'telemetry':deepcopy(self.last),'recent':deepcopy(self.recent),'experience':experience,'graph':{'nodes':[{'id':int(i),'origin':int(g.origin[i]),'role':str(g.role[i]),'activity':float(r[i])} for i in indices],'edges':[[int(g.base_pre[i]),int(g.base_post[i]),float(g.base_w[i])] for i in edge_indices],'neurons':g.n,'graft_edges':len(g.graft_pre)},'status':{'bridge_training':'experimental supervised preparation' if self.agent.bridge_updates else 'untrained','readout':self.config.readout,'camera_live':bool(self.last.get('camera_consumed',False)),'experience_planning':self.config.experience_planning}}
@@ -183,7 +185,7 @@ class LabRuntime:
         result['graph']['sources']=deepcopy(self.agent.source_provenance)
         indices_set=set(indices.tolist())
         graft_rows=[i for i,(pre,post) in enumerate(zip(g.graft_pre,g.graft_post)) if pre in indices_set and post in indices_set and bool(self.agent.plasticity.active_mask[i])]
-        result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:800]]
+        result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:1200]]
         result['graph']['layout_scope']='schematic source/role layout; coordinates are not measured anatomy'
         return result
     def _path(self,name):

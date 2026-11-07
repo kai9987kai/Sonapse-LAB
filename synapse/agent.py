@@ -107,6 +107,8 @@ class IntegratedAgent:
         self.recurrent_planner=None
         self.diffusion_repair=None
         self.dpo_engine=None
+        self.dvgem_memory=None
+        self.tether_coordinator=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -135,6 +137,12 @@ class IntegratedAgent:
             if getattr(self.config, 'verifiable_dpo', False) and self.dpo_engine is None:
                 from .preference_dpo import MachineVerifiableDPOEngine
                 self.dpo_engine = MachineVerifiableDPOEngine(obs_dim=155, action_dim=5, seed=self.config.seed)
+            if getattr(self.config, 'dvgem_memory', False) and self.dvgem_memory is None:
+                from .dvgem_tether import DecisionValueEpisodicMemory
+                self.dvgem_memory = DecisionValueEpisodicMemory(seed=self.config.seed)
+            if getattr(self.config, 'tether_coordinator', False) and self.tether_coordinator is None:
+                from .dvgem_tether import TetherSuccessorCoordinator
+                self.tether_coordinator = TetherSuccessorCoordinator(seed=self.config.seed)
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -186,6 +194,8 @@ class IntegratedAgent:
         if hasattr(self, 'predictive'): self.predictive.reset()
         if getattr(self, 'dendritic_ltc', None) is not None: self.dendritic_ltc.reset_state()
         if getattr(self, 'oscillatory_coherence', None) is not None: self.oscillatory_coherence.reset()
+        if getattr(self, 'dvgem_memory', None) is not None: self.dvgem_memory.reset_state()
+        if getattr(self, 'tether_coordinator', None) is not None: self.tether_coordinator.reset()
         self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
@@ -342,10 +352,12 @@ class IntegratedAgent:
         bonus=self.curiosity.compute_bonus(o,train=learn)
         self.ticks+=1; self.last_obs=obs.copy(); self.last_features=features.numpy().copy()
         experience_state=encode_experience_state(obs,self.last_features)
-        executed=np.clip(action.numpy(),-1.,1.).astype(np.float32,copy=True)
+        base_act=np.clip(action.numpy(),-1.,1.).astype(np.float32,copy=True)
+        executed=base_act.copy()
         graft_receipt=None
         if self.neural_graft is not None:
             executed,graft_receipt=self.neural_graft.propose(obs,self.last_features,executed,learn=learn)
+        graft_act=executed.copy()
         planner_info={'mode':mode,'enabled':mode!='off','horizon':self.config.experience_horizon,
                       'scope':'experimental short-horizon planning; heuristic uncertainty'}
         if mode!='off':
@@ -377,6 +389,18 @@ class IntegratedAgent:
             planner_info.update(diagnostics)
             planner_info['mode']=mode
             planner_info['algorithm']=getattr(self.config, 'planner_algorithm', 'experience_mpc')
+        planner_act=executed.copy()
+        dvgem_diag=None
+        if getattr(self, 'dvgem_memory', None) is not None:
+            v_res = float(min(self.homeostasis.state.energy, self.homeostasis.state.health)) if hasattr(self, 'homeostasis') else 1.0
+            executed, dvgem_diag = self.dvgem_memory.query_and_gate(obs, executed, viability_reserve=v_res)
+        tether_diag=None
+        if getattr(self, 'tether_coordinator', None) is not None:
+            proposals = {'base_actor': base_act, 'neural_graft': graft_act, 'planner': planner_act, 'dvgem': executed.copy()}
+            executed, tether_diag = self.tether_coordinator.coordinate_specialists(
+                proposals, self.last_features, r.detach().numpy(), self.graph.origin
+            )
+            executed = np.clip(executed, np.maximum(-1., planner_act - .35), np.minimum(1., planner_act + .35))
         executed=govern_action(executed,self.homeostasis.get_max_allowed_thrust())
         self.pending_transition={'state':np.array(experience_state,copy=True),'action':executed.copy(),'graft_receipt':graft_receipt}
         self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':camera_consumed,'visual_latents':vis_latent.tolist() if vis_latent is not None else [],'visual_brightness':vis_info.get('mean_brightness',0.0),'visual_contrast':vis_info.get('contrast',0.0),'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
@@ -396,6 +420,8 @@ class IntegratedAgent:
         if getattr(self, 'self_model', None) is not None: self.last_telemetry['self_model']=self.self_model.summary()
         if dendritic_info is not None: self.last_telemetry['dendritic_ltc']=dendritic_info
         if coherence_info is not None: self.last_telemetry['oscillatory_coherence']=coherence_info
+        if dvgem_diag is not None: self.last_telemetry['dvgem']=dvgem_diag
+        if tether_diag is not None: self.last_telemetry['tether_coordinator']=tether_diag
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
@@ -464,6 +490,13 @@ class IntegratedAgent:
                         dpo_fit = self.dpo_engine.train_dpo_step(batch_size=min(8, len(self.dpo_engine.preference_buffer)))
                     self.dpo_engine.last_margin = float(dpo_fit.get('implicit_reward_margin', 0.0))
                     diagnostics['verifiable_dpo'] = dpo_fit
+        if getattr(self, 'dvgem_memory', None) is not None and getattr(self, 'last_obs', None) is not None:
+            v_res = float(min(self.homeostasis.state.energy, self.homeostasis.state.health)) if hasattr(self, 'homeostasis') else 1.0
+            diagnostics['dvgem'] = self.dvgem_memory.record_transition(self.last_obs, executed, float(reward), observation, viability_reserve=v_res)
+        if getattr(self, 'tether_coordinator', None) is not None:
+            diagnostics['tether_coordinator'] = self.tether_coordinator.update_successor_td(
+                state, executed, float(reward), next_state, executed, done=bool(done)
+            )
         self.pending_transition=None
         return diagnostics
     def feedback(self,reward,done=False):
@@ -607,6 +640,8 @@ class IntegratedAgent:
         state['oscillatory_coherence']=self.oscillatory_coherence.export_state() if getattr(self,'oscillatory_coherence',None) is not None else None
         state['recurrent_planner']=self.recurrent_planner.export_state() if getattr(self,'recurrent_planner',None) is not None else None
         state['dpo_engine']=self.dpo_engine.export_state() if getattr(self,'dpo_engine',None) is not None else None
+        state['dvgem_memory']=self.dvgem_memory.export_state() if getattr(self,'dvgem_memory',None) is not None else None
+        state['tether_coordinator']=self.tether_coordinator.export_state() if getattr(self,'tether_coordinator',None) is not None else None
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
         return state
@@ -701,6 +736,10 @@ class IntegratedAgent:
             self.recurrent_planner.import_state(state['recurrent_planner'])
         if getattr(self,'dpo_engine',None) is not None and state.get('dpo_engine') is not None:
             self.dpo_engine.import_state(state['dpo_engine'])
+        if getattr(self,'dvgem_memory',None) is not None and state.get('dvgem_memory') is not None:
+            self.dvgem_memory.import_state(state['dvgem_memory'])
+        if getattr(self,'tether_coordinator',None) is not None and state.get('tether_coordinator') is not None:
+            self.tether_coordinator.import_state(state['tether_coordinator'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))
         self.source_provenance=deepcopy(state.get('source_provenance',self.source_provenance))
 

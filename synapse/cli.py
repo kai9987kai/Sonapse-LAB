@@ -16,7 +16,7 @@ def main(argv=None):
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 2000)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 4000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -87,7 +87,7 @@ def main(argv=None):
     p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        total=args.total_neurons if args.total_neurons is not None else (2000 if args.nodes is None else None)
+        total=args.total_neurons if args.total_neurons is not None else (4000 if args.nodes is None else None)
         if getattr(args, 'frontier_all', False):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:

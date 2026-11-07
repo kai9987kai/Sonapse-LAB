@@ -8,6 +8,7 @@ import torch
 from synapse.config import SynapseConfig
 from synapse.dendritic_ltc import DendriticLiquidSubGraft
 from synapse.oscillatory_coherence import OscillatoryCoherenceEngine
+from synapse.dvgem_tether import DecisionValueEpisodicMemory, TetherSuccessorCoordinator, DVGEM_MODES
 from synapse.complex_world import ComplexWorld, ALL_TASKS
 from synapse.runtime import LabRuntime
 from synapse.server import Workbench
@@ -158,3 +159,83 @@ def test_workbench_tandem_max_and_new_endpoints(tmp_path):
     status = wb.get('/api/tandem/status')
     assert status['status'] == 'completed'
     assert status['tandem_sha256'] == tandem['tandem_sha256']
+
+
+def test_poseidon_dvgem_6arm_lesion_and_tether_coordinator():
+    dvgem = DecisionValueEpisodicMemory(seed=42)
+    tether = TetherSuccessorCoordinator(seed=42)
+    rng = np.random.default_rng(42)
+    obs = rng.normal(0.0, 0.2, size=(155,)).astype(np.float32)
+    base_act = np.array([0.4, -0.1, 0.2, 0.0, 0.0], dtype=np.float32)
+
+    for k in range(6):
+        o_k = np.clip(obs + rng.normal(0.0, 0.02, size=(155,)).astype(np.float32), -1.0, 1.0)
+        dvgem.update_belief(o_k)
+        a_k = np.clip(base_act + np.array([0.25, 0.1, 0.0, 0.0, 0.0], dtype=np.float32), -1.0, 1.0)
+        dvgem.record_transition(o_k, a_k, reward=0.65, next_obs=obs, viability_reserve=0.9)
+
+    # Viability reserve guard blocks episodic override when reserve < floor
+    _, guard_diag = dvgem.query_and_gate(obs, base_act, viability_reserve=0.10)
+    assert guard_diag['admitted'] is False
+    assert guard_diag['reserve_guard_triggered'] is True
+
+    # 6-Arm Lesion Assay runs all 6 matched arms without mutating live belief state
+    before_state = digest(dvgem.export_state())
+    assay = dvgem.run_six_arm_lesion_assay(obs, base_act, viability_reserve=0.90)
+    assert digest(dvgem.export_state()) == before_state
+    assert set(assay['arms'].keys()) == set(DVGEM_MODES)
+    assert assay['arms']['baseline']['admitted'] is False
+    assert assay['arms']['erased']['admitted'] is False
+
+    # TETHER specialist coordination + TD Successor Features + Poincaré/Lyapunov
+    features = rng.normal(0.0, 0.5, size=(64,)).astype(np.float32)
+    next_features = rng.normal(0.0, 0.5, size=(64,)).astype(np.float32)
+    rates = rng.uniform(0.0, 1.0, size=(120,)).astype(np.float32)
+    origins = np.array([i % 3 for i in range(120)], dtype=np.int64)
+    td_res = tether.update_successor_td(features, base_act, 0.5, next_features, base_act, done=False)
+    assert 'successor_td_norm' in td_res
+    proposals = {
+        'base_actor': base_act,
+        'neural_graft': base_act + 0.05,
+        'planner': base_act + 0.08,
+        'dvgem': np.asarray(assay['arms']['intact']['action'], dtype=np.float32),
+    }
+    coord_act, summary = tether.coordinate_specialists(proposals, features, rates, origins)
+    assert coord_act.shape == (5,)
+    assert 0.0 <= summary['epistemic_trust'] <= 1.0
+    assert 0.0 <= summary['poincare_mean_radius'] < 1.0
+    assert summary['dynamical_regime'] in ('attractor', 'edge_of_chaos', 'chaotic')
+
+
+def test_expanded_mega_arenas_continental_biosphere_and_chrono_tidepool(tmp_path):
+    assert 'continental_biosphere' in ALL_TASKS
+    assert 'chrono_tidepool_citadel' in ALL_TASKS
+
+    w_cb = ComplexWorld(seed=11, curriculum='continental_biosphere')
+    obs_cb = w_cb.reset('continental_biosphere')
+    assert obs_cb.shape == (155,)
+    assert w_cb.arena_half == 8.5
+    assert len(w_cb.wormholes) >= 2
+    assert len(w_cb.weather_fronts) >= 2
+    snap_cb = w_cb.snapshot()
+    assert snap_cb['half'] == 8.5
+    assert len(snap_cb['wormholes']) >= 2
+    assert len(snap_cb['weather_fronts']) >= 2
+
+    # Verify wormhole teleportation triggers when agent enters Mouth A
+    wh = w_cb.wormholes[0]
+    w_cb.a['x'], w_cb.a['y'] = float(wh['x1']), float(wh['y1'])
+    w_cb.wormhole_cooldown = 0
+    _, _, _, info = w_cb.step(np.zeros(5, dtype=np.float32))
+    assert info.get('wormhole_teleported') is True
+
+    w_ct = ComplexWorld(seed=11, curriculum='chrono_tidepool_citadel')
+    obs_ct = w_ct.reset('chrono_tidepool_citadel')
+    assert obs_ct.shape == (155,)
+    assert w_ct.arena_half == 7.5
+
+    wb = Workbench(config=SynapseConfig(nodes_per_source=16, seed=7), output_root=tmp_path)
+    res = wb.post('/api/dvgem_tether', {'seed': 19})
+    assert res['status'] == 'completed'
+    assert 'dvgem_6arm_lesion' in res
+    assert 'tether_coordinator' in res

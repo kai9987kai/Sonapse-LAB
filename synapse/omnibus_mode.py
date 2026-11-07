@@ -27,6 +27,7 @@ OMNIBUS_CURRICULUM = [
     'forage', 'maze', 'push', 'delayed_match', 'ecosystem',
     'predator_evasion', 'dynamic_arena', 'puzzle_chamber',
     'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry',
+    'continental_biosphere', 'chrono_tidepool_citadel',
 ]
 
 
@@ -94,7 +95,7 @@ class OmnibusEvaluationReceipt:
 class OmnibusRunner:
     """Sequential learning and isolated, equally budgeted task probes."""
 
-    def __init__(self, total_neurons=2000, seed=7, steps_per_task=35,
+    def __init__(self, total_neurons=4000, seed=7, steps_per_task=35,
                  curriculum_tasks=None, output_dir: Optional[Path] = None,
                  eval_steps=30, eval_episodes=1):
         for name, value, maximum in [('steps_per_task', steps_per_task, 1000),

@@ -31,7 +31,7 @@ class Workbench:
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(total_neurons=2000),output_root=self.root)
+            runtime=LabRuntime(config or SynapseConfig(total_neurons=4000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
@@ -172,14 +172,14 @@ class Workbench:
                 base=self.runtime.uncertainty_status() if hasattr(self.runtime,'uncertainty_status') else {'status':'active'}
                 return {**base, 'tripartite_decomposer': True}
             if path=='/api/tandem/status':
-                return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':getattr(self.runtime.config,'total_neurons',2000)}
+                return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
                 library=self.omnibus_runner.skill_library if self.omnibus_runner is not None else self.runtime.skill_library
                 return {**library.summary(),'consumer':'current runtime or retained omnibus library'}
             if path=='/api/omnibus/status':
                 if getattr(self, 'omnibus_runner', None) is not None:
                     return self.omnibus_runner.summary()
-                return {'status': 'idle', 'total_neurons': 2000}
+                return {'status': 'idle', 'total_neurons': self.runtime.config.total_neuron_count()}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -202,8 +202,12 @@ class Workbench:
                 if type(oscillatory) is not bool: raise ValueError('oscillatory_coherence must be boolean')
                 dpo=data.get('verifiable_dpo',getattr(self.runtime.config,'verifiable_dpo',False))
                 if type(dpo) is not bool: raise ValueError('verifiable_dpo must be boolean')
+                dvgem=data.get('dvgem_memory',getattr(self.runtime.config,'dvgem_memory',False))
+                if type(dvgem) is not bool: raise ValueError('dvgem_memory must be boolean')
+                tether=data.get('tether_coordinator',getattr(self.runtime.config,'tether_coordinator',False))
+                if type(tether) is not bool: raise ValueError('tether_coordinator must be boolean')
                 threads=integer(data.get('threads',self.runtime.config.compute_threads),'threads',1,__import__('os').cpu_count() or 1)
-                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,dendritic_ltc=dendritic,oscillatory_coherence=oscillatory,verifiable_dpo=dpo,compute_threads=threads)
+                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,dendritic_ltc=dendritic,oscillatory_coherence=oscillatory,verifiable_dpo=dpo,dvgem_memory=dvgem,tether_coordinator=tether,compute_threads=threads)
                 from .compute import configure_torch
                 configure_torch(threads)
                 self.runtime.config=config; self.runtime.agent.config=config
@@ -265,7 +269,7 @@ class Workbench:
             if path=='/api/omnibus/run':
                 from .omnibus_mode import OmnibusRunner
                 steps = integer(data.get('steps_per_task', 25), 'steps_per_task', 1, 1000)
-                neurons = integer(data.get('total_neurons', 2000), 'total_neurons', 48, 30000)
+                neurons = integer(data.get('total_neurons', self.runtime.config.total_neuron_count()), 'total_neurons', 48, 30000)
                 tasks = data.get('tasks')
                 self.omnibus_runner = OmnibusRunner(total_neurons=neurons, seed=self.runtime.config.seed, steps_per_task=steps, curriculum_tasks=tasks, output_dir=self.root)
                 receipt = self.omnibus_runner.run_full_curriculum()
@@ -274,7 +278,7 @@ class Workbench:
                 from .omnibus_mode import OmnibusRunner
                 if getattr(self, 'omnibus_runner', None) is None:
                     steps = integer(data.get('steps_per_task', 25), 'steps_per_task', 1, 1000)
-                    neurons = integer(data.get('total_neurons', 2000), 'total_neurons', 48, 30000)
+                    neurons = integer(data.get('total_neurons', self.runtime.config.total_neuron_count()), 'total_neurons', 48, 30000)
                     tasks = data.get('tasks')
                     self.omnibus_runner = OmnibusRunner(total_neurons=neurons, seed=self.runtime.config.seed, steps_per_task=steps, curriculum_tasks=tasks, output_dir=self.root)
                 out = self.omnibus_runner.step()
@@ -389,6 +393,12 @@ class Workbench:
                 return run_diffusion_and_dpo_assay(
                     self.runtime,
                     horizon=integer(data.get('horizon', 5), 'horizon', 2, 8),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
+            if path=='/api/dvgem_tether':
+                from .tandem_max import run_dvgem_and_tether_assay
+                return run_dvgem_and_tether_assay(
+                    self.runtime,
                     seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
                 )
             if path=='/api/causal_9arm':

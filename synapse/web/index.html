@@ -93,9 +93,11 @@
           <option value="kinetic_foundry">kinetic_foundry (Conveyors &amp; Blast Doors)</option>
           <option value="quantum_bifurcation">quantum_bifurcation (Dual Phase Gates &amp; Entanglement)</option>
           <option value="cybernetic_sanctuary">cybernetic_sanctuary (Cooperative Helper Drones)</option>
+          <option value="continental_biosphere">continental_biosphere (17x17 Mega-Biome + Wormholes)</option>
+          <option value="chrono_tidepool_citadel">chrono_tidepool_citadel (15x15 Aliased Surge + Portals)</option>
         </select>
       </label>
-      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 2,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
+      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 4,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
       <button id="btn-tandem-max-toolbar" class="tandem-max-button" title="Enable all optional features, switch to maximum configuration, and execute Sections 1–5 in tandem">⚡ Max Mode (Sections 1–5)</button>
       <span class="muted" id="runstatus">Paused</span>
     </div>
@@ -151,7 +153,7 @@
           <label>Source<select id="graph-source"><option value="all">All active sources</option></select></label>
           <label>Role<select id="graph-role"><option value="all">All roles</option></select></label>
           <label>Activity scale<select id="graph-activity"><option value="1">1×</option><option value="3">3×</option><option value="10">10×</option><option value="0.3">0.3×</option></select></label>
-          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option selected>1000</option><option>2000</option></select></label>
+          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option selected>4000</option></select></label>
           <label>Edge budget<select id="graph-edges"><option>0</option><option>200</option><option selected>500</option><option>1600</option></select></label>
           <label class="toggle-label"><input id="graph-grafts" type="checkbox" checked> Executing graft links</label>
           <button id="graph-camera-reset" title="Reset orbit and zoom">Reset view</button>
@@ -324,7 +326,7 @@
         <div class="panel-head">
           <div>
             <h2>Frontier Apex Omnibus &amp; Curriculum</h2>
-            <span class="tag">13 EMBODIED TASKS · 2,000 NEURONS</span>
+            <span class="tag">15 EMBODIED TASKS · 4,000 NEURONS</span>
           </div>
           <span id="omnibus-badge" class="tag omnibus-tag">Apex Standby</span>
         </div>
@@ -358,6 +360,30 @@
       </article>
     </div>
 
+    <!-- POSEIDON DV-GEM & PROJECT TETHER / POINCARE / LYAPUNOV -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Poseidon DV-GEM Belief Memory &amp; Viability Reserve Guard</h2>
+            <span class="tag">GRU BELIEF · CONFLICT SCREEN · ΔQ ADMISSION GATE</span>
+          </div>
+          <span id="dvgem-badge" class="tag cognition-tag">DV-GEM</span>
+        </div>
+        <div id="dvgem-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Project TETHER Specialist Gate · Poincaré B³ &amp; Lyapunov FTLE</h2>
+            <span class="tag">RELIABILITY GATE τ · SUCCESSOR ψ(s,a) · HYPERBOLIC B³ · λ_max</span>
+          </div>
+          <span id="tether-badge" class="tag thrust-tag">TETHER Gate</span>
+        </div>
+        <div id="tether-hud" class="keyvalues cognition-values"></div>
+      </article>
+    </div>
+
     <!-- CONFIGURATION -->
     <article>
       <div class="panel-head">
@@ -387,11 +413,13 @@
             <option>kinetic_foundry</option>
             <option>quantum_bifurcation</option>
             <option>cybernetic_sanctuary</option>
+            <option>continental_biosphere</option>
+            <option>chrono_tidepool_citadel</option>
             <option>auto</option>
           </select>
         </label>
         <label>Seed<input name="seed" type="number" value="7" min="0"></label>
-        <label>Total neurons<input name="total_neurons" type="number" value="2000" min="48" max="30000"></label>
+        <label>Total neurons<input name="total_neurons" type="number" value="4000" min="48" max="30000"></label>
         <label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label>
         <label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label>
         <label>Readout
@@ -418,6 +446,8 @@
         <label><input name="dendritic_ltc" type="checkbox"> Dendritic LTC Sub-Graft</label>
         <label><input name="oscillatory_coherence" type="checkbox"> Oscillatory Coherence (θ/β/γ)</label>
         <label><input name="verifiable_dpo" type="checkbox"> Verifiable Preference DPO</label>
+        <label><input name="dvgem_memory" type="checkbox"> Poseidon DV-GEM Belief Memory</label>
+        <label><input name="tether_coordinator" type="checkbox"> Project TETHER + Poincaré/Lyapunov</label>
         <label><input name="programmed_connectome" type="checkbox" checked> MaleCNS Programmed Prior</label>
         <button>Reset session</button>
       </form>
@@ -619,6 +649,14 @@
           <button id="diffusion-dpo" class="primary">Run Diffusion Repair &amp; DPO Assay</button>
         </div>
         <pre id="diffusiondporesult"></pre>
+      </article>
+      <article>
+        <h2>Poseidon 6-Arm DV-GEM Lesion &amp; Project TETHER Specialist Assay</h2>
+        <p class="muted">Evaluates the 6 matched DV-GEM lesion arms (intact, similarity, erased, shifted, donor, baseline) and Project TETHER specialist reliability gate + Poincaré ball B³ + FTLE λ_max.</p>
+        <div class="toolbar">
+          <button id="dvgem-tether-btn" class="primary">Run 6-Arm DV-GEM &amp; TETHER Assay</button>
+        </div>
+        <pre id="dvgemtetherresult"></pre>
       </article>
     </div>
   </section>

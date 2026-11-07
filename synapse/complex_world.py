@@ -34,6 +34,8 @@ COMPLEX_TASKS = [
     "kinetic_foundry",
     "quantum_bifurcation",
     "cybernetic_sanctuary",
+    "continental_biosphere",
+    "chrono_tidepool_citadel",
 ]
 
 ALL_TASKS = BASE_TASKS + COMPLEX_TASKS
@@ -45,6 +47,7 @@ class ComplexWorld(BaseWorld):
     def __init__(self, seed: int = 0, curriculum: str = "auto"):
         self.complex_seed = seed
         self.rng_complex = np.random.default_rng(seed)
+        self.arena_half: float = float(HALF)
         self.predators: List[Dict[str, Any]] = []
         self.helper_drones: List[Dict[str, Any]] = []
         self.terrain_zones: List[Dict[str, Any]] = []
@@ -53,6 +56,9 @@ class ComplexWorld(BaseWorld):
         self.sentinels: List[Dict[str, Any]] = []
         self.sound_tripwires: List[Dict[str, Any]] = []
         self.switches: List[Dict[str, Any]] = []
+        self.wormholes: List[Dict[str, Any]] = []
+        self.weather_fronts: List[Dict[str, Any]] = []
+        self.wormhole_cooldown: int = 0
         self.last_alarm_tripped: bool = False
         self.day_night_clock = 0.0
         self.ambient_light = 1.0
@@ -60,8 +66,13 @@ class ComplexWorld(BaseWorld):
         self.base_walls: List[Tuple[float, float, float, float]] = []
         super().__init__(seed=seed, curriculum=curriculum)
 
+    def _border(self, h: Optional[float] = None):
+        bound = float(h if h is not None else getattr(self, "arena_half", HALF))
+        return [(-bound, -bound, bound, -bound), (bound, -bound, bound, bound), (bound, bound, -bound, bound), (-bound, bound, -bound, -bound)]
+
     def reset(self, task: Optional[str] = None):
         """Initializes both standard baseline and advanced complex tasks."""
+        self.arena_half = float(HALF)
         self.predators.clear()
         self.helper_drones.clear()
         self.terrain_zones.clear()
@@ -70,6 +81,9 @@ class ComplexWorld(BaseWorld):
         self.sentinels.clear()
         self.sound_tripwires.clear()
         self.switches.clear()
+        self.wormholes.clear()
+        self.weather_fronts.clear()
+        self.wormhole_cooldown = 0
         self.last_alarm_tripped = False
 
         # Check if the requested task is one of our new frontier tasks
@@ -100,6 +114,10 @@ class ComplexWorld(BaseWorld):
             self._setup_quantum_bifurcation()
         elif self.task == "cybernetic_sanctuary":
             self._setup_cybernetic_sanctuary()
+        elif self.task == "continental_biosphere":
+            self._setup_continental_biosphere()
+        elif self.task == "chrono_tidepool_citadel":
+            self._setup_chrono_tidepool_citadel()
 
         self.base_walls = self.walls.copy()
         self.history.setdefault(self.task, deque(maxlen=50))
@@ -439,6 +457,140 @@ class ComplexWorld(BaseWorld):
             spot = self._free_spot(avoid=[(o['x'], o['y']) for o in self.objects])
             self._obj("food", spot[0], spot[1], "green", r=0.25, movable=False)
 
+    def _setup_continental_biosphere(self):
+        """Mega-scale 17x17 (arena_half=8.5) multi-biome continental ecosystem with wormhole relays, weather storms, 3 predator packs, and 2 guardian drones."""
+        self.arena_half = 8.5
+        self.max_t = 700
+        self.objects.clear()
+        self.walls = self._border(self.arena_half)
+        self.a.update(x=-6.5, y=-6.0, th=0.4)
+
+        # Continental mountain ridge barriers with central canyon gates
+        self.walls.extend([
+            (-1.5, -8.5, -1.5, -2.5),
+            (-1.5, 2.5, -1.5, 8.5),
+            (3.5, -8.5, 3.5, -1.8),
+            (3.5, 1.8, 3.5, 8.5),
+        ])
+        self.dynamic_gates = [
+            {"id": "canyon_west_gate", "x1": -1.5, "y1": -2.5, "x2": -1.5, "y2": 2.5, "open": True, "timer": 10},
+            {"id": "citadel_east_gate", "x1": 3.5, "y1": -1.8, "x2": 3.5, "y2": 1.8, "open": False, "locked": True},
+        ]
+
+        # 5 Continental Biomes
+        self.terrain_zones = [
+            {"kind": "ice", "x": -5.2, "y": 4.8, "r": 2.6, "friction": 0.25, "color": "cyan"},
+            {"kind": "sand", "x": -4.8, "y": -4.5, "r": 2.5, "friction": 2.35, "color": "yellow"},
+            {"kind": "river", "x": 1.0, "y": 0.0, "r": 2.8, "friction": 1.10, "vx": 0.0, "vy": -0.16, "color": "blue"},
+            {"kind": "mud", "x": 1.2, "y": -5.5, "r": 2.2, "friction": 1.85, "color": "grey"},
+            {"kind": "shadow", "x": 1.0, "y": 5.2, "r": 2.2, "friction": 1.0, "color": "purple"},
+        ]
+
+        # 3 Topographic Mountain / Basin Elevation Hills
+        self.elevation_hills = [
+            {"x": -5.0, "y": 0.5, "height": 2.2, "sigma": 2.0},
+            {"x": 1.0, "y": 3.5, "height": -1.8, "sigma": 1.8},
+            {"x": 6.0, "y": -4.0, "height": 2.0, "sigma": 1.9},
+        ]
+
+        # Paired Quantum Wormhole Relay (transports agent from (-6.0, 6.0) <-> (2.2, -6.0))
+        self.wormholes = [
+            {"id": "wormhole_alpha", "label": "ALPHA RELAY", "x": -6.0, "y": 6.0, "x1": -6.0, "y1": 6.0, "x2": 2.2, "y2": -6.0, "r": 0.75, "target_x": 2.2, "target_y": -6.0, "color": "#00e5ff"},
+            {"id": "wormhole_omega", "label": "OMEGA RELAY", "x": 2.2, "y": -6.0, "x1": 2.2, "y1": -6.0, "x2": -6.0, "y2": 6.0, "r": 0.75, "target_x": -6.0, "target_y": 6.0, "color": "#c084fc"},
+        ]
+
+        # Dynamic Electromagnetic Weather Storm Fronts
+        self.weather_fronts = [
+            {"id": "ion_storm_1", "kind": "ion_storm", "x": -2.0, "y": 0.0, "r": 2.4, "vx": 0.05, "vy": 0.04, "wind_x": -0.05, "wind_y": 0.04, "sensor_noise": 0.03},
+            {"id": "monsoon_squall_2", "kind": "monsoon_squall", "x": 4.2, "y": -2.5, "r": 2.1, "vx": -0.04, "vy": 0.05, "wind_x": 0.04, "wind_y": -0.03, "sensor_noise": 0.025},
+        ]
+
+        # 2 Cooperative Guardian Drones
+        self.helper_drones = [
+            {
+                "id": 601, "x": -1.4, "y": 0.0, "th": 0.0,
+                "orbit_angle": 0.0, "orbit_center": [-3.4, 0.0],
+                "orbit_radius": 2.0, "shield_radius": 1.9, "r": 0.34,
+                "kind": "guardian_drone", "color": "cyan", "active": True,
+            },
+            {
+                "id": 602, "x": 3.0, "y": 0.0, "th": math.pi,
+                "orbit_angle": math.pi, "orbit_center": [1.0, 0.0],
+                "orbit_radius": 2.0, "shield_radius": 1.9, "r": 0.34,
+                "kind": "guardian_drone", "color": "cyan", "active": True,
+            },
+        ]
+
+        # 3 Coordinated Predator Drones
+        self.predators.extend([
+            {"id": 301, "x": -4.5, "y": 3.5, "th": 0.0, "speed": 0.14, "kind": "pack_leader", "r": 0.38, "color": "red", "alerted": False},
+            {"id": 302, "x": 0.8, "y": -3.8, "th": 1.2, "speed": 0.15, "kind": "pack_hunter", "r": 0.38, "color": "purple", "alerted": False},
+            {"id": 303, "x": 5.5, "y": 4.2, "th": -1.0, "speed": 0.13, "kind": "stalker", "r": 0.38, "color": "red", "alerted": False},
+        ])
+
+        self._obj("button", 1.2, 5.2, "yellow", r=0.40, shape="button", movable=False, solid=False, pressed=False)
+        self._obj("target", 6.8, 0.0, "gold", r=0.50, movable=False)
+        for fx, fy in [(-6.2, -1.5), (-3.0, 5.5), (0.0, -6.2), (2.2, 2.8), (5.8, -5.5), (6.0, 5.0)]:
+            self._obj("food", fx, fy, "green", r=0.28, movable=False)
+
+    def _setup_chrono_tidepool_citadel(self):
+        """Poseidon Tidepool v2 inspired 15x15 (arena_half=7.5) observation-aliased tidal arena with periodic surge waves and cue beacons."""
+        self.arena_half = 7.5
+        self.max_t = 650
+        self.objects.clear()
+        self.walls = self._border(self.arena_half)
+        self.a.update(x=-5.8, y=0.0, th=0.0)
+        self.cue = np.array([1.0, 0.0, 0.5, -0.5], dtype=np.float32)
+
+        # Citadel inner sanctum walls
+        self.walls.extend([
+            (2.8, -7.5, 2.8, -1.4),
+            (2.8, 1.4, 2.8, 7.5),
+        ])
+        self.dynamic_gates = [
+            {"id": "tidepool_sluice", "x1": 2.8, "y1": -1.4, "x2": 2.8, "y2": 1.4, "open": False, "locked": True},
+        ]
+
+        # Tidal surge vector channels & stealth kelp shadow zones
+        self.terrain_zones = [
+            {"kind": "river", "x": -1.5, "y": 2.8, "r": 2.4, "friction": 1.15, "vx": -0.14, "vy": 0.08, "color": "blue"},
+            {"kind": "river", "x": -1.5, "y": -2.8, "r": 2.4, "friction": 1.15, "vx": 0.14, "vy": -0.08, "color": "cyan"},
+            {"kind": "shadow", "x": -4.0, "y": 0.0, "r": 1.8, "friction": 1.0, "color": "purple"},
+            {"kind": "sand", "x": 1.0, "y": 0.0, "r": 2.0, "friction": 2.10, "color": "yellow"},
+        ]
+
+        self.wormholes = [
+            {"id": "tide_relay_north", "label": "TIDE RELAY N", "x": -5.0, "y": 5.2, "x1": -5.0, "y1": 5.2, "x2": 1.2, "y2": -4.8, "r": 0.70, "target_x": 1.2, "target_y": -4.8, "color": "#00e5ff"},
+            {"id": "tide_relay_south", "label": "TIDE RELAY S", "x": 1.2, "y": -4.8, "x1": 1.2, "y1": -4.8, "x2": -5.0, "y2": 5.2, "r": 0.70, "target_x": -5.0, "target_y": 5.2, "color": "#c084fc"},
+        ]
+
+        self.weather_fronts = [
+            {"id": "tidal_squall", "kind": "tidal_squall", "x": 0.0, "y": 0.0, "r": 2.6, "vx": 0.04, "vy": -0.05, "wind_x": -0.06, "wind_y": 0.03, "sensor_noise": 0.04}
+        ]
+
+        self.sentinels = [
+            {"id": 410, "x": 0.5, "y": 3.5, "angle": 0.0, "angular_vel": 0.045, "range": 3.8, "cone_half_angle": 0.38, "color": "yellow", "alerted": False},
+            {"id": 411, "x": 0.5, "y": -3.5, "angle": math.pi, "angular_vel": -0.045, "range": 3.8, "cone_half_angle": 0.38, "color": "yellow", "alerted": False},
+        ]
+
+        self.helper_drones = [
+            {
+                "id": 610, "x": 0.3, "y": 0.0, "th": 0.0,
+                "orbit_angle": 0.0, "orbit_center": [-1.5, 0.0],
+                "orbit_radius": 1.8, "shield_radius": 1.75, "r": 0.32,
+                "kind": "guardian_drone", "color": "cyan", "active": True,
+            }
+        ]
+
+        self.predators.append({
+            "id": 310, "x": 4.8, "y": 3.2, "th": -1.5, "speed": 0.14, "kind": "pursuer", "r": 0.38, "color": "red", "alerted": False
+        })
+
+        self._obj("button", -1.2, -4.8, "yellow", r=0.38, shape="button", movable=False, solid=False, pressed=False)
+        self._obj("target", 5.8, 0.0, "gold", r=0.48, movable=False)
+        for fx, fy in [(-4.5, -3.5), (-2.0, 4.8), (1.5, 4.2), (5.0, -3.5)]:
+            self._obj("food", fx, fy, "green", r=0.26, movable=False)
+
     # ------------------------------------------------------------------
     # Step Physics & Environmental Updates
     # ------------------------------------------------------------------
@@ -472,8 +624,9 @@ class ComplexWorld(BaseWorld):
         info["terrain_friction"] = current_friction
 
         # 3. Vector Flow Displacement & Object Current Physics
+        arena_bound = float(getattr(self, "arena_half", HALF))
         if flow_dx != 0.0 or flow_dy != 0.0:
-            h = HALF - 0.35
+            h = arena_bound - 0.35
             self.a["x"] = float(np.clip(self.a["x"] + flow_dx, -h, h))
             self.a["y"] = float(np.clip(self.a["y"] + flow_dy, -h, h))
             ax, ay = self.a["x"], self.a["y"]
@@ -483,8 +636,8 @@ class ComplexWorld(BaseWorld):
             if obj.get("movable") and not obj.get("held"):
                 for zone in self.terrain_zones:
                     if math.hypot(obj["x"] - zone["x"], obj["y"] - zone["y"]) < zone["r"]:
-                        obj["x"] = float(np.clip(obj["x"] + zone.get("vx", 0.0), -HALF + 0.35, HALF - 0.35))
-                        obj["y"] = float(np.clip(obj["y"] + zone.get("vy", 0.0), -HALF + 0.35, HALF - 0.35))
+                        obj["x"] = float(np.clip(obj["x"] + zone.get("vx", 0.0), -arena_bound + 0.35, arena_bound - 0.35))
+                        obj["y"] = float(np.clip(obj["y"] + zone.get("vy", 0.0), -arena_bound + 0.35, arena_bound - 0.35))
 
         # 4. Topographic Elevation Gravity Gradient
         if self.elevation_hills:
@@ -499,7 +652,7 @@ class ComplexWorld(BaseWorld):
                 gx += - (dx / (sigma * sigma)) * val
                 gy += - (dy / (sigma * sigma)) * val
             # Gravitational drift acceleration applied to agent
-            h = HALF - 0.35
+            h = arena_bound - 0.35
             self.a["x"] = float(np.clip(self.a["x"] - 0.04 * gx, -h, h))
             self.a["y"] = float(np.clip(self.a["y"] - 0.04 * gy, -h, h))
             ax, ay = self.a["x"], self.a["y"]
@@ -568,7 +721,7 @@ class ComplexWorld(BaseWorld):
             pred["y"] += math.sin(pred["th"]) * pred_speed
 
             # Arena boundary bounce
-            h = HALF - 0.5
+            h = arena_bound - 0.5
             if pred["x"] < -h or pred["x"] > h:
                 pred["th"] = math.pi - pred["th"]
                 pred["x"] = float(np.clip(pred["x"], -h, h))
@@ -650,16 +803,50 @@ class ComplexWorld(BaseWorld):
                 info["min_hazard_dist"] = max(float(info.get("min_hazard_dist", 10.0)), 6.0)
         info["helper_shield_active"] = helper_shield_active
 
+        # 10b. Wormhole Teleportation Relays & Weather Storm Fronts
+        if getattr(self, "wormhole_cooldown", 0) > 0:
+            self.wormhole_cooldown -= 1
+        wormhole_teleported = False
+        for wh in getattr(self, "wormholes", []):
+            if self.wormhole_cooldown == 0 and math.hypot(ax - wh["x"], ay - wh["y"]) <= float(wh.get("r", 0.75)):
+                self.a["x"] = float(wh["target_x"])
+                self.a["y"] = float(wh["target_y"])
+                ax, ay = self.a["x"], self.a["y"]
+                self.wormhole_cooldown = 18
+                wormhole_teleported = True
+                reward += 0.15
+                break
+        info["wormhole_teleported"] = wormhole_teleported
+
+        in_weather_storm = False
+        for storm in getattr(self, "weather_fronts", []):
+            storm["x"] = float(storm["x"] + storm.get("vx", 0.03))
+            storm["y"] = float(storm["y"] + storm.get("vy", 0.02))
+            sb = arena_bound - 1.2
+            if abs(storm["x"]) > sb:
+                storm["vx"] = -storm.get("vx", 0.03)
+                storm["x"] = float(np.clip(storm["x"], -sb, sb))
+            if abs(storm["y"]) > sb:
+                storm["vy"] = -storm.get("vy", 0.02)
+                storm["y"] = float(np.clip(storm["y"], -sb, sb))
+            if math.hypot(ax - storm["x"], ay - storm["y"]) <= float(storm.get("r", 2.4)):
+                in_weather_storm = True
+                h = arena_bound - 0.35
+                self.a["x"] = float(np.clip(self.a["x"] + storm.get("wind_x", 0.0), -h, h))
+                self.a["y"] = float(np.clip(self.a["y"] + storm.get("wind_y", 0.0), -h, h))
+                ax, ay = self.a["x"], self.a["y"]
+        info["in_weather_storm"] = in_weather_storm
+
         # 11. Complex Task Completion and Terminal Goal Rewards
         target_obj = next((o for o in self.objects if o.get("kind") == "target"), None)
         if target_obj is not None:
             dist_to_target = math.hypot(ax - target_obj["x"], ay - target_obj["y"])
             if dist_to_target < (target_obj.get("r", 0.4) + 0.25):
-                if self.task in ("puzzle_chamber", "cybernetic_sanctuary"):
+                if self.task in ("puzzle_chamber", "cybernetic_sanctuary", "continental_biosphere", "chrono_tidepool_citadel"):
                     btn = next((o for o in self.objects if o.get("kind") == "button"), None)
                     if btn and btn.get("pressed"):
                         done = True
-                        reward += 6.0 if self.task == "puzzle_chamber" else 8.5
+                        reward += 6.0 if self.task == "puzzle_chamber" else 9.0
                         info["outcome"] = "success"
                 elif self.task in ("dynamic_arena", "apex_megasite", "stealth_labyrinth", "kinetic_foundry", "quantum_bifurcation"):
                     done = True
@@ -729,7 +916,7 @@ class ComplexWorld(BaseWorld):
                 return 3.0 - math.hypot(ax - target["x"], ay - target["y"])
             return 0.0
 
-        if t in ("quantum_bifurcation", "cybernetic_sanctuary"):
+        if t in ("quantum_bifurcation", "cybernetic_sanctuary", "continental_biosphere", "chrono_tidepool_citadel"):
             btn = next((o for o in self.objects if o.get("kind") == "button"), None)
             target = next((o for o in self.objects if o.get("kind") == "target"), None)
             if btn and not btn.get("pressed"):
@@ -802,4 +989,28 @@ class ComplexWorld(BaseWorld):
         ]
         snap["ambient_light"] = round(self.ambient_light, 3)
         snap["alarm_tripped"] = self.last_alarm_tripped
+        snap["half"] = round(float(getattr(self, "arena_half", HALF)), 3)
+        snap["wormholes"] = [
+            {
+                "id": wh["id"],
+                "x": round(float(wh["x"]), 3),
+                "y": round(float(wh["y"]), 3),
+                "r": float(wh.get("r", 0.75)),
+                "target_x": round(float(wh["target_x"]), 3),
+                "target_y": round(float(wh["target_y"]), 3),
+                "color": wh.get("color", "purple"),
+            }
+            for wh in getattr(self, "wormholes", [])
+        ]
+        snap["weather_fronts"] = [
+            {
+                "id": wf["id"],
+                "x": round(float(wf["x"]), 3),
+                "y": round(float(wf["y"]), 3),
+                "r": float(wf.get("r", 2.4)),
+                "wind_x": round(float(wf.get("wind_x", 0.0)), 3),
+                "wind_y": round(float(wf.get("wind_y", 0.0)), 3),
+            }
+            for wf in getattr(self, "weather_fronts", [])
+        ]
         return snap

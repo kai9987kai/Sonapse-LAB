@@ -358,6 +358,8 @@ function world() {
     // -----------------------------------------------------------------------
     const cx = w * 0.5;
     const cy = h * 0.52;
+    const arenaHalf = Number(s.half) || 5.0;
+    const gridLimit = Math.ceil(arenaHalf);
 
     let project;
     let worldScale;
@@ -365,7 +367,8 @@ function world() {
     if (worldMode === 'top') {
       // Top-Down Orthographic Radar View (Zero perspective distortion)
       const pad = 36;
-      worldScale = Math.min((w - pad) / 10.5, (h - pad) / 10.5);
+      const span = arenaHalf * 2.1;
+      worldScale = Math.min((w - pad) / span, (h - pad) / span);
       project = (px, py, z = 0) => [
         cx + px * worldScale,
         cy - py * worldScale
@@ -373,11 +376,10 @@ function world() {
     } else {
       // True Isotropic 3D Isometric Projection
       // Both X and Y axes use the exact same scale factor S.
-      // Arena spans [-5, 5] x [-5, 5]
       const isoCos = Math.cos(Math.PI / 6); // 0.866025
       const isoSin = Math.sin(Math.PI / 6); // 0.500000
-      const maxSpanX = 20 * isoCos;         // ~17.32
-      const maxSpanY = 20 * isoSin + 2.5;    // ~12.50
+      const maxSpanX = (arenaHalf * 4) * isoCos;
+      const maxSpanY = (arenaHalf * 4) * isoSin + 2.5;
       const padX = 36;
       const padY = 46;
 
@@ -394,10 +396,10 @@ function world() {
     // -----------------------------------------------------------------------
     x.strokeStyle = '#142535';
     x.lineWidth = 0.8;
-    for (let i = -5; i <= 5; i++) {
-      const p1 = project(i, -5, 0), p2 = project(i, 5, 0);
+    for (let i = -gridLimit; i <= gridLimit; i++) {
+      const p1 = project(i, -arenaHalf, 0), p2 = project(i, arenaHalf, 0);
       x.beginPath(); x.moveTo(p1[0], p1[1]); x.lineTo(p2[0], p2[1]); x.stroke();
-      const q1 = project(-5, i, 0), q2 = project(5, i, 0);
+      const q1 = project(-arenaHalf, i, 0), q2 = project(arenaHalf, i, 0);
       x.beginPath(); x.moveTo(q1[0], q1[1]); x.lineTo(q2[0], q2[1]); x.stroke();
     }
 
@@ -405,10 +407,10 @@ function world() {
     x.strokeStyle = '#22384d';
     x.lineWidth = 1.6;
     const bCorners = [
-      project(-5, -5, 0),
-      project(5, -5, 0),
-      project(5, 5, 0),
-      project(-5, 5, 0)
+      project(-arenaHalf, -arenaHalf, 0),
+      project(arenaHalf, -arenaHalf, 0),
+      project(arenaHalf, arenaHalf, 0),
+      project(-arenaHalf, arenaHalf, 0)
     ];
     x.beginPath();
     x.moveTo(bCorners[0][0], bCorners[0][1]);
@@ -746,6 +748,66 @@ function world() {
       x.fillStyle = '#5de0c1';
       x.font = '9px Consolas, monospace';
       x.fillText(`ALLY · ${helper.kind || 'guardian_drone'} [SHIELD]`, hp[0] + hrad + 4, hp[1] - 2);
+    });
+
+    // -----------------------------------------------------------------------
+    // Quantum Wormhole Teleportation Portals & Geodesic Arc
+    // -----------------------------------------------------------------------
+    (s.wormholes || []).forEach(wh => {
+      const p1 = project(wh.x1, wh.y1, 0.12);
+      const p2 = project(wh.x2, wh.y2, 0.12);
+      const wrad = Math.max(6, (wh.r || 0.45) * worldScale);
+      const col = wh.color || '#00e5ff';
+
+      // Geodesic bridge arc between paired wormhole mouths
+      x.strokeStyle = 'rgba(0, 229, 255, 0.42)';
+      x.lineWidth = 1.4;
+      x.setLineDash([4, 4]);
+      x.beginPath();
+      x.moveTo(p1[0], p1[1]);
+      x.quadraticCurveTo((p1[0] + p2[0]) * 0.5, Math.min(p1[1], p2[1]) - 28, p2[0], p2[1]);
+      x.stroke();
+      x.setLineDash([]);
+
+      for (const [pt, tag] of [[p1, 'PORTAL A'], [p2, 'PORTAL B']]) {
+        const g = x.createRadialGradient(pt[0], pt[1], 1, pt[0], pt[1], wrad * 1.6);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.45, col);
+        g.addColorStop(1, 'transparent');
+        x.fillStyle = g;
+        x.beginPath();
+        x.arc(pt[0], pt[1], wrad * 1.6, 0, Math.PI * 2);
+        x.fill();
+        x.strokeStyle = col;
+        x.lineWidth = 1.6;
+        x.beginPath();
+        x.arc(pt[0], pt[1], wrad, 0, Math.PI * 2);
+        x.stroke();
+        x.fillStyle = col;
+        x.font = '8px Consolas, monospace';
+        x.fillText(`${wh.label || 'WORMHOLE'} · ${tag}`, pt[0] - wrad, pt[1] - wrad - 4);
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Dynamic Weather Storm Fronts & Electromagnetic Squalls
+    // -----------------------------------------------------------------------
+    (s.weather_fronts || []).forEach(wf => {
+      const wp = project(wf.x, wf.y, 0.25);
+      const wr = Math.max(14, (wf.r || 2.0) * worldScale);
+      x.strokeStyle = 'rgba(127, 170, 255, 0.50)';
+      x.fillStyle = 'rgba(80, 130, 220, 0.12)';
+      x.lineWidth = 1.3;
+      x.setLineDash([6, 4]);
+      x.beginPath();
+      if (worldMode === 'iso') x.ellipse(wp[0], wp[1], wr, wr * 0.58, 0, 0, Math.PI * 2);
+      else x.arc(wp[0], wp[1], wr, 0, Math.PI * 2);
+      x.fill();
+      x.stroke();
+      x.setLineDash([]);
+      x.fillStyle = '#7faaff';
+      x.font = '8px Consolas, monospace';
+      x.fillText(`STORM · ${(wf.kind || 'squall').toUpperCase()}`, wp[0] - 28, wp[1] - 4);
     });
 
     // -----------------------------------------------------------------------
@@ -1216,7 +1278,8 @@ function render(s) {
     for (const boolField of [
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
-      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo', 'programmed_connectome'
+      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
+      'dvgem_memory', 'tether_coordinator', 'programmed_connectome'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -1488,6 +1551,41 @@ function render(s) {
     keyValues($('oscillatory-hud'), oscMetrics);
   }
 
+  // Poseidon DV-GEM Belief Memory & Reserve Guard HUD
+  const dvgem = s.telemetry?.dvgem || {};
+  if ($('dvgem-badge')) {
+    $('dvgem-badge').textContent = dvgem.enabled ? (dvgem.admitted ? `Admitted (ΔQ=${Number(dvgem.delta_q || 0).toFixed(2)})` : `Screened (${dvgem.reason || 'active'})`) : 'Standby';
+    setTone($('dvgem-badge'), dvgem.enabled ? (dvgem.admitted ? 'good' : 'warn') : 'muted');
+  }
+  if ($('dvgem-hud')) {
+    const dvgemMetrics = [
+      ['Belief Memory Bank', dvgem.enabled ? `Active · ${dvgem.entries || 0} episodes · ${dvgem.admitted_total || 0} admissions` : 'Disabled (enable in Session Config)'],
+      ['Decision Value ΔQ', dvgem.enabled ? `ΔQ=${Number(dvgem.delta_q || 0).toFixed(4)} · eff=${Number(dvgem.effective_advantage || 0).toFixed(4)}` : '—'],
+      ['Outcome Conflict & Support', dvgem.enabled ? `conflict=${Number(dvgem.conflict || 0).toFixed(4)} · d_min=${Number(dvgem.min_distance || 0).toFixed(4)}` : '—'],
+      ['Viability Reserve Floor', dvgem.enabled ? `reserve=${Number(dvgem.viability_reserve || 1).toFixed(3)} · guard=${dvgem.reserve_guard_triggered ? 'ENGAGED' : 'CLEAR'}` : '—'],
+      ['Gate Decision', dvgem.enabled ? `${dvgem.reason || 'ready'} (mode: ${dvgem.mode || 'intact'})` : 'baseline']
+    ];
+    keyValues($('dvgem-hud'), dvgemMetrics);
+  }
+
+  // Project TETHER Specialist Gate + Successor Features + Poincaré/Lyapunov HUD
+  const tether = s.telemetry?.tether_coordinator || {};
+  if ($('tether-badge')) {
+    $('tether-badge').textContent = tether.enabled ? `τ=${Number(tether.epistemic_trust || 0).toFixed(2)} · ${tether.dynamical_regime || 'attractor'}` : 'Standby';
+    setTone($('tether-badge'), tether.enabled ? (tether.fallback_triggered ? 'warn' : 'good') : 'muted');
+  }
+  if ($('tether-hud')) {
+    const tw = tether.trust_weights || {};
+    const tetherMetrics = [
+      ['Epistemic Trust τ(t)', tether.enabled ? `τ=${Number(tether.epistemic_trust || 0).toFixed(4)} · dev=${Number(tether.mean_specialist_deviation || 0).toFixed(4)}` : 'Disabled (enable in Session Config)'],
+      ['Specialist Weights', tether.enabled ? `actor=${Number(tw.base_actor || 0).toFixed(2)} · graft=${Number(tw.neural_graft || 0).toFixed(2)} · plan=${Number(tw.planner || 0).toFixed(2)} · dvgem=${Number(tw.dvgem || 0).toFixed(2)}` : '—'],
+      ['TD Successor Value ψ(s,a)ᵀw', tether.enabled ? `Q_ψ=${Number(tether.successor_q_value || 0).toFixed(4)} · fallbacks=${tether.fallback_total || 0}` : '—'],
+      ['Poincaré Ball B³ Geometry', tether.enabled ? `r_B3=${Number(tether.poincare_mean_radius || 0).toFixed(4)} · d_hyp(FW,MANC)=${Number(tether.hyperbolic_distance_fw_manc || 0).toFixed(4)}` : '—'],
+      ['Lyapunov Exponent λ_max', tether.enabled ? `λ_max=${Number(tether.lyapunov_exponent || 0).toFixed(4)} (${tether.dynamical_regime || 'attractor'})` : '—']
+    ];
+    keyValues($('tether-hud'), tetherMetrics);
+  }
+
   // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
@@ -1504,15 +1602,15 @@ function render(s) {
             $('omnibus-badge').textContent = `Stage ${omnibusStatus.current_stage_idx + 1}/${omnibusStatus.total_stages}: ${omnibusStatus.current_task}`;
             setTone($('omnibus-badge'), 'warn');
           } else {
-            $('omnibus-badge').textContent = 'Apex Standby (2,000 N)';
+            $('omnibus-badge').textContent = 'Apex Standby (4,000 N)';
             setTone($('omnibus-badge'), 'purple');
           }
         }
         const stagesDone = (omnibusStatus.stages_completed || []).length;
         const lastReceipt = omnibusStatus.receipt;
         const items = [
-          ['Connectome Scale', `${omnibusStatus.total_neurons || 2000} Neurons (667/667/666)`],
-          ['Active Curriculum Stage', `${stagesDone}/${omnibusStatus.total_stages || 11} Completed`],
+          ['Connectome Scale', `${omnibusStatus.total_neurons || 4000} Neurons (1334/1333/1333)`],
+          ['Active Curriculum Stage', `${stagesDone}/${omnibusStatus.total_stages || 13} Completed`],
           ['Current Task', omnibusStatus.current_task || 'forage'],
           ['Retention Score', lastReceipt ? `${(lastReceipt.final_backward_retention * 100).toFixed(1)}%` : 'Pending final probe'],
           ['Catastrophic Forgetting', lastReceipt ? `${(lastReceipt.catastrophic_forgetting * 100).toFixed(1)}%` : 'Target < 5%'],
@@ -1541,7 +1639,7 @@ function render(s) {
         const res = await fetch('/api/omnibus/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ steps_per_task: 15, total_neurons: 2000 })
+          body: JSON.stringify({ steps_per_task: 15, total_neurons: 4000 })
         });
         const data = await res.json();
         alert(`Omnibus Complete! Stages: ${data.receipt?.stages?.length}, Backward Retention: ${(data.receipt?.final_backward_retention * 100).toFixed(1)}%`);
@@ -1711,6 +1809,8 @@ $('config').onsubmit = e => {
   config.dendritic_ltc = !!e.target.elements.dendritic_ltc?.checked;
   config.oscillatory_coherence = !!e.target.elements.oscillatory_coherence?.checked;
   config.verifiable_dpo = !!e.target.elements.verifiable_dpo?.checked;
+  config.dvgem_memory = !!e.target.elements.dvgem_memory?.checked;
+  config.tether_coordinator = !!e.target.elements.tether_coordinator?.checked;
   config.programmed_connectome = e.target.elements.programmed_connectome ? !!e.target.elements.programmed_connectome.checked : (state.config?.programmed_connectome ?? true);
   config.planner_algorithm = e.target.elements.planner_algorithm?.value || state.config?.planner_algorithm || 'experience_mpc';
   config.experience_planning = state.config?.experience_planning ?? false;
@@ -1995,6 +2095,15 @@ if ($('diffusion-dpo')) {
   });
 }
 
+if ($('dvgem-tether-btn')) {
+  $('dvgem-tether-btn').onclick = () => action(async () => {
+    show('dvgemtetherresult', { status: 'running Poseidon 6-Arm DV-GEM lesion assay & Project TETHER specialist/Poincaré/Lyapunov assay...' });
+    const res = await api('dvgem_tether', {});
+    show('dvgemtetherresult', res);
+    render(await api('state'));
+  });
+}
+
 if ($('controlled-study-btn')) {
   $('controlled-study-btn').onclick = () => action(async () => {
     show('controlledstudyresult', { status: 'running 6-Arm Continual Ablation Study across sequential stages...' });
@@ -2066,7 +2175,7 @@ function setAllControlsToMaxUI() {
   if ($('training-active')) $('training-active').checked = true;
   if ($('training-workers')) $('training-workers').value = '4';
   if ($('training-batch')) $('training-batch').value = '256';
-  if ($('graph-nodes')) $('graph-nodes').value = '2000';
+  if ($('graph-nodes')) $('graph-nodes').value = '4000';
   if ($('graph-edges')) $('graph-edges').value = '1600';
   if ($('graph-grafts')) $('graph-grafts').checked = true;
   if ($('experience-mode')) $('experience-mode').value = 'memory';
@@ -2076,8 +2185,8 @@ function setAllControlsToMaxUI() {
 
   const form = $('config');
   if (form) {
-    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 2000) {
-      form.elements.total_neurons.value = '2000';
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 4000) {
+      form.elements.total_neurons.value = '4000';
     }
     if (form.elements.microsteps) form.elements.microsteps.value = '4';
     if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
@@ -2086,7 +2195,8 @@ function setAllControlsToMaxUI() {
     for (const field of [
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
-      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo', 'programmed_connectome'
+      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
+      'dvgem_memory', 'tether_coordinator', 'programmed_connectome'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -2113,10 +2223,10 @@ async function runTandemMaxMode() {
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
   try {
-    const neurons = Number($('config')?.elements?.total_neurons?.value || 2000);
+    const neurons = Number($('config')?.elements?.total_neurons?.value || 4000);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'forage';
     const res = await api('tandem/max', {
-      total_neurons: Math.max(2000, neurons),
+      total_neurons: Math.max(4000, neurons),
       task,
       pretrain_steps: 32,
       pretrain_updates: 16,
@@ -2151,6 +2261,7 @@ async function runTandemMaxMode() {
       show('metamorphicresult', res.section_03.metamorphic);
       show('spectralresult', res.section_03.spectral);
       show('diffusiondporesult', res.section_03.diffusion_dpo);
+      if (res.section_03.dvgem_tether) show('dvgemtetherresult', res.section_03.dvgem_tether);
     }
     // Populate Section 04 panels
     if (res.section_04) {
