@@ -121,6 +121,8 @@ class IntegratedAgent:
         self.intervention_planner=None
         self.relational_memory=None
         self.event_backend=None
+        self.graph_diffusion=None
+        self.active_inference=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -209,6 +211,25 @@ class IntegratedAgent:
             if getattr(self.config, 'event_driven_backend', False) and self.event_backend is None:
                 from .event_driven_backend import EventDrivenSparseBackend
                 self.event_backend = EventDrivenSparseBackend(delta_threshold=0.05)
+            if getattr(self.config, 'graph_diffusion', False) and self.graph_diffusion is None:
+                from .graph_diffusion import ChebyshevGraphDiffusion
+                self.graph_diffusion = ChebyshevGraphDiffusion(
+                    num_nodes=self.brain.n,
+                    pre=torch.as_tensor(self.graph.base_pre),
+                    post=torch.as_tensor(self.graph.base_post),
+                    weights=torch.as_tensor(self.brain.base_w),
+                    order=4,
+                    seed=self.config.seed,
+                )
+                self.modules['graph_diffusion'] = self.graph_diffusion
+            if getattr(self.config, 'active_inference_planner', False) and self.active_inference is None:
+                from .active_inference import ActiveInferenceEngine
+                self.active_inference = ActiveInferenceEngine(
+                    observation_dim=155,
+                    action_dim=5,
+                    hidden_dim=32,
+                    seed=self.config.seed,
+                )
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -387,6 +408,10 @@ class IntegratedAgent:
             if getattr(self, 'holographic_vsa', None) is not None:
                 vsa_res, vsa_info = self.holographic_vsa.step(pooled, obs, learn=learn)
                 pooled = pooled + 0.03 * torch.tanh(vsa_res)
+            graph_diff_info = None
+            if getattr(self, 'graph_diffusion', None) is not None:
+                gdiff_res, graph_diff_info = self.graph_diffusion(r, learn=learn)
+                pooled = pooled + 0.04 * torch.tanh(gdiff_res[:32])
             # Dormant candidates participate only when novelty recruits one; unused weights persist.
             novelty=float((r-previous).abs().mean()); preferred_expert=int(self.intent.argmax())%2
             if getattr(self.config, 'dormant_lifecycle', True):
@@ -454,6 +479,14 @@ class IntegratedAgent:
         graft_receipt=None
         if self.neural_graft is not None:
             executed,graft_receipt=self.neural_graft.propose(obs,self.last_features,executed,learn=learn)
+        if getattr(self, 'active_inference', None) is not None:
+            if getattr(self.config, 'planner_algorithm', '') == 'active_inference':
+                executed, act_inf_info = self.active_inference.select_action(executed, self.last_features)
+            else:
+                _, act_inf_info = self.active_inference.evaluate_expected_free_energy(
+                    np.array([executed]), self.last_features
+                )
+            self.last_telemetry['active_inference'] = act_inf_info
         graft_act=executed.copy()
         planner_info={'mode':mode,'enabled':mode!='off','horizon':self.config.experience_horizon,
                       'scope':'experimental short-horizon planning; heuristic uncertainty'}
@@ -526,6 +559,8 @@ class IntegratedAgent:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'comm_fabric', None) is not None:
             self.last_telemetry['sancf'] = self.comm_fabric.get_telemetry_dict()
+        if getattr(self, 'graph_diffusion', None) is not None and graph_diff_info is not None:
+            self.last_telemetry['graph_diffusion'] = graph_diff_info
         if getattr(self, 'overflow_mini_brain', None) is not None:
             self.last_telemetry['overflow_mini_brain'] = {'enabled': True, 'state_norm': float(torch.norm(self.overflow_mini_brain.state).item())}
         if getattr(self, 'event_backend', None) is not None:
@@ -622,6 +657,8 @@ class IntegratedAgent:
             diagnostics['causal_world'] = self.causal_world.observe(f_t, a_t, next_f)
         if getattr(self, 'relational_memory', None) is not None:
             diagnostics['relational_memory'] = self.relational_memory.bind_step(state, executed, next_state)
+        if getattr(self, 'active_inference', None) is not None:
+            self.active_inference.update_beliefs(float(abs(reward)))
         self.pending_transition=None
         return diagnostics
     def feedback(self,reward,done=False):
@@ -776,6 +813,8 @@ class IntegratedAgent:
         state['event_backend']=self.event_backend.export_state() if getattr(self,'event_backend',None) is not None else None
         state['multitimescale']=self.multitimescale.export_state() if getattr(self,'multitimescale',None) is not None else None
         state['relational_memory']=self.relational_memory.export_state() if getattr(self,'relational_memory',None) is not None else None
+        state['graph_diffusion']=self.graph_diffusion.export_state() if getattr(self,'graph_diffusion',None) is not None else None
+        state['active_inference']=self.active_inference.export_state() if getattr(self,'active_inference',None) is not None else None
         state['torch_rng']=torch.random.get_rng_state()
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
@@ -893,6 +932,10 @@ class IntegratedAgent:
             self.multitimescale.import_state(state['multitimescale'])
         if getattr(self,'relational_memory',None) is not None and state.get('relational_memory') is not None:
             self.relational_memory.import_state(state['relational_memory'])
+        if getattr(self,'graph_diffusion',None) is not None and state.get('graph_diffusion') is not None:
+            self.graph_diffusion.import_state(state['graph_diffusion'])
+        if getattr(self,'active_inference',None) is not None and state.get('active_inference') is not None:
+            self.active_inference.import_state(state['active_inference'])
         if 'torch_rng' in state:
             torch.random.set_rng_state(state['torch_rng'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))

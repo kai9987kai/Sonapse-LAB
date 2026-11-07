@@ -136,6 +136,34 @@ class NeuralObservatory:
                 'provenance': deepcopy(provenance[i]) if i < len(provenance) else {'representation': 'unknown'},
             })
 
+        # Generate hierarchical Level-Of-Detail (LOD) clusters for scalable WebGL rendering
+        lod_clusters = []
+        cluster_id = 0
+        for origin_idx, s_name in enumerate(source_names):
+            source_node_indices = [i for i in range(n) if (int(self.agent.graph.origin[i]) if i < len(self.agent.graph.origin) else 0) == origin_idx]
+            if not source_node_indices:
+                continue
+            # Partition each source into sub-clusters by role and spatial quadrant
+            for role_name in ('sensory', 'central', 'motor'):
+                role_nodes = [i for i in source_node_indices if (str(self.agent.graph.role[i]) if i < len(self.agent.graph.role) else 'central') == role_name]
+                if not role_nodes:
+                    continue
+                pts = self.node_positions_3d[role_nodes]
+                centroid = pts.mean(axis=0)
+                radius = float(np.max(np.linalg.norm(pts - centroid, axis=1))) if len(pts) > 1 else 0.5
+                lod_clusters.append({
+                    'id': cluster_id,
+                    'dataset': s_name,
+                    'role': role_name,
+                    'node_count': len(role_nodes),
+                    'x': round(float(centroid[0]), 4),
+                    'y': round(float(centroid[1]), 4),
+                    'z': round(float(centroid[2]), 4),
+                    'radius': round(radius, 4),
+                    'sample_node_ids': role_nodes[:10],
+                })
+                cluster_id += 1
+
         return {
             'total_nodes': n,
             'total_edges': base_count + active_graft_count,
@@ -143,6 +171,8 @@ class NeuralObservatory:
             'base_edges': base_count,
             'active_graft_edges': active_graft_count,
             'graft_links': graft_links,
+            'lod_clusters': lod_clusters,
+            'num_lod_clusters': len(lod_clusters),
             'layout_scope': 'schematic source/role layout; coordinates are not measured anatomy',
             'nodes': nodes,
             'edges': edges,

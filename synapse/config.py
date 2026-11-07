@@ -68,6 +68,8 @@ class SynapseConfig:
     relational_memory: bool = False
     verifier_rsi: bool = False
     event_driven_backend: bool = False
+    graph_diffusion: bool = False
+    active_inference_planner: bool = False
 
     def __post_init__(self):
         bool_keys = (
@@ -80,7 +82,7 @@ class SynapseConfig:
             'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain',
             'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
             'meta_plasticity', 'causal_world_model', 'relational_memory',
-            'verifier_rsi', 'event_driven_backend'
+            'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner'
         )
         for key in bool_keys:
             if type(getattr(self, key)) is not bool:
@@ -155,7 +157,7 @@ class SynapseConfig:
         return int(sum(self.source_node_counts()))
 
     @classmethod
-    def frontier_apex(cls, total_neurons: int = 6000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
+    def frontier_apex(cls, total_neurons: int = 6500, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
         """Omnibus configuration activating all frontier cognitive, neuromorphic, and SANCF communication features."""
         cfg_dict = dict(
             seed=seed,
@@ -197,6 +199,8 @@ class SynapseConfig:
             relational_memory=True,
             verifier_rsi=True,
             event_driven_backend=True,
+            graph_diffusion=True,
+            active_inference_planner=True,
             compute_threads=min(4, os.cpu_count() or 1),
             connectome_mode='prefer_authentic',
         )
@@ -204,7 +208,7 @@ class SynapseConfig:
         return cls(**cfg_dict)
 
     @classmethod
-    def max_tandem(cls, total_neurons: int = 6000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+    def max_tandem(cls, total_neurons: int = 6500, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
         """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, and full CPU compute."""
         cfg_dict = dict(
             seed=seed,
@@ -248,6 +252,8 @@ class SynapseConfig:
             relational_memory=True,
             verifier_rsi=True,
             event_driven_backend=True,
+            graph_diffusion=True,
+            active_inference_planner=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
@@ -287,7 +293,7 @@ class SynapseConfig:
             'neural_comm_latency_steps': 0, 'neurowave_enabled': False,
             'overflow_mini_brain': False, 'grafted_diffusion': False, 'selective_state_space': False,
             'multitimescale_learning': False, 'meta_plasticity': False, 'causal_world_model': False,
-            'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False,
+            'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False, 'graph_diffusion': False, 'active_inference_planner': False,
             'connectome_sources': ('flywire', 'manc', 'optic-lobe'),
             **saved
         }

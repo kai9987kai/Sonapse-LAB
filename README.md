@@ -245,8 +245,18 @@ is selected.
 The runtime provides toggleable research implementations of recent frontier techniques:
 - **SANCF — Sonapse Adaptive Neural Communication Fabric (`synapse/neural_comm.py`, `synapse/neural_comm_channels.py`, `synapse/neural_comm_topology.py`)**:
   Additive virtual neural communication fabric operating alongside traditional scalar plastic grafts (`gamma=0.0` zero-init baseline). Features continuous, uniform quantized, VQ codebook, orthogonal mode (DCT/Hadamard/learned basis), and impaired (latency queue, drop, burst, ARQ) channel models with regional message encoders, decoders, and communication-through-coherence phase gating.
-- **6,000 Biological Neuron Connectome Scaling (`synapse/config.py`, `synapse/multi_connectome.py`)**:
-  Scales high-capacity Drosophila multi-connectome substrate to 6,000 neurons partitioned across FlyWire (2,000), MANC (2,000), and FlyEM Optic Lobe (2,000), backed by 128 MaleCNS motor priors and an auxiliary 256-neuron Dale-compliant Overflow Mini-Brain.
+- **6,500 Biological Neuron Connectome Scaling (`synapse/config.py`, `synapse/multi_connectome.py`)**:
+  Scales high-capacity Drosophila multi-connectome substrate to 6,500 biological neurons partitioned across FlyWire (2,167), MANC (2,167), and FlyEM Optic Lobe (2,166), backed by 128 MaleCNS motor priors and an auxiliary 256-neuron Dale-compliant Overflow Mini-Brain.
+- **Chebyshev Spectral Graph Diffusion Engine (`synapse/graph_diffusion.py`)**:
+  Computes multi-scale topological signal diffusion across the 6,500-neuron connectome via K=4 Chebyshev polynomial recurrence over the normalized graph Laplacian in O(E) time, with zero-initialized readout gating for exact frozen baseline preservation.
+- **Non-Linear Multi-Branch Dendritic dSpikes (`synapse/dendritic_ltc.py`)**:
+  Multi-compartmental dendritic model featuring 4 localized branches (proximal basal, distal oblique, apical trunk, apical tuft) with supralinear calcium/sodium dSpike event tracking and NMDA plateau potentials (Gidon et al. Science 2020).
+- **Precision-Weighted Hierarchical Active Inference (`synapse/active_inference.py`)**:
+  Expected Free Energy (EFE) decision engine balancing pragmatic goal-directed reward utility against epistemic Bayesian information gain, with acetylcholine observation precision and dopamine policy precision weighting (Friston et al. 2023).
+- **Directional Causal Graph Discovery & Path Tracing (`synapse/causal_discovery.py`)**:
+  DirectLiNGAM structural equation causal discovery and Pearlian interventional path tracing, revealing top causal signal transmission highways from sensory neuropils to motor effectors.
+- **Hierarchical 3D Level-Of-Detail (LOD) Observatory (`synapse/observatory.py`, `synapse/web/app.js`)**:
+  Generates multi-level anatomical cluster hierarchies (LOD 0: 6,500 individual neurons; LOD 1: 48 spatial neuropil clusters; LOD 2: global specimen hubs) for smooth 60 FPS WebGL visualization.
 - **Scientific Non-Claims & Physical Boundary Disclaimers**:
   Oscillatory modes in SANCF and `oscillatory_coherence.py` are abstract coupled mathematical modes, **not** literal biophysical membrane rhythms. Digital orthogonal channels are mathematical basis projections, not physical orbital angular momentum, radio waves, or quantum communication channels.
 - **Opt-in 4D Environment (`synapse/world4d.py`)**:

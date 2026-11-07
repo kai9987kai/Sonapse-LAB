@@ -2325,7 +2325,7 @@ function setAllControlsToMaxUI() {
   if ($('training-active')) $('training-active').checked = true;
   if ($('training-workers')) $('training-workers').value = '4';
   if ($('training-batch')) $('training-batch').value = '256';
-  if ($('graph-nodes')) $('graph-nodes').value = '6000';
+  if ($('graph-nodes')) $('graph-nodes').value = '6500';
   if ($('graph-edges')) $('graph-edges').value = '3200';
   if ($('graph-grafts')) $('graph-grafts').checked = true;
   if ($('experience-mode')) $('experience-mode').value = 'memory';
@@ -2335,8 +2335,8 @@ function setAllControlsToMaxUI() {
 
   const form = $('config');
   if (form) {
-    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 6000) {
-      form.elements.total_neurons.value = '6000';
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 6500) {
+      form.elements.total_neurons.value = '6500';
     }
     if (form.elements.microsteps) form.elements.microsteps.value = '4';
     if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
@@ -2376,10 +2376,10 @@ async function runTandemMaxMode() {
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
   try {
-    const neurons = Number($('config')?.elements?.total_neurons?.value || 6000);
+    const neurons = Number($('config')?.elements?.total_neurons?.value || 6500);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
     const res = await api('tandem/max', {
-      total_neurons: Math.max(6000, neurons),
+      total_neurons: Math.max(6500, neurons),
       task,
       pretrain_steps: 32,
       pretrain_updates: 16,

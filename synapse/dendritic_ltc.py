@@ -96,8 +96,11 @@ class DendriticLiquidSubGraft(nn.Module):
         i_basal = self.basal_proj(b)
         i_apical = self.apical_proj(a)
         nmda_gate = torch.sigmoid(i_apical)
-        # Nonlinear apical amplification (dendritic plateau potential)
-        equilibrium_drive = torch.tanh(i_basal * (1.0 + 0.65 * nmda_gate))
+        # Supralinear dendritic calcium/sodium spike (dSpike) initiation (Gidon et al. Science 2020)
+        d_spike_active = torch.relu(i_apical - 0.70) ** 2
+        d_spike_gain = 0.35 * torch.tanh(d_spike_active)
+        # Nonlinear multi-branch apical plateau potential amplification
+        equilibrium_drive = torch.tanh(i_basal * (1.0 + 0.65 * nmda_gate + d_spike_gain))
 
         decay = torch.exp(-self.dt / tau.clamp(min=1e-3))
         next_v = decay * self.voltage + (1.0 - decay) * equilibrium_drive
@@ -111,12 +114,14 @@ class DendriticLiquidSubGraft(nn.Module):
 
         delta = self.readout(next_v)
         nmda_plateau = float((nmda_gate > 0.65).float().mean().item())
+        d_spike_rate = float((d_spike_active > 0.1).float().mean().item())
         return delta, {
             "enabled": True,
             "mean_tau": round(float(tau.mean().item()), 4),
             "min_tau": round(float(tau.min().item()), 4),
             "max_tau": round(float(tau.max().item()), 4),
             "nmda_plateau_fraction": round(nmda_plateau, 4),
+            "d_spike_rate": round(d_spike_rate, 4),
             "voltage_norm": round(float(next_v.norm().item()), 4),
             "readout_norm": round(float(self.readout.weight.norm().item()), 5),
             "updates": int(self.updates),

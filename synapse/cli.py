@@ -16,7 +16,7 @@ def main(argv=None):
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 6000)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 6500)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -73,6 +73,7 @@ def main(argv=None):
     sub.add_parser('meta-plasticity')
     sub.add_parser('ablation')
     sub.add_parser('checkpoint-migration')
+    sub.add_parser('frontier-innovations')
     p=sub.add_parser('omnibus'); p.add_argument('--steps-per-task',type=int,default=30); p.add_argument('--tasks',nargs='+',default=None); p.add_argument('--save-report',type=Path)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
@@ -95,7 +96,7 @@ def main(argv=None):
     p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        total=args.total_neurons if args.total_neurons is not None else (6000 if args.nodes is None else None)
+        total=args.total_neurons if args.total_neurons is not None else (6500 if args.nodes is None else None)
         if getattr(args, 'frontier_all', False):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:
@@ -453,6 +454,11 @@ def main(argv=None):
                 dummy_state = {'config': {'seed': args.seed}, 'activations': [0.1, 0.2, 0.3], 'step_count': 100}
                 res = mig.simulate_migration(dummy_state)
                 result = dataclasses.asdict(res)
+            elif args.command=='frontier-innovations':
+                from .runtime import LabRuntime
+                from .tandem_max import run_frontier_innovations_assay
+                rt = LabRuntime(config)
+                result = run_frontier_innovations_assay(rt, seed=args.seed)
         if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan','rsi-verify'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}

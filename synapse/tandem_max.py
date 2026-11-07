@@ -156,6 +156,38 @@ def run_dvgem_and_tether_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     }
 
 
+def run_frontier_innovations_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Runs Chebyshev Spectral Graph Diffusion, Active Inference, and Causal Path Tracing assays."""
+    import torch
+    from .graph_diffusion import ChebyshevGraphDiffusion
+    from .active_inference import ActiveInferenceEngine
+    from .causal_discovery import CausalPathTracer
+
+    diff = getattr(runtime.agent, 'graph_diffusion', None) or ChebyshevGraphDiffusion(
+        num_nodes=runtime.agent.brain.n,
+        pre=torch.as_tensor(runtime.agent.graph.base_pre),
+        post=torch.as_tensor(runtime.agent.graph.base_post),
+        weights=torch.as_tensor(runtime.agent.brain.base_w),
+        seed=seed,
+    )
+    diff_res = diff.run_graph_diffusion_assay(steps=5, seed=seed)
+
+    act_inf = getattr(runtime.agent, 'active_inference', None) or ActiveInferenceEngine(
+        observation_dim=155, action_dim=5, hidden_dim=32, seed=seed
+    )
+    act_inf_res = act_inf.run_active_inference_assay(trials=8, seed=seed)
+
+    tracer = CausalPathTracer(seed=seed)
+    causal_paths_res = tracer.run_causal_path_discovery_assay(steps=32, seed=seed)
+
+    return {
+        'status': 'completed',
+        'graph_diffusion': diff_res,
+        'active_inference': act_inf_res,
+        'causal_path_discovery': causal_paths_res,
+    }
+
+
 def run_criticality_and_vsa_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     """Run Connectome Echo-State Reservoir Criticality Assay and 6-Pair Holographic VSA Binding Assay."""
     from .criticality_vsa import CriticalityAvalancheEngine, HolographicVSAWorkingMemory
@@ -328,7 +360,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     t_start = time.perf_counter()
     max_cpu = min(32, max(1, os.cpu_count() or 4))
     workers = max(1, min(4, int(data.get('workers', min(4, max(1, os.cpu_count() or 2))))))
-    neurons = int(data.get('total_neurons', max(6000, workbench.runtime.config.total_neuron_count())))
+    neurons = int(data.get('total_neurons', max(6500, workbench.runtime.config.total_neuron_count())))
     neurons = max(48, min(30000, neurons))
     task = str(data.get('task', workbench.runtime.config.task or 'forage'))
     seed = int(data.get('seed', workbench.runtime.config.seed or 7))
@@ -475,6 +507,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         diffusion_dpo_res = run_diffusion_and_dpo_assay(runtime, horizon=5, seed=seed)
         dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
         criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
+        frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
 
         from .neural_comm_bench import SancfMatrixBenchmark
         sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
@@ -502,6 +535,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
             'diffusion_dpo': diffusion_dpo_res,
             'dvgem_tether': dvgem_tether_res,
             'criticality_vsa': criticality_vsa_res,
+            'frontier_innovations': frontier_innovations_res,
             'sancf_comm_matrix': sancf_section_res,
         }
 

@@ -187,7 +187,7 @@ class LabRuntime:
         }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
-        indices=np.linspace(0,g.n-1,min(6000,g.n)).astype(int)
+        indices=np.linspace(0,g.n-1,min(6500,g.n)).astype(int)
         edge_indices=np.linspace(0,len(g.base_pre)-1,min(3200,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}

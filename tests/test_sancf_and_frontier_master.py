@@ -461,15 +461,60 @@ def test_benchmark_suite_execution():
 
 
 # ---------------------------------------------------------------------------
-# 20. 6,000 Neurons Scaling & Baseline Invariant
+# 20. 6,500 Neurons Scaling & Baseline Invariant
 # ---------------------------------------------------------------------------
-def test_6000_neurons_scaling():
-    cfg = SynapseConfig.frontier_apex(total_neurons=6000, seed=7)
-    assert cfg.total_neuron_count() == 6000
+def test_6500_neurons_scaling():
+    cfg = SynapseConfig.frontier_apex(total_neurons=6500, seed=7)
+    assert cfg.total_neuron_count() == 6500
     assert cfg.neural_comm_enabled is True
     assert cfg.overflow_mini_brain is True
+    assert cfg.graph_diffusion is True
+    assert cfg.active_inference_planner is True
 
     # Baseline default configuration preserves backward compatibility
     base_cfg = SynapseConfig(total_neurons=4000)
     assert base_cfg.neural_comm_enabled is False
     assert base_cfg.overflow_mini_brain is False
+    assert base_cfg.graph_diffusion is False
+    assert base_cfg.active_inference_planner is False
+
+
+# ---------------------------------------------------------------------------
+# 21. Frontier Innovations: Graph Diffusion, Active Inference & Causal Paths
+# ---------------------------------------------------------------------------
+def test_frontier_innovations_graph_diffusion_and_active_inference():
+    from synapse.graph_diffusion import ChebyshevGraphDiffusion
+    from synapse.active_inference import ActiveInferenceEngine
+    from synapse.causal_discovery import CausalPathTracer
+
+    # 1. Chebyshev Graph Diffusion (zero-readout frozen invariance)
+    diff = ChebyshevGraphDiffusion(num_nodes=64, seed=42)
+    x = torch.randn(64)
+    res0, diag0 = diff(x, learn=False)
+    assert res0.shape == (64,)
+    assert torch.allclose(res0, torch.zeros(64))
+    assert diag0['chebyshev_order'] == 4
+
+    assay_diff = diff.run_graph_diffusion_assay(steps=3, seed=42)
+    assert assay_diff['status'] == 'completed'
+    assert assay_diff['spectral_radius_bound'] == 2.0
+
+    # 2. Active Inference Expected Free Energy minimization
+    act_inf = ActiveInferenceEngine(observation_dim=155, action_dim=5, hidden_dim=32, seed=42)
+    base_act = np.zeros(5, dtype=np.float32)
+    feat = np.random.randn(32).astype(np.float32)
+    selected_act, diag_inf = act_inf.select_action(base_act, feat, num_candidates=6)
+    assert len(selected_act) == 5
+    assert diag_inf['enabled'] is True
+    assert 'min_efe' in diag_inf
+    assert 'epistemic_gain' in diag_inf
+
+    assay_inf = act_inf.run_active_inference_assay(trials=4, seed=42)
+    assert assay_inf['status'] == 'completed'
+
+    # 3. DirectLiNGAM Causal Path Discovery
+    tracer = CausalPathTracer(seed=42)
+    assay_paths = tracer.run_causal_path_discovery_assay(steps=24, seed=42)
+    assert assay_paths['status'] == 'completed'
+    assert assay_paths['is_strictly_acyclic'] is True
+    assert len(assay_paths['causal_topological_order']) == 6
