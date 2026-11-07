@@ -136,7 +136,8 @@ class SynapseConfig:
             'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber',
             'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry',
             'quantum_bifurcation', 'cybernetic_sanctuary', 'continental_biosphere',
-            'chrono_tidepool_citadel', 'world4d_tesseract_bypass', 'digital_tool_arena'
+            'chrono_tidepool_citadel', 'world4d_tesseract_bypass', 'digital_tool_arena',
+            'hyper_boreal_tundra', 'subterranean_abyss', 'vortex_maelstrom'
         }
         if self.task not in valid_tasks:
             raise ValueError('unknown task')
