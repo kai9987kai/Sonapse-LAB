@@ -192,20 +192,25 @@ class ContinualBackpropEngine:
         }
 
     def export_state(self) -> Dict[str, Any]:
+        from copy import deepcopy
         return {
             'step_count': self.step_count,
             'total_replacements': self.total_replacements,
             'utilities': self.utilities.tolist(),
             'ages': self.ages.tolist(),
             'replacement_history': self.replacement_history,
+            'rng': deepcopy(self.rng.bit_generator.state),
         }
 
     def import_state(self, state: Dict[str, Any]):
+        from copy import deepcopy
         self.step_count = int(state.get('step_count', 0))
         self.total_replacements = int(state.get('total_replacements', 0))
         self.utilities = np.array(state['utilities'], dtype=np.float32)
         self.ages = np.array(state['ages'], dtype=np.int32)
         self.replacement_history = list(state.get('replacement_history', []))
+        if 'rng' in state:
+            self.rng.bit_generator.state = deepcopy(state['rng'])
 
 
 def benchmark_continual_backprop(

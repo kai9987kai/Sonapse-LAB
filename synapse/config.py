@@ -38,12 +38,16 @@ class SynapseConfig:
     graft_updates: int = 2
     connectome_mode: str = 'proxy'
     structural_learning: bool = True
+    dendritic_ltc: bool = False
+    oscillatory_coherence: bool = False
+    verifiable_dpo: bool = False
 
     def __post_init__(self):
         for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
                     'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
                     'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all',
-                    'neural_graft','active_training','programmed_connectome','structural_learning'):
+                    'neural_graft','active_training','programmed_connectome','structural_learning',
+                    'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo'):
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
@@ -62,7 +66,7 @@ class SynapseConfig:
             raise ValueError('active_training requires neural_graft')
         if self.programmed_connectome and not self.neural_graft:
             raise ValueError('programmed_connectome requires neural_graft')
-        valid_tasks = {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber', 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry'}
+        valid_tasks = {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber', 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry', 'quantum_bifurcation', 'cybernetic_sanctuary'}
         if self.task not in valid_tasks:
             raise ValueError('unknown task')
         if not isinstance(self.connectome_sources, tuple) or len(self.connectome_sources) == 0:
@@ -79,6 +83,9 @@ class SynapseConfig:
             return (self.nodes_per_source,)*count
         base,remainder=divmod(self.total_neurons,count)
         return tuple(base+(index<remainder) for index in range(count))
+
+    def total_neuron_count(self) -> int:
+        return int(sum(self.source_node_counts()))
 
     @classmethod
     def frontier_apex(cls, total_neurons: int = 2000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
@@ -103,8 +110,48 @@ class SynapseConfig:
             neural_graft=True,
             active_training=True,
             programmed_connectome=True,
+            dendritic_ltc=True,
+            oscillatory_coherence=True,
+            verifiable_dpo=True,
             compute_threads=min(4,os.cpu_count() or 1),
             connectome_mode='prefer_authentic',
+        )
+        cfg_dict.update(kwargs)
+        return cls(**cfg_dict)
+
+    @classmethod
+    def max_tandem(cls, total_neurons: int = 2000, seed: int = 7, task: str = 'apex_megasite', **kwargs) -> 'SynapseConfig':
+        """Maximum tandem configuration activating every optional feature, hybrid planning, and full CPU compute."""
+        cfg_dict = dict(
+            seed=seed,
+            total_neurons=total_neurons,
+            microsteps=4,
+            cognition_interval=4,
+            task=task,
+            frontier_all=True,
+            experience_planning=True,
+            surprise_memory=True,
+            experience_horizon=5,
+            experimental_cognition=True,
+            continual_backprop=True,
+            fast_weight_memory=True,
+            dormant_lifecycle=True,
+            latent_reasoning=True,
+            value_guided_planning=True,
+            self_model=True,
+            planner_algorithm='hybrid',
+            readout='persistent_evoked',
+            neural_graft=True,
+            active_training=True,
+            programmed_connectome=True,
+            dendritic_ltc=True,
+            oscillatory_coherence=True,
+            verifiable_dpo=True,
+            compute_threads=min(32, max(1, os.cpu_count() or 4)),
+            graft_batch_size=256,
+            graft_updates=4,
+            connectome_mode='prefer_authentic',
+            structural_learning=True,
         )
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
@@ -129,6 +176,7 @@ class SynapseConfig:
                       'neural_graft':False,'active_training':False,'programmed_connectome':False,
                       'compute_threads':1,'graft_batch_size':64,'graft_updates':2,'connectome_mode':'proxy',
                       'structural_learning':True,
+                      'dendritic_ltc':False,'oscillatory_coherence':False,'verifiable_dpo':False,
                       'connectome_sources': ('flywire', 'manc', 'optic-lobe'), **saved}
         if isinstance(normalized.get('connectome_sources'), list):
             normalized['connectome_sources'] = tuple(normalized['connectome_sources'])

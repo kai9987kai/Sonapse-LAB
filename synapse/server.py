@@ -33,7 +33,7 @@ class Workbench:
             from .runtime import LabRuntime
             runtime=LabRuntime(config or SynapseConfig(total_neurons=2000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
-        self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None
+        self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
             try:
@@ -169,7 +169,10 @@ class Workbench:
                 agent=self.runtime.agent
                 return agent.self_model.summary() if (hasattr(agent, 'self_model') and agent.self_model) else {'enabled': False}
             if path=='/api/uncertainty/status':
-                return {'status': 'active', 'tripartite_decomposer': True}
+                base=self.runtime.uncertainty_status() if hasattr(self.runtime,'uncertainty_status') else {'status':'active'}
+                return {**base, 'tripartite_decomposer': True}
+            if path=='/api/tandem/status':
+                return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':getattr(self.runtime.config,'total_neurons',2000)}
             if path=='/api/reusable_skills':
                 library=self.omnibus_runner.skill_library if self.omnibus_runner is not None else self.runtime.skill_library
                 return {**library.summary(),'consumer':'current runtime or retained omnibus library'}
@@ -193,12 +196,20 @@ class Workbench:
                 if type(active) is not bool: raise ValueError('active must be boolean')
                 programmed=data.get('programmed_connectome',self.runtime.config.programmed_connectome)
                 if type(programmed) is not bool: raise ValueError('programmed_connectome must be boolean')
+                dendritic=data.get('dendritic_ltc',getattr(self.runtime.config,'dendritic_ltc',False))
+                if type(dendritic) is not bool: raise ValueError('dendritic_ltc must be boolean')
+                oscillatory=data.get('oscillatory_coherence',getattr(self.runtime.config,'oscillatory_coherence',False))
+                if type(oscillatory) is not bool: raise ValueError('oscillatory_coherence must be boolean')
+                dpo=data.get('verifiable_dpo',getattr(self.runtime.config,'verifiable_dpo',False))
+                if type(dpo) is not bool: raise ValueError('verifiable_dpo must be boolean')
                 threads=integer(data.get('threads',self.runtime.config.compute_threads),'threads',1,__import__('os').cpu_count() or 1)
-                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,compute_threads=threads)
+                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,dendritic_ltc=dendritic,oscillatory_coherence=oscillatory,verifiable_dpo=dpo,compute_threads=threads)
                 from .compute import configure_torch
                 configure_torch(threads)
                 self.runtime.config=config; self.runtime.agent.config=config
                 self.runtime.agent._setup_neural_graft()
+                if hasattr(self.runtime.agent,'_setup_frontier_extensions'):
+                    self.runtime.agent._setup_frontier_extensions()
                 return self.runtime.snapshot()
             if path=='/api/patch/evaluate':
                 from .live_programming import screen_live_patch
@@ -213,12 +224,25 @@ class Workbench:
                 if type(use_memory) is not bool: raise ValueError('memory must be boolean')
                 value_guided=data.get('value_guided',getattr(self.runtime.config,'value_guided_planning',False))
                 if type(value_guided) is not bool: raise ValueError('value_guided must be boolean')
+                algo=str(data.get('planner_algorithm',getattr(self.runtime.config,'planner_algorithm','experience_mpc')))
+                if algo not in ('experience_mpc','recurrent_latent','hybrid'):
+                    raise ValueError('planner_algorithm must be experience_mpc, recurrent_latent, or hybrid')
                 agent=self.runtime.agent
                 state=encode_experience_state(self.runtime.obs,agent.last_features)
                 baseline=self.runtime.last_action.copy()
                 proposed,diagnostics=ExperienceMPC(agent.experience_model,horizon=horizon,value_guided=value_guided).plan(
                     state,baseline,memory=agent.surprise_memory if use_memory else None)
-                return {**diagnostics,'horizon':horizon,'source_step':self.runtime.total_steps,
+                extra_diag={}
+                if algo in ('recurrent_latent','hybrid') and getattr(agent,'recurrent_planner',None) is not None:
+                    import numpy as _np
+                    rec_plan=agent.recurrent_planner.plan(self.runtime.obs,baseline,horizon=horizon)
+                    rec_act=_np.asarray(rec_plan['action'],dtype=_np.float32)
+                    extra_diag['recurrent_latent_preview']={k:(v.tolist() if hasattr(v,'tolist') else v) for k,v in rec_plan.items()}
+                    if algo=='recurrent_latent' and rec_plan.get('used_plan'):
+                        proposed=rec_act
+                    elif algo=='hybrid':
+                        proposed=_np.clip(0.55*proposed+0.45*rec_act,-1.0,1.0).astype(_np.float32)
+                return {**diagnostics,**extra_diag,'planner_algorithm':algo,'horizon':horizon,'source_step':self.runtime.total_steps,
                         'baseline':baseline.tolist(),'proposed_action':proposed.tolist(),
                         'action_order':['drive','turn','reach','height','grip'],
                         'baseline_source':'repeat previous executed action; current observation with last neural context',
@@ -230,8 +254,13 @@ class Workbench:
                 horizon=integer(data.get('horizon',self.runtime.config.experience_horizon),'horizon',1,5)
                 value_guided=data.get('value_guided',getattr(self.runtime.config,'value_guided_planning',False))
                 if type(value_guided) is not bool: raise ValueError('value_guided must be boolean')
-                config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model',experience_horizon=horizon,value_guided_planning=value_guided)
+                algo=str(data.get('planner_algorithm',getattr(self.runtime.config,'planner_algorithm','experience_mpc')))
+                if algo not in ('experience_mpc','recurrent_latent','hybrid'):
+                    raise ValueError('planner_algorithm must be experience_mpc, recurrent_latent, or hybrid')
+                config=dataclasses.replace(self.runtime.config,experience_planning=mode!='off',surprise_memory=mode!='model',experience_horizon=horizon,value_guided_planning=value_guided,planner_algorithm=algo)
                 self.runtime.config=config; self.runtime.agent.config=config
+                if hasattr(self.runtime.agent,'_setup_frontier_extensions'):
+                    self.runtime.agent._setup_frontier_extensions()
                 return self.runtime.snapshot()
             if path=='/api/omnibus/run':
                 from .omnibus_mode import OmnibusRunner
@@ -355,13 +384,41 @@ class Workbench:
                     seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
                 )
                 return study.run_study()
+            if path=='/api/diffusion_dpo':
+                from .tandem_max import run_diffusion_and_dpo_assay
+                return run_diffusion_and_dpo_assay(
+                    self.runtime,
+                    horizon=integer(data.get('horizon', 5), 'horizon', 2, 8),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
+            if path=='/api/causal_9arm':
+                from .tandem_max import run_causal_9arm_and_scorecard
+                return run_causal_9arm_and_scorecard(
+                    self.runtime,
+                    steps_per_arm=integer(data.get('steps_per_arm', 12), 'steps_per_arm', 5, 60),
+                    episodes_per_arm=integer(data.get('episodes_per_arm', 1), 'episodes_per_arm', 1, 5),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
+            if path=='/api/training/intensive':
+                from .tandem_max import run_intensive_compute_boost
+                return run_intensive_compute_boost(
+                    self.runtime,
+                    steps=integer(data.get('steps', 64), 'steps', 16, 1024),
+                    updates=integer(data.get('updates', 24), 'updates', 4, 256),
+                    batch_size=integer(data.get('batch_size', 256), 'batch_size', 16, 1024),
+                    online_steps=integer(data.get('online_steps', 12), 'online_steps', 1, 128),
+                    workers=data.get('workers'),
+                )
+            if path=='/api/tandem/max':
+                from .tandem_max import run_tandem_max_orchestration
+                return run_tandem_max_orchestration(self, data)
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):
     if host not in ('127.0.0.1','localhost'): raise ValueError('server must bind to IPv4 loopback')
     app=Workbench(runtime,config,output_root); web=Path(__file__).parent/'web'
     class Handler(BaseHTTPRequestHandler):
-        timeout=15
+        timeout=60
         def log_message(self,*args): pass
         def send(self,status,data,content='application/json'):
             raw=json.dumps(data,allow_nan=False,default=str).encode() if content=='application/json' else data

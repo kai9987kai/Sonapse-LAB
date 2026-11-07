@@ -707,3 +707,41 @@ progress { accent-color: var(--teal); }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 @media (max-width: 1250px) { .training-layout { grid-template-columns: 1fr; gap: 18px; } .training-evidence { border-left: 0; border-top: 1px solid #2d454f; padding: 16px 0 0; } }
 @media (max-width: 700px) { .panel-head { align-items: flex-start; flex-wrap: wrap; gap: 10px; } .training-controls { align-items: center; } .training-controls .toggle-label { white-space: normal; } .graph-controls { gap: 8px; } .graph-controls .toggle-label { padding: 0; } .status-pill { font-size: 9px; } }
+
+/* Tandem Max Mode (Sections 01–05) & Restored Controls */
+.header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tandem-max-button {
+  background: linear-gradient(135deg, #0d3b38 0%, #2d1b4e 100%);
+  border: 1px solid #5de0c1;
+  color: #5de0c1;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 6px;
+  box-shadow: 0 0 14px rgba(93, 224, 193, 0.22);
+  cursor: pointer;
+}
+.tandem-max-button:hover {
+  background: linear-gradient(135deg, #13534e 0%, #3d2469 100%);
+  border-color: #e0aaff;
+  color: #ffffff;
+}
+.tandem-banner {
+  border-color: #5de0c1;
+  background: linear-gradient(120deg, rgba(18, 41, 51, 0.96), rgba(35, 22, 58, 0.92));
+  margin-bottom: 18px;
+}
+.tandem-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+#filter-reset {
+  background: rgba(93, 224, 193, 0.12);
+  border: 1px solid rgba(93, 224, 193, 0.38);
+  border-radius: 4px;
+  padding: 2px 7px;
+  color: #5de0c1;
+  cursor: pointer;
+}
+

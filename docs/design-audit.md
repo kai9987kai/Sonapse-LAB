@@ -91,3 +91,27 @@ The first 14 regressions were observed failing against the old implementation
 before the fixes; the runtime-context regressions likewise first failed against
 the previous API. A passing test suite establishes the tested contracts, not an
 empirical learning advantage. Native studies must retain measured negative results.
+
+
+## Restored & Newly Integrated Frontier Subsystems (7 November 2026)
+
+To ensure zero regressions across the `ddf7406` (Antigravity) and `ffb1514` (Codex) lineages while advancing the live architecture, the following capabilities were restored, wired into `IntegratedAgent` / `LabRuntime`, and verified under `tests/test_tandem_max_and_innovations.py`:
+
+1. **Active Planner Algorithm Selection (`experience_mpc`, `recurrent_latent`, `hybrid`)**:
+   - Restored live execution of `SynapseConfig.planner_algorithm` inside `IntegratedAgent.act()`, `IntegratedAgent.observe_transition()`, and `POST /api/experience/preview`.
+   - When `planner_algorithm='recurrent_latent'` or `'hybrid'`, `MultistepRecurrentPlanner` (`synapse/multistep_planner.py`) trains online on observed transitions and contributes multi-step recurrent latent rollouts alongside `ExperienceMPC`, with `DiffusionRepairSidecar` (`synapse/diffusion_repair.py`) smoothing candidate trajectory jerk in `'hybrid'` mode.
+2. **Live Tripartite Uncertainty & Plasticity Health Telemetry**:
+   - Wired `TripartiteUncertaintyDecomposer` (`synapse/uncertainty_calibration.py`) and `PlasticityMonitor` (`synapse/plasticity_monitor.py`) directly into `LabRuntime.step()` and `GET /api/uncertainty/status`, with exact mid-episode checkpoint save/load persistence.
+3. **Two-Compartment Dendritic Liquid Time-Constant Sub-Graft (`synapse/dendritic_ltc.py`)**:
+   - Implemented `DendriticLiquidSubGraft` with input/ACh/astrocyte-modulated liquid time constants $\tau_i(t)$, basal-apical coincidence detection (NMDA plateau potentials), zero-initialized residual readout, and three-factor dendritic eligibility trace updates when `dendritic_ltc=True` and `learn=True`.
+4. **Oscillatory Phase-Coherence Routing Engine (`synapse/oscillatory_coherence.py`)**:
+   - Implemented `OscillatoryCoherenceEngine` modeling coupled Kuramoto phase oscillators across connectome neuropils (`flywire`, `manc`, `optic-lobe`), tracking Theta/Beta/Gamma band power, global Kuramoto order parameter $R(t) \in [0, 1]$, and Communication-Through-Coherence (CTC) routing gains when `oscillatory_coherence=True`.
+5. **Online Machine-Verifiable DPO (`synapse/preference_dpo.py`)**:
+   - Wired `MachineVerifiableDPOEngine` into `IntegratedAgent.observe_transition()` and exposed `POST /api/diffusion_dpo` and `POST /api/causal_9arm` (`ControlledConnectomeAssay` + `UnifiedEvaluator` scorecard) in the workbench.
+6. **2D & 3D Visualization Restorations + Enhancements (`synapse/web/app.js`, `synapse/web/index.html`)**:
+   - Restored the 2D Golden-Ratio Phyllotaxis spiral layout, translucent neuropil boundary halos, and `↺ All` filter reset button from `ddf7406` while preserving `ffb1514`'s multi-source/role filters, zoom, and click-to-pin inspector.
+   - Added the 128-node MaleCNS Programmed Prior & Neural Graft outer cortical ring, animated synaptic pulse particles, oscillatory coherence HUD strip, and world canvas MPC counterfactual ghost trajectories + cooperative helper drone shield aura.
+7. **New Frontier Complex Environments (`synapse/complex_world.py`)**:
+   - Added `quantum_bifurcation` and `cybernetic_sanctuary` (featuring autonomous cooperative `helper_drones` that project a protective shield aura mitigating sentinel detection and predator proximity).
+8. **Tandem Max Mode (`SynapseConfig.max_tandem`, `POST /api/tandem/max`)**:
+   - Added the one-click `⚡ Run Complete System in Tandem at MAX Mode (Sections 01–05)` button and `/api/tandem/max` orchestrator (`synapse/tandem_max.py`) that configures 2,000 neurons across all logical CPU threads (`os.cpu_count()`), enables every optional subsystem, and executes Sections 01–05 in tandem with a cryptographic SHA-256 receipt.

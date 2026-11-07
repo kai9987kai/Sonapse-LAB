@@ -29,10 +29,32 @@
       <div class="eyebrow">CONNECTOME × WEIGHT SPACE × INHERITED SEARCH</div>
       <h1 id="title">Live workbench</h1>
     </div>
-    <div id="connection">Connecting…</div>
+    <div class="header-actions">
+      <button id="btn-tandem-max" class="tandem-max-button" title="Switch all controls to maximum configuration, enable all optional features, maximize CPU compute, and execute Sections 01–05 in tandem">⚡ Run Complete System in Tandem (Max Mode · Sections 1–5)</button>
+      <div id="connection">Connecting…</div>
+    </div>
   </header>
   
   <div id="error" role="alert" hidden></div>
+
+  <article id="tandem-banner" class="tandem-banner" hidden>
+    <div class="panel-head">
+      <div>
+        <h2>Complete System in Tandem · Max Mode Status (Sections 01–05)</h2>
+        <span class="tag">ALL OPTIONAL SUBSYSTEMS ON · MAX CPU THREADS · 5-SECTION ORCHESTRATION</span>
+      </div>
+      <span id="tandem-status-pill" class="status-pill good">Ready</span>
+    </div>
+    <div id="tandem-section-pills" class="tandem-pills">
+      <span class="status-pill" data-sec="1">01 Live &amp; Omnibus</span>
+      <span class="status-pill" data-sec="2">02 Capabilities Sweep</span>
+      <span class="status-pill" data-sec="3">03 Weight Programs &amp; Circuits</span>
+      <span class="status-pill" data-sec="4">04 RSI &amp; 9-Arm Causal</span>
+      <span class="status-pill" data-sec="5">05 Checkpoint Archive</span>
+    </div>
+    <p id="tandem-summary" class="muted">Click "⚡ Run Complete System in Tandem" to switch all controls to maximum configuration and run every subsystem across Sections 01–05.</p>
+    <details><summary>Complete 5-Section Tandem Execution Receipt</summary><pre id="tandem-receipt-out">No tandem run executed yet.</pre></details>
+  </article>
 
   <!-- 01 LIVE WORKBENCH -->
   <section id="overview" class="tab active">
@@ -69,9 +91,12 @@
           <option value="apex_megasite">apex_megasite (River Currents &amp; Pack Hunters)</option>
           <option value="stealth_labyrinth">stealth_labyrinth (Sentinels &amp; Tripwires)</option>
           <option value="kinetic_foundry">kinetic_foundry (Conveyors &amp; Blast Doors)</option>
+          <option value="quantum_bifurcation">quantum_bifurcation (Dual Phase Gates &amp; Entanglement)</option>
+          <option value="cybernetic_sanctuary">cybernetic_sanctuary (Cooperative Helper Drones)</option>
         </select>
       </label>
-      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 11-stage 2,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
+      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 2,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
+      <button id="btn-tandem-max-toolbar" class="tandem-max-button" title="Enable all optional features, switch to maximum configuration, and execute Sections 1–5 in tandem">⚡ Max Mode (Sections 1–5)</button>
       <span class="muted" id="runstatus">Paused</span>
     </div>
 
@@ -90,8 +115,9 @@
             <label class="toggle-label"><input id="training-active" type="checkbox"> Online graft training</label>
             <button id="training-apply">Apply training controls</button>
             <label>Rollout workers <select id="training-workers"><option>1</option><option selected>2</option><option>4</option></select></label>
-            <label>Fit batch <select id="training-batch"><option selected>128</option><option>256</option></select></label>
+            <label>Fit batch <select id="training-batch"><option selected>128</option><option>256</option><option>512</option></select></label>
             <button id="training-pretrain" class="primary">Pretrain · 128 steps</button>
+            <button id="training-intensive" class="omnibus-button" title="Maximize CPU threads, run parallel rollout workers, train neural graft + dendritic LTC + DPO">🔥 Max Compute Boost</button>
           </div>
           <p id="training-compute" class="muted">Waiting for local compute budget.</p>
           <div id="training-metrics" class="training-metrics"></div>
@@ -298,7 +324,7 @@
         <div class="panel-head">
           <div>
             <h2>Frontier Apex Omnibus &amp; Curriculum</h2>
-            <span class="tag">11 EMBODIED TASKS · 2,000 NEURONS</span>
+            <span class="tag">13 EMBODIED TASKS · 2,000 NEURONS</span>
           </div>
           <span id="omnibus-badge" class="tag omnibus-tag">Apex Standby</span>
         </div>
@@ -308,11 +334,38 @@
       </article>
     </div>
 
+    <!-- DENDRITIC LTC COMPARTMENTS & OSCILLATORY COHERENCE -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Active Dendritic Liquid Time-Constant (LTC) Sub-Graft</h2>
+            <span class="tag">BASAL DRIVE · APICAL CONTEXT · NMDA PLATEAU</span>
+          </div>
+          <span id="dendritic-badge" class="tag cognition-tag">Dendritic LTC</span>
+        </div>
+        <div id="dendritic-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Oscillatory Phase-Coherence &amp; Kuramoto Synchrony</h2>
+            <span class="tag">THETA (4–8Hz) · BETA (13–30Hz) · GAMMA (40–80Hz) · CTC</span>
+          </div>
+          <span id="oscillatory-badge" class="tag thrust-tag">Kuramoto R(t)</span>
+        </div>
+        <div id="oscillatory-hud" class="keyvalues cognition-values"></div>
+      </article>
+    </div>
+
     <!-- CONFIGURATION -->
     <article>
       <div class="panel-head">
-        <h2>Session configuration</h2>
-        <span class="muted">Reset creates a fresh agent and world</span>
+        <div>
+          <h2>Session configuration</h2>
+          <span class="muted">Reset creates a fresh agent and world</span>
+        </div>
+        <button type="button" id="config-max-preset" class="omnibus-button">Set All Controls to Maximum</button>
       </div>
       <form id="config">
         <label>Task
@@ -332,6 +385,8 @@
             <option>apex_megasite</option>
             <option>stealth_labyrinth</option>
             <option>kinetic_foundry</option>
+            <option>quantum_bifurcation</option>
+            <option>cybernetic_sanctuary</option>
             <option>auto</option>
           </select>
         </label>
@@ -346,11 +401,24 @@
             <option>persistent_evoked</option>
           </select>
         </label>
+        <label>Planner algorithm
+          <select name="planner_algorithm">
+            <option value="experience_mpc">experience_mpc</option>
+            <option value="recurrent_latent">recurrent_latent</option>
+            <option value="hybrid">hybrid</option>
+          </select>
+        </label>
         <label><input name="continual_backprop" type="checkbox"> Continual Backprop</label>
         <label><input name="fast_weight_memory" type="checkbox"> Fast-Weight Memory</label>
         <label><input name="dormant_lifecycle" type="checkbox" checked> Dormant Lifecycle</label>
         <label><input name="latent_reasoning" type="checkbox"> Latent Reasoning</label>
         <label><input name="value_guided_planning" type="checkbox"> Value-Guided MPC</label>
+        <label><input name="self_model" type="checkbox" checked> Efference Self-Model</label>
+        <label><input name="experimental_cognition" type="checkbox"> MiMoMix Deliberation</label>
+        <label><input name="dendritic_ltc" type="checkbox"> Dendritic LTC Sub-Graft</label>
+        <label><input name="oscillatory_coherence" type="checkbox"> Oscillatory Coherence (θ/β/γ)</label>
+        <label><input name="verifiable_dpo" type="checkbox"> Verifiable Preference DPO</label>
+        <label><input name="programmed_connectome" type="checkbox" checked> MaleCNS Programmed Prior</label>
         <button>Reset session</button>
       </form>
     </article>
@@ -377,6 +445,13 @@
             <option value="3">3 steps</option>
             <option value="4">4 steps</option>
             <option value="5">5 steps</option>
+          </select>
+        </label>
+        <label>Algorithm
+          <select id="experience-algorithm">
+            <option value="experience_mpc">Experience MPC</option>
+            <option value="recurrent_latent">Recurrent Latent World Model v2</option>
+            <option value="hybrid">Hybrid (MPC + Latent + Diffusion)</option>
           </select>
         </label>
         <label><input id="experience-value-guided" type="checkbox"> Value-guided critic</label>
@@ -408,8 +483,14 @@
   <!-- 02 CAPABILITIES -->
   <section id="capabilities" class="tab">
     <article>
-      <h2>Source-backed capability explorer</h2>
-      <p class="muted">Inspect availability, typed inputs and evidence scope before invoking a service.</p>
+      <div class="panel-head">
+        <div>
+          <h2>Source-backed capability explorer</h2>
+          <span class="tag">RUNTIME-BOUND SERVICES · MEASURED VS ILLUSTRATIVE PROVENANCE</span>
+        </div>
+        <button id="sweep-capabilities" class="omnibus-button">✦ Sweep All Capability Families</button>
+      </div>
+      <p class="muted">Inspect availability, typed inputs and evidence scope before invoking a service, or sweep all capability families in tandem.</p>
       <input id="search" placeholder="Search architecture, operation or source…">
       <div class="explorer">
         <div id="catalog"></div>
@@ -421,6 +502,7 @@
           <pre id="capresult"></pre>
         </div>
       </div>
+      <details><summary>Capability Family Verification Sweep Receipt</summary><pre id="capsweepresult">No capability sweep run yet.</pre></details>
     </article>
   </section>
 
@@ -528,6 +610,17 @@
         <pre id="manifoldresult"></pre>
       </article>
     </div>
+
+    <div class="visual-grid spaced-grid">
+      <article>
+        <h2>Masked Diffusion Trajectory Repair &amp; Machine-Verifiable DPO</h2>
+        <p class="muted">Iterative non-autoregressive denoising of uncertain trajectory steps combined with Direct Preference Optimization over machine-verifiable outcome margins.</p>
+        <div class="toolbar">
+          <button id="diffusion-dpo" class="primary">Run Diffusion Repair &amp; DPO Assay</button>
+        </div>
+        <pre id="diffusiondporesult"></pre>
+      </article>
+    </div>
   </section>
 
   <!-- 04 EXPERIMENTS & RSI -->
@@ -566,6 +659,24 @@
       <div id="lineage" class="lineage muted">Completed study receipts appear here.</div>
       <pre id="studyresult"></pre>
     </article>
+    <div class="visual-grid spaced-grid">
+      <article>
+        <h2>6-Arm Continual Ablation Study</h2>
+        <p class="muted">Compares Baseline Reflex, World Model Only, World Model + Surprise Memory, Sleep Consolidation, Self-Model Authorship, and Full Frontier Apex across sequential stages.</p>
+        <div class="toolbar">
+          <button id="controlled-study-btn" class="primary">Run 6-Arm Continual Ablation</button>
+        </div>
+        <pre id="controlledstudyresult"></pre>
+      </article>
+      <article>
+        <h2>9-Arm Connectome Causal Controls &amp; Unified Deployment Scorecard</h2>
+        <p class="muted">Tests anatomical necessity via 9 topological/sign/weight controls (Authentic vs Degree-Preserved, Erdos-Renyi, Sign-Violated, Weight-Shuffled, Zero-Backbone) and computes the Unified Deployment Scorecard S = R &minus; &alpha;C &minus; &beta;U &minus; &gamma;F.</p>
+        <div class="toolbar">
+          <button id="causal-9arm-btn" class="primary">Run 9-Arm Causal Assay &amp; Scorecard</button>
+        </div>
+        <pre id="causal9armresult"></pre>
+      </article>
+    </div>
   </section>
 
   <!-- 05 CHECKPOINTS -->

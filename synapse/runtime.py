@@ -5,6 +5,7 @@ from collections import deque
 from dataclasses import replace
 import re
 import numpy as np
+import torch
 from .config import ROOT
 from .agent import IntegratedAgent
 from .stateio import save_state,load_state
@@ -17,7 +18,73 @@ class LabRuntime:
         self.agent=IntegratedAgent(config); self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
         from .reusable_skills import ReusableSkillLibrary
         self.skill_library=ReusableSkillLibrary(seed=config.seed)
+        self._init_monitors()
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
+
+    def _init_monitors(self):
+        from .plasticity_monitor import PlasticityMonitor
+        from .uncertainty_calibration import TripartiteUncertaintyDecomposer
+        self.plasticity_monitor=PlasticityMonitor(num_features=64,buffer_size=128)
+        with torch.random.fork_rng(devices=[]):
+            self.uncertainty_decomposer=TripartiteUncertaintyDecomposer(state_dim=32,action_dim=5,ensemble_size=3,seed=self.config.seed)
+        self._prev_uncertainty_transition=None
+        self.uncertainty_updates=0
+        self.uncertainty_last_loss=None
+
+    def _export_monitors(self):
+        ood=self.uncertainty_decomposer.ood_detector
+        return {
+            'plasticity':{
+                'activity_buffer':[x.copy() for x in self.plasticity_monitor.activity_buffer],
+                'step_counter':int(self.plasticity_monitor.step_counter),
+                'total_collapse_alarms':int(self.plasticity_monitor.total_collapse_alarms),
+                'last_report':self.plasticity_monitor.history[-1].to_dict() if self.plasticity_monitor.history else None,
+            },
+            'uncertainty':{
+                'ensemble':deepcopy(self.uncertainty_decomposer.ensemble.state_dict()),
+                'optimizer':deepcopy(self.uncertainty_decomposer.optimizer.state_dict()),
+                'ood_storage':[x.copy() for x in ood.storage],
+                'ood_mean':None if ood.mean is None else ood.mean.copy(),
+                'ood_inv_cov':None if ood.inv_cov is None else ood.inv_cov.copy(),
+                'ood_fitted':bool(ood._fitted),
+                'ood_rng':deepcopy(ood.rng.bit_generator.state),
+                'calibration_scale':float(self.uncertainty_decomposer.calibration_scale),
+                'prev_transition':deepcopy(self._prev_uncertainty_transition),
+                'updates':int(self.uncertainty_updates),
+                'last_loss':deepcopy(self.uncertainty_last_loss),
+            }
+        }
+
+    def _import_monitors(self,state):
+        self._init_monitors()
+        if not isinstance(state,dict):
+            return
+        pm=state.get('plasticity')
+        if isinstance(pm,dict):
+            from .plasticity_monitor import PlasticityReport
+            self.plasticity_monitor.activity_buffer=[np.asarray(x,dtype=np.float32).copy() for x in pm.get('activity_buffer',[])]
+            self.plasticity_monitor.step_counter=int(pm.get('step_counter',0))
+            self.plasticity_monitor.total_collapse_alarms=int(pm.get('total_collapse_alarms',0))
+            if isinstance(pm.get('last_report'),dict):
+                self.plasticity_monitor.history=[PlasticityReport(**pm['last_report'])]
+        unc=state.get('uncertainty')
+        if isinstance(unc,dict):
+            if 'ensemble' in unc:
+                self.uncertainty_decomposer.ensemble.load_state_dict(deepcopy(unc['ensemble']))
+            if 'optimizer' in unc:
+                self.uncertainty_decomposer.optimizer.load_state_dict(deepcopy(unc['optimizer']))
+            ood=self.uncertainty_decomposer.ood_detector
+            ood.storage=[np.asarray(x,dtype=np.float32).copy() for x in unc.get('ood_storage',[])]
+            ood.mean=None if unc.get('ood_mean') is None else np.asarray(unc['ood_mean'],dtype=np.float32).copy()
+            ood.inv_cov=None if unc.get('ood_inv_cov') is None else np.asarray(unc['ood_inv_cov'],dtype=np.float32).copy()
+            ood._fitted=bool(unc.get('ood_fitted',False))
+            if 'ood_rng' in unc:
+                ood.rng.bit_generator.state=deepcopy(unc['ood_rng'])
+            self.uncertainty_decomposer.calibration_scale=float(unc.get('calibration_scale',1.0))
+            self._prev_uncertainty_transition=deepcopy(unc.get('prev_transition'))
+            self.uncertainty_updates=int(unc.get('updates',0))
+            self.uncertainty_last_loss=deepcopy(unc.get('last_loss'))
+
     def step(self,steps=1,learn=False,camera=None,action=None):
         if type(steps) is not int or not 1<=steps<=10000: raise ValueError('steps must be integer 1..10000')
         if type(learn) is not bool: raise ValueError('learn must be boolean')
@@ -37,6 +104,17 @@ class LabRuntime:
             self.last.update(action=act.tolist(),manual_teleop=manual is not None,
                              action_source='manual' if manual is not None else 'actor',
                              action_coordinates=list(ACTION_NAMES))
+            features=np.asarray(out['features'],dtype=np.float32)
+            pooled=features[:32]
+            if learn and self._prev_uncertainty_transition is not None:
+                prev_z,prev_act,prev_rew=self._prev_uncertainty_transition
+                with torch.random.fork_rng(devices=[]):
+                    self.uncertainty_last_loss=self.uncertainty_decomposer.train_batch(
+                        prev_z[None],prev_act[None],np.array([prev_rew],dtype=np.float32),pooled[None]
+                    )
+                self.uncertainty_updates+=1
+            with torch.no_grad():
+                unc_est=self.uncertainty_decomposer.evaluate_uncertainty(pooled,act)
             self.obs,reward,done,info=self.world.step(act)
             if hasattr(self.agent, 'homeostasis'):
                 self.agent.homeostasis.step(
@@ -47,18 +125,51 @@ class LabRuntime:
                     in_friction_zone=info.get('in_friction_zone', False)
                 )
             if learn:
+                self.plasticity_monitor.record_activity(features,step=self.total_steps+1)
+                plast_report=self.plasticity_monitor.evaluate_plasticity().to_dict()
                 self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done,action=act)
                 self.agent.feedback(reward,done)
                 self.skill_library.record_transition(previous_observation,act,reward,self.obs,self.total_steps)
                 if (self.total_steps+1)%32==0: self.skill_library.discover_skills()
+                self._prev_uncertainty_transition=None if done else (pooled.copy(),act.copy(),float(reward))
             else:
                 # Query outcomes cannot be learned accidentally by a later call.
                 self.agent.pending_transition=None
+                plast_report=self.plasticity_monitor.history[-1].to_dict() if self.plasticity_monitor.history else self.plasticity_monitor.evaluate_plasticity().to_dict()
+            self.last['plasticity_monitor']=plast_report
+            self.last['uncertainty']={
+                **unc_est.to_dict(),
+                'ensemble_size':int(self.uncertainty_decomposer.ensemble_size),
+                'training_updates':int(self.uncertainty_updates),
+                'last_loss':deepcopy(self.uncertainty_last_loss),
+                'ood_support_samples':len(self.uncertainty_decomposer.ood_detector.storage),
+            }
             self.last['homeostasis']=self.agent.homeostasis.summary()
             self.total_steps+=1
             self.recent=(self.recent+[{'step':self.total_steps,'reward':float(reward),'done':bool(done)}])[-128:]
-            if done: self.agent.reset_episode(); self.obs=self.world.reset()
+            if done:
+                self.agent.reset_episode()
+                self.obs=self.world.reset()
+                self._prev_uncertainty_transition=None
         return self.snapshot()
+    def uncertainty_status(self):
+        unc=deepcopy(self.last.get('uncertainty')) if isinstance(self.last,dict) and 'uncertainty' in self.last else {
+            'epistemic':0.0,'aleatoric':0.0,'ood_score':0.0,'composite_penalty':0.0,'confidence':1.0,
+            'ensemble_size':int(self.uncertainty_decomposer.ensemble_size),
+            'training_updates':int(self.uncertainty_updates),
+            'last_loss':deepcopy(self.uncertainty_last_loss),
+            'ood_support_samples':len(self.uncertainty_decomposer.ood_detector.storage),
+        }
+        plast=deepcopy(self.last.get('plasticity_monitor')) if isinstance(self.last,dict) and 'plasticity_monitor' in self.last else self.plasticity_monitor.evaluate_plasticity().to_dict()
+        return {
+            'status':'active',
+            'ensemble_members':int(self.uncertainty_decomposer.ensemble_size),
+            'uncertainty':unc,
+            'plasticity_monitor':plast,
+            'dendritic_ltc':deepcopy(self.last.get('dendritic_ltc',{'enabled':bool(self.config.dendritic_ltc)})),
+            'oscillatory_coherence':deepcopy(self.last.get('oscillatory_coherence',{'enabled':bool(self.config.oscillatory_coherence)})),
+            'verifiable_dpo':deepcopy(self.last.get('verifiable_dpo',{'enabled':bool(self.config.verifiable_dpo)})),
+        }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
         indices=np.linspace(0,g.n-1,min(2000,g.n)).astype(int)
@@ -93,7 +204,7 @@ class LabRuntime:
         d['st']=encode(d['st']); return d
     def save(self,name):
         path=self._path(name)
-        identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action,'skill_library':self.skill_library.export_state()})
+        identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action,'skill_library':self.skill_library.export_state(),'monitors':self._export_monitors()})
         return {'name':name,'digest':identity,'steps':self.total_steps,'restore_semantics':'exact mid-episode'}
     def load(self,name):
         data=load_state(self._path(name))
@@ -112,13 +223,16 @@ class LabRuntime:
             return v
         d['st']=decode(d['st']); self.world.__dict__.clear(); self.world.__dict__.update(d)
         if 'skill_library' in data: self.skill_library.import_state(data['skill_library'])
+        self._import_monitors(data.get('monitors'))
         self.obs=data['obs']; self.total_steps=data['steps']; self.recent=data['recent']; self.last=data['last']; self.last_action=data['last_action']
         return self.snapshot()
     def reset(self,task=None,seed=None):
         cfg=replace(self.config,task=task or self.config.task,seed=self.config.seed if seed is None else seed)
         if seed is not None:
             self.config=cfg; self.agent=IntegratedAgent(cfg); self.world=ComplexWorld(seed=cfg.seed,curriculum=cfg.task)
+            self._init_monitors()
         else:
             self.config=cfg; self.agent.config=cfg; self.world.curriculum=cfg.task; self.world.reset(None if cfg.task=='auto' else cfg.task); self.agent.reset_episode()
+            self._prev_uncertainty_transition=None
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
         return self.snapshot()

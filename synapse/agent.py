@@ -102,12 +102,39 @@ class IntegratedAgent:
                          if getattr(config,'self_model',False) else None)
         self.fast_weight_memory=(UniversalFastWeightMemory(in_dim=32,out_dim=32,seed=config.seed)
                                  if getattr(config,'fast_weight_memory',False) else None)
+        self.dendritic_ltc=None
+        self.oscillatory_coherence=None
+        self.recurrent_planner=None
+        self.diffusion_repair=None
+        self.dpo_engine=None
+        self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
         self.neural_graft=None
         self.programmed_prior_status={'enabled':False}
         self._setup_neural_graft()
         self.reset_episode()
+
+    def _setup_frontier_extensions(self):
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(self.config.seed + 4099)
+            if getattr(self.config, 'dendritic_ltc', False) and self.dendritic_ltc is None:
+                from .dendritic_ltc import DendriticLiquidSubGraft
+                self.dendritic_ltc = DendriticLiquidSubGraft(seed=self.config.seed)
+                self.modules['dendritic_ltc'] = self.dendritic_ltc
+            if getattr(self.config, 'oscillatory_coherence', False) and self.oscillatory_coherence is None:
+                from .oscillatory_coherence import OscillatoryCoherenceEngine
+                sources = getattr(self.config, 'connectome_sources', ('flywire', 'manc', 'optic-lobe'))
+                self.oscillatory_coherence = OscillatoryCoherenceEngine(source_names=sources)
+            if getattr(self.config, 'planner_algorithm', 'experience_mpc') in ('recurrent_latent', 'hybrid') and self.recurrent_planner is None:
+                from .multistep_planner import MultistepRecurrentPlanner
+                self.recurrent_planner = MultistepRecurrentPlanner(default_horizon=self.config.experience_horizon, seed=self.config.seed)
+            if getattr(self.config, 'planner_algorithm', 'experience_mpc') == 'hybrid' and self.diffusion_repair is None:
+                from .diffusion_repair import DiffusionRepairSidecar
+                self.diffusion_repair = DiffusionRepairSidecar(feature_dim=5, seed=self.config.seed)
+            if getattr(self.config, 'verifiable_dpo', False) and self.dpo_engine is None:
+                from .preference_dpo import MachineVerifiableDPOEngine
+                self.dpo_engine = MachineVerifiableDPOEngine(obs_dim=155, action_dim=5, seed=self.config.seed)
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -157,6 +184,8 @@ class IntegratedAgent:
         if hasattr(self, 'neuromod'): self.neuromod.reset()
         if hasattr(self, 'astrocytes'): self.astrocytes.reset()
         if hasattr(self, 'predictive'): self.predictive.reset()
+        if getattr(self, 'dendritic_ltc', None) is not None: self.dendritic_ltc.reset_state()
+        if getattr(self, 'oscillatory_coherence', None) is not None: self.oscillatory_coherence.reset()
         self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
@@ -236,6 +265,23 @@ class IntegratedAgent:
                     read=self.evoked
                     gate_alpha=1.0
             pooled=self._pooled(read)
+            dendritic_info = None
+            if getattr(self, 'dendritic_ltc', None) is not None:
+                apical_ctx = torch.cat([self.hidden[0, :16], self.intent, mbon])
+                ach_val = float(self.neuromod.state.acetylcholine) if hasattr(self, 'neuromod') else 0.5
+                ca_val = float(self.astrocytes.domains[0].calcium) if (hasattr(self, 'astrocytes') and self.astrocytes.domains) else 0.1
+                dend_delta, dendritic_info = self.dendritic_ltc.step(
+                    pooled, apical_ctx, ach_precision=ach_val, astrocyte_ca=ca_val, learn=learn
+                )
+                pooled = pooled + 0.05 * torch.tanh(dend_delta)
+            coherence_info = None
+            if getattr(self, 'oscillatory_coherence', None) is not None:
+                ach_val = float(self.neuromod.state.acetylcholine) if hasattr(self, 'neuromod') else 0.5
+                da_val = float(self.neuromod.state.dopamine) if hasattr(self, 'neuromod') else 0.5
+                surp_val = float(self.predictive.state.sensory_surprisal) if hasattr(self, 'predictive') else 0.0
+                coherence_info = self.oscillatory_coherence.step(
+                    r.detach().numpy(), self.graph.origin, surprisal=surp_val, ach=ach_val, dopamine=da_val, learn=learn
+                )
             if self.fast_weight_memory is not None:
                 fmem_out, _ = self.fast_weight_memory(pooled.unsqueeze(0))
                 pooled = pooled + 0.05 * torch.tanh(fmem_out.squeeze(0))
@@ -311,10 +357,26 @@ class IntegratedAgent:
             candidate=np.asarray(planned,dtype=np.float32)
             if candidate.shape!=(5,) or not np.isfinite(candidate).all():
                 raise ValueError('planner must return a finite five-dimensional action')
+            if getattr(self.config, 'planner_algorithm', 'experience_mpc') in ('recurrent_latent', 'hybrid') and getattr(self, 'recurrent_planner', None) is not None and self.recurrent_planner.training_steps >= 4:
+                rec_out = self.recurrent_planner.plan(obs, executed, horizon=self.config.experience_horizon)
+                rec_act = np.asarray(rec_out['action'], dtype=np.float32)
+                if getattr(self.config, 'planner_algorithm', 'experience_mpc') == 'recurrent_latent':
+                    if rec_out.get('used_plan'):
+                        candidate = rec_act
+                    planner_info['recurrent_latent'] = {k: v for k, v in rec_out.items() if k != 'action'}
+                else:
+                    if rec_out.get('used_plan'):
+                        candidate = 0.65 * candidate + 0.35 * rec_act
+                    if getattr(self, 'diffusion_repair', None) is not None:
+                        traj = np.vstack([executed[None, :], candidate[None, :], rec_act[None, :]])
+                        repaired = self.diffusion_repair.repair_trajectory_plan(traj, hazard_zones=[])
+                        candidate = repaired[1].astype(np.float32)
+                    planner_info['hybrid_recurrent'] = {k: v for k, v in rec_out.items() if k != 'action'}
             # Enforce the conservative action trust region at the acting boundary.
             executed=np.clip(candidate,np.maximum(-1.,executed-.35),np.minimum(1.,executed+.35))
             planner_info.update(diagnostics)
             planner_info['mode']=mode
+            planner_info['algorithm']=getattr(self.config, 'planner_algorithm', 'experience_mpc')
         executed=govern_action(executed,self.homeostasis.get_max_allowed_thrust())
         self.pending_transition={'state':np.array(experience_state,copy=True),'action':executed.copy(),'graft_receipt':graft_receipt}
         self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':camera_consumed,'visual_latents':vis_latent.tolist() if vis_latent is not None else [],'visual_brightness':vis_info.get('mean_brightness',0.0),'visual_contrast':vis_info.get('contrast',0.0),'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
@@ -332,6 +394,10 @@ class IntegratedAgent:
         if hasattr(self, 'homeostasis'): self.last_telemetry['homeostasis']=self.homeostasis.summary()
         if hasattr(self, 'neurogenesis'): self.last_telemetry['neurogenesis']=self.neurogenesis.summary()
         if getattr(self, 'self_model', None) is not None: self.last_telemetry['self_model']=self.self_model.summary()
+        if dendritic_info is not None: self.last_telemetry['dendritic_ltc']=dendritic_info
+        if coherence_info is not None: self.last_telemetry['oscillatory_coherence']=coherence_info
+        if getattr(self, 'dpo_engine', None) is not None:
+            self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 
@@ -381,6 +447,23 @@ class IntegratedAgent:
                 candidates = self.continual_backprop.identify_replacement_candidates()
                 if candidates:
                     self.continual_backprop.replace_neurons(self, candidates, optimizer=self.opt)
+        if getattr(self, 'dendritic_ltc', None) is not None:
+            diagnostics['dendritic_ltc'] = self.dendritic_ltc.update_from_outcome(float(reward), float(diagnostics.get('prediction_error', 0.0)))
+        if getattr(self, 'recurrent_planner', None) is not None and getattr(self, 'last_obs', None) is not None:
+            diagnostics['recurrent_planner'] = self.recurrent_planner.train_step(
+                self.last_obs[None, :], executed[None, :], np.array([float(reward)], np.float32),
+                observation[None, :], np.array([float(done)], np.float32)
+            )
+        if getattr(self, 'dpo_engine', None) is not None and getattr(self, 'last_obs', None) is not None:
+            if abs(float(reward)) > 0.02:
+                winner = executed if float(reward) >= 0 else np.clip(-0.5 * executed, -1.0, 1.0)
+                loser = np.clip(-0.5 * executed, -1.0, 1.0) if float(reward) >= 0 else executed
+                self.dpo_engine.record_preference(self.last_obs, winner, loser, 'return', abs(float(reward)))
+                if len(self.dpo_engine.preference_buffer) >= 4 and self.ticks % 8 == 0:
+                    with torch.random.fork_rng(devices=[]):
+                        dpo_fit = self.dpo_engine.train_dpo_step(batch_size=min(8, len(self.dpo_engine.preference_buffer)))
+                    self.dpo_engine.last_margin = float(dpo_fit.get('implicit_reward_margin', 0.0))
+                    diagnostics['verifiable_dpo'] = dpo_fit
         self.pending_transition=None
         return diagnostics
     def feedback(self,reward,done=False):
@@ -520,6 +603,10 @@ class IntegratedAgent:
     def export_state(self):
         state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
         state['neural_graft']=self.neural_graft.export_state() if self.neural_graft is not None else None
+        state['dendritic_ltc']=self.dendritic_ltc.export_state() if getattr(self,'dendritic_ltc',None) is not None else None
+        state['oscillatory_coherence']=self.oscillatory_coherence.export_state() if getattr(self,'oscillatory_coherence',None) is not None else None
+        state['recurrent_planner']=self.recurrent_planner.export_state() if getattr(self,'recurrent_planner',None) is not None else None
+        state['dpo_engine']=self.dpo_engine.export_state() if getattr(self,'dpo_engine',None) is not None else None
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
         return state
@@ -606,6 +693,14 @@ class IntegratedAgent:
                 from .neural_graft import NeuralResidualGraft
                 self.neural_graft=NeuralResidualGraft(seed=self.config.seed)
                 self.modules['neural_graft']=self.neural_graft.network
+        if getattr(self,'dendritic_ltc',None) is not None and state.get('dendritic_ltc') is not None:
+            self.dendritic_ltc.import_state(state['dendritic_ltc'])
+        if getattr(self,'oscillatory_coherence',None) is not None and state.get('oscillatory_coherence') is not None:
+            self.oscillatory_coherence.import_state(state['oscillatory_coherence'])
+        if getattr(self,'recurrent_planner',None) is not None and state.get('recurrent_planner') is not None:
+            self.recurrent_planner.import_state(state['recurrent_planner'])
+        if getattr(self,'dpo_engine',None) is not None and state.get('dpo_engine') is not None:
+            self.dpo_engine.import_state(state['dpo_engine'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))
         self.source_provenance=deepcopy(state.get('source_provenance',self.source_provenance))
 

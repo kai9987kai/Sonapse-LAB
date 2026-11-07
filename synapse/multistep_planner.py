@@ -94,7 +94,9 @@ class MultistepRecurrentPlanner:
         self.lambda_term = lambda_term
         self.num_candidates = num_candidates
 
-        self.model = RecurrentLatentDynamics(state_dim, action_dim, obs_dim)
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            self.model = RecurrentLatentDynamics(state_dim, action_dim, obs_dim)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.rng = np.random.default_rng(seed)
         self.training_steps = 0
@@ -227,19 +229,29 @@ class MultistepRecurrentPlanner:
         }
 
     def export_state(self) -> Dict[str, Any]:
+        from copy import deepcopy
         return {
             'training_steps': self.training_steps,
             'plans_generated': self.plans_generated,
             'default_horizon': self.default_horizon,
-            'weights': {k: v.cpu().numpy().tolist() for k, v in self.model.state_dict().items()}
+            'weights': {k: v.cpu().numpy().tolist() for k, v in self.model.state_dict().items()},
+            'optimizer': deepcopy(self.optimizer.state_dict()),
+            'rng': deepcopy(self.rng.bit_generator.state),
         }
 
     def import_state(self, state: Dict[str, Any]):
+        from copy import deepcopy
         self.training_steps = int(state.get('training_steps', 0))
         self.plans_generated = int(state.get('plans_generated', 0))
         self.default_horizon = int(state.get('default_horizon', self.default_horizon))
         weights = {k: torch.tensor(v, dtype=torch.float32) for k, v in state['weights'].items()}
         self.model.load_state_dict(weights)
+        if 'optimizer' in state:
+            self.optimizer.load_state_dict(deepcopy(state['optimizer']))
+        else:
+            self.optimizer.state.clear()
+        if 'rng' in state:
+            self.rng.bit_generator.state = deepcopy(state['rng'])
 
 
 def compare_planning_horizons(

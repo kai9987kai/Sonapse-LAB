@@ -139,6 +139,17 @@ function syncGraphControls() {
     if (!sources.some(source => String(source.origin) === graphSource)) graphSource = 'all';
     $('graph-source').value = graphSource;
     $('graph-source').dataset.sources = sourceKey;
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'filter-reset';
+    resetBtn.textContent = '↺ All';
+    resetBtn.title = 'Reset source and role filters to show all active neuropils';
+    resetBtn.onclick = () => {
+      graphSource = 'all';
+      graphRole = 'all';
+      $('graph-source').value = 'all';
+      $('graph-role').value = 'all';
+      graph();
+    };
     $('graph-legend').replaceChildren(...sources.map(source => {
       const button = document.createElement('button');
       button.className = source.colorClass;
@@ -146,7 +157,7 @@ function syncGraphControls() {
       button.title = `${source.id} · ${source.evidence.representation || 'provenance unavailable'}`;
       button.onclick = () => { graphSource = graphSource === String(source.origin) ? 'all' : String(source.origin); $('graph-source').value = graphSource; graph(); };
       return button;
-    }));
+    }), resetBtn);
   }
   const roles = [...new Set((state.graph?.nodes || []).map(node => node.role || 'central'))].sort();
   const roleKey = roles.join('|');
@@ -186,16 +197,81 @@ function graph() {
     const roleOffsets = { sensory: -.25, visual: -.17, ascending: -.08, central: 0, descending: .14, motor: .25 };
     const cosY = Math.cos(graphRotY), sinY = Math.sin(graphRotY), cosX = Math.cos(graphRotX), sinX = Math.sin(graphRotX);
     const scale = Math.min(w * .43, h * .41) * graphZoom;
+
+    // Group indices per origin for 2D Golden-Ratio Phyllotaxis spiral layout
+    const originCounts = new Map();
+    const originTotals = new Map();
+    visible.forEach(n => {
+      const o = Number(n.origin || 0);
+      originTotals.set(o, (originTotals.get(o) || 0) + 1);
+    });
+
+    // Draw 2D Neuropil Cluster Boundary Halos & Source Titles
+    if (graphMode === '2d') {
+      sources.forEach(source => {
+        if (graphSource !== 'all' && String(source.origin) !== graphSource) return;
+        const cAngle = sourceCount === 1 ? 0 : source.origin / sourceCount * Math.PI * 2 - Math.PI / 2;
+        const cDist = sourceCount === 1 ? 0 : .65;
+        const cx = w / 2 + Math.cos(cAngle) * cDist * scale;
+        const cy = h / 2 + Math.sin(cAngle) * cDist * scale;
+        const haloR = (sourceCount === 1 ? .52 : .27) * scale;
+        x.strokeStyle = source.color;
+        x.globalAlpha = 0.24;
+        x.lineWidth = 1.2;
+        x.setLineDash([4, 4]);
+        x.beginPath(); x.arc(cx, cy, haloR, 0, Math.PI * 2); x.stroke();
+        x.setLineDash([]);
+        x.globalAlpha = 0.85;
+        x.fillStyle = source.color;
+        x.font = '10px Consolas, monospace';
+        x.fillText(`${source.id.toUpperCase()} (${originTotals.get(source.origin) || 0})`, cx - 32, cy - haloR - 6);
+        x.globalAlpha = 1.0;
+      });
+    }
+
+    // Optional MaleCNS 128-node Programmed Prior & Neural Graft Outer Cortical Ring
+    const graftSummary = state.training?.graft || {};
+    if (graftSummary.enabled) {
+      const ringR = Math.min(w, h) * 0.46 * graphZoom;
+      x.strokeStyle = 'rgba(93, 224, 193, 0.16)';
+      x.lineWidth = 1.0;
+      x.setLineDash([2, 3]);
+      x.beginPath(); x.arc(w / 2, h / 2, ringR, 0, Math.PI * 2); x.stroke();
+      x.setLineDash([]);
+      const priorNodes = Math.min(64, Number(graftSummary.prior_nodes || 64));
+      for (let i = 0; i < priorNodes; i++) {
+        const a = (i / priorNodes) * Math.PI * 2 + (Number(state.steps || 0) * 0.015);
+        const gx = w / 2 + Math.cos(a) * ringR;
+        const gy = h / 2 + Math.sin(a) * ringR;
+        x.fillStyle = i % 2 === 0 ? 'rgba(93,224,193,0.45)' : 'rgba(192,132,252,0.45)';
+        x.beginPath(); x.arc(gx, gy, 1.5, 0, Math.PI * 2); x.fill();
+      }
+    }
+
     const projected = visible.map(node => {
       const origin = Number(node.origin || 0);
       const angle = sourceCount === 1 ? 0 : origin / sourceCount * Math.PI * 2 - Math.PI / 2;
-      const cluster = sourceCount === 1 ? 0 : .68;
-      const hash = (Math.imul(node.id + 1, 1664525) + 1013904223) >>> 0;
-      const theta = hash / 4294967296 * Math.PI * 2;
-      const radius = .05 + ((hash >>> 8) % 997) / 997 * .19;
-      const px = Math.cos(angle) * cluster + Math.cos(theta) * radius;
-      const py = Math.sin(angle) * cluster + Math.sin(theta) * radius;
-      const pz = (roleOffsets[node.role] || 0) + (((hash >>> 16) % 101) / 101 - .5) * .10;
+      const cluster = sourceCount === 1 ? 0 : .65;
+      let px, py, pz;
+      if (graphMode === '2d') {
+        // Golden-Ratio Phyllotaxis Spiral per neuropil cluster
+        const idx = originCounts.get(origin) || 0;
+        originCounts.set(origin, idx + 1);
+        const totalInCluster = Math.max(1, originTotals.get(origin) || 1);
+        const goldenAngle = idx * 2.399963229728653;
+        const maxR = sourceCount === 1 ? .48 : .24;
+        const radius = 0.02 + Math.sqrt((idx + 0.5) / totalInCluster) * maxR;
+        px = Math.cos(angle) * cluster + Math.cos(goldenAngle) * radius;
+        py = Math.sin(angle) * cluster + Math.sin(goldenAngle) * radius;
+        pz = 0;
+      } else {
+        const hash = (Math.imul(node.id + 1, 1664525) + 1013904223) >>> 0;
+        const theta = hash / 4294967296 * Math.PI * 2;
+        const radius = .05 + ((hash >>> 8) % 997) / 997 * .19;
+        px = Math.cos(angle) * cluster + Math.cos(theta) * radius;
+        py = Math.sin(angle) * cluster + Math.sin(theta) * radius;
+        pz = (roleOffsets[node.role] || 0) + (((hash >>> 16) % 101) / 101 - .5) * .10;
+      }
       const rx = graphMode === '3d' ? px * cosY - pz * sinY : px;
       const rz = graphMode === '3d' ? px * sinY + pz * cosY : 0;
       const ry = graphMode === '3d' ? py * cosX - rz * sinX : py;
@@ -205,6 +281,7 @@ function graph() {
       nodeScreenPositions.set(node.id, point); return point;
     }).sort((a, b) => b.z - a.z);
     let edgesDrawn = 0, graftsDrawn = 0;
+    const pulsePhase = ((Number(state.steps || 0) % 20) / 20);
     const drawEdge = (edge, graft) => {
       if (edgesDrawn >= edgeBudget) return;
       const from = nodeScreenPositions.get(Array.isArray(edge) ? edge[0] : edge.source);
@@ -212,10 +289,16 @@ function graph() {
       if (!from || !to) return;
       const weight = Number(Array.isArray(edge) ? edge[2] : edge.weight) || 0;
       const active = [hoveredNode?.id, selectedNodeId].some(id => id !== null && id !== undefined && (id === from.node.id || id === to.node.id));
-      x.lineWidth = active ? 1.6 : graft ? .9 : .5;
-      x.strokeStyle = active ? '#ffffff' : graft ? 'rgba(237,188,117,.50)' : weight < 0 ? 'rgba(236,124,141,.14)' : 'rgba(128,170,255,.13)';
+      x.lineWidth = active ? 1.6 : graft ? .95 : .5;
+      x.strokeStyle = active ? '#ffffff' : graft ? 'rgba(237,188,117,.52)' : weight < 0 ? 'rgba(236,124,141,.14)' : 'rgba(128,170,255,.13)';
       x.setLineDash(graft ? [3, 2] : []);
       x.beginPath(); x.moveTo(from.x, from.y); x.lineTo(to.x, to.y); x.stroke();
+      if (graft && graftsDrawn < 45) {
+        const px = from.x + (to.x - from.x) * pulsePhase;
+        const py = from.y + (to.y - from.y) * pulsePhase;
+        x.fillStyle = '#edbc75';
+        x.beginPath(); x.arc(px, py, 1.5, 0, Math.PI * 2); x.fill();
+      }
       edgesDrawn++; if (graft) graftsDrawn++;
     };
     if ($('graph-grafts').checked) (g.graft_links || []).forEach(edge => drawEdge(edge, true));
@@ -236,7 +319,12 @@ function graph() {
       if (selectedNodeId === node.id) { x.strokeStyle = color; x.lineWidth = 1.4; x.beginPath(); x.arc(point.x, point.y, radius + 4, 0, Math.PI * 2); x.stroke(); }
     });
     x.font = '10px Consolas, monospace'; x.fillStyle = '#8b9daf';
-    x.fillText(`${graphMode.toUpperCase()} source / role layout · schematic`, 12, 20);
+    x.fillText(`${graphMode.toUpperCase()} ${graphMode === '2d' ? 'phyllotaxis spiral' : 'anatomical'} layout · schematic`, 12, 20);
+    const osc = state.telemetry?.oscillatory_coherence;
+    if (osc?.enabled) {
+      x.fillStyle = '#5de0c1';
+      x.fillText(`Kuramoto R=${Number(osc.kuramoto_order_r || 0).toFixed(2)} · CTC×${Number(osc.ctc_routing_gain || 1).toFixed(2)} [${osc.dominant_band || 'THETA'}]`, Math.max(12, w - 265), 20);
+    }
     $('graph-summary').textContent = `${visible.length.toLocaleString()} / ${matching.length.toLocaleString()} sampled neurons shown (${Number(g.neurons || nodes.length).toLocaleString()} total) · ${edgesDrawn} edges, ${graftsDrawn} executing graft links. Coordinates are illustrative, not measured anatomy.`;
     const pinned = nodes.find(node => node.id === selectedNodeId);
     if (pinned) $('graph-selection').textContent = `Pinned #${pinned.id} · ${sources[pinned.origin]?.id || 'unknown source'} · ${pinned.role} · activity ${Number(pinned.activity || 0).toFixed(5)} · ${sources[pinned.origin]?.evidence.representation || 'provenance unavailable'}`;
@@ -626,6 +714,74 @@ function world() {
     });
 
     // -----------------------------------------------------------------------
+    // Cooperative Helper Drones & Protective Shield Aura
+    // -----------------------------------------------------------------------
+    (s.helper_drones || []).forEach(helper => {
+      const hp = project(helper.x, helper.y, 0.14);
+      const hrad = Math.max(4, (helper.r || 0.32) * worldScale);
+      const shieldR = Math.max(12, (helper.shield_radius || 1.65) * worldScale);
+      const aura = x.createRadialGradient(hp[0], hp[1], 0, hp[0], hp[1], shieldR);
+      aura.addColorStop(0, 'rgba(93, 224, 193, 0.25)');
+      aura.addColorStop(0.75, 'rgba(0, 229, 255, 0.10)');
+      aura.addColorStop(1, 'transparent');
+      x.fillStyle = aura;
+      x.beginPath();
+      if (worldMode === 'iso') x.ellipse(hp[0], hp[1], shieldR, shieldR * 0.58, 0, 0, Math.PI * 2);
+      else x.arc(hp[0], hp[1], shieldR, 0, Math.PI * 2);
+      x.fill();
+
+      x.strokeStyle = 'rgba(0, 229, 255, 0.55)';
+      x.lineWidth = 1.2;
+      x.setLineDash([4, 3]);
+      x.beginPath();
+      if (worldMode === 'iso') x.ellipse(hp[0], hp[1], shieldR, shieldR * 0.58, 0, 0, Math.PI * 2);
+      else x.arc(hp[0], hp[1], shieldR, 0, Math.PI * 2);
+      x.stroke();
+      x.setLineDash([]);
+
+      x.fillStyle = '#00e5ff';
+      x.beginPath();
+      x.arc(hp[0], hp[1], hrad, 0, Math.PI * 2);
+      x.fill();
+      x.fillStyle = '#5de0c1';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`ALLY · ${helper.kind || 'guardian_drone'} [SHIELD]`, hp[0] + hrad + 4, hp[1] - 2);
+    });
+
+    // -----------------------------------------------------------------------
+    // Planner Counterfactual Ghost Trajectory
+    // -----------------------------------------------------------------------
+    const planAct = state.telemetry?.experience_planner?.proposed_action || state.action;
+    if (Array.isArray(planAct) && planAct.length >= 2 && (state.config?.experience_planning || state.telemetry?.recurrent_planner?.used)) {
+      const horizon = Math.max(2, Number(state.config?.experience_horizon || 3));
+      let gx = a.x, gy = a.y, gth = Number(a.th || 0);
+      const drive = Number(planAct[0] || 0), turn = Number(planAct[1] || 0);
+      x.strokeStyle = 'rgba(192, 132, 252, 0.65)';
+      x.lineWidth = 1.6;
+      x.setLineDash([3, 3]);
+      x.beginPath();
+      const p0 = project(gx, gy, 0.05);
+      x.moveTo(p0[0], p0[1]);
+      const ghostPts = [];
+      for (let hStep = 1; hStep <= horizon; hStep++) {
+        gth += turn * 0.25;
+        gx = Math.max(-4.8, Math.min(4.8, gx + Math.cos(gth) * drive * 0.45));
+        gy = Math.max(-4.8, Math.min(4.8, gy + Math.sin(gth) * drive * 0.45));
+        const gp = project(gx, gy, 0.05);
+        x.lineTo(gp[0], gp[1]);
+        ghostPts.push(gp);
+      }
+      x.stroke();
+      x.setLineDash([]);
+      ghostPts.forEach((gp, idx) => {
+        x.fillStyle = `rgba(192, 132, 252, ${0.8 - idx * 0.12})`;
+        x.beginPath();
+        x.arc(gp[0], gp[1], 3.2 - idx * 0.3, 0, Math.PI * 2);
+        x.fill();
+      });
+    }
+
+    // -----------------------------------------------------------------------
     // Retinal Sensing Rays
     // -----------------------------------------------------------------------
     const ap = project(a.x, a.y, a.z || 0);
@@ -1013,6 +1169,7 @@ function worldLegend(world) {
   if ($('world-trails').checked) entries.push(['trail', `Trajectory · ${worldTrail.length} samples`]);
   for (const kind of kinds) entries.push([['target', 'goal', 'food', 'hazard', 'button'].includes(kind) ? kind : 'object', kind]);
   if (world.predators?.length) entries.push(['hazard', `Predators · ${world.predators.length}`]);
+  if (world.helper_drones?.length) entries.push(['agent', `Helper Drones · ${world.helper_drones.length}`]);
   if (world.sentinels?.length) entries.push(['sentinel', `Sentinels · ${world.sentinels.length}`]);
   if (world.dynamic_gates?.length) entries.push(['gate', `Gates · ${world.dynamic_gates.filter(gate => gate.open).length}/${world.dynamic_gates.length} open`]);
   if (world.sound_tripwires?.length) entries.push(['tripwire', 'Sound tripwires']);
@@ -1048,19 +1205,32 @@ function render(s) {
   const experience = s.experience || {};
   $('experience-mode').value = experience.mode || 'off';
   $('experience-horizon').value = String(s.config?.experience_horizon || 1);
+  if ($('experience-algorithm')) {
+    $('experience-algorithm').value = s.config?.planner_algorithm || 'experience_mpc';
+  }
   if ($('experience-value-guided')) {
     $('experience-value-guided').checked = !!s.config?.value_guided_planning;
   }
   const configForm = $('config');
   if (configForm) {
-    for (const boolField of ['continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning', 'value_guided_planning']) {
+    for (const boolField of [
+      'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
+      'value_guided_planning', 'self_model', 'experimental_cognition',
+      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo', 'programmed_connectome'
+    ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
-        if (boolField === 'dormant_lifecycle') {
+        if (boolField === 'dormant_lifecycle' || boolField === 'self_model' || boolField === 'programmed_connectome') {
           el.checked = s.config?.[boolField] !== false;
         } else {
           el.checked = !!s.config?.[boolField];
         }
+      }
+    }
+    for (const selectField of ['task', 'readout', 'planner_algorithm']) {
+      const el = configForm.elements.namedItem(selectField);
+      if (el && s.config?.[selectField] && !el.dataset.userTouched) {
+        el.value = String(s.config[selectField]);
       }
     }
   }
@@ -1258,12 +1428,20 @@ function render(s) {
     }));
   }
   if ($('uncertainty-hud')) {
+    const unc = s.telemetry?.uncertainty || {};
+    const plast = s.telemetry?.plasticity_monitor || {};
+    const dpo = s.telemetry?.verifiable_dpo || {};
+    const conf = unc.confidence !== undefined ? `${(Number(unc.confidence) * 100).toFixed(1)}%` : 'Calibrated';
+    if ($('uncertainty-badge')) {
+      $('uncertainty-badge').textContent = `Conf ${conf} · ${plast.recommended_action || 'HEALTHY'}`;
+      setTone($('uncertainty-badge'), plast.is_collapsed ? 'bad' : 'good');
+    }
     const uncertMetrics = [
-      ['Epistemic Disagreement', 'Ensemble active · 4 members'],
-      ['Aleatoric Variance', 'Heteroscedastic Gaussian NLL'],
-      ['OOD Support', 'Mahalanobis empirical buffer'],
-      ['Supermix Fabric', 'v2026.11 · Dale-compliant'],
-      ['Representation Rank', 'Plasticity monitor healthy']
+      ['Epistemic Disagreement', unc.epistemic !== undefined ? `σ²_ep=${Number(unc.epistemic).toFixed(5)} · ${unc.ensemble_size || 3} members` : 'Ensemble active · 3 members'],
+      ['Aleatoric Variance', unc.aleatoric !== undefined ? `σ²_al=${Number(unc.aleatoric).toFixed(5)} (Gaussian NLL)` : 'Heteroscedastic Gaussian NLL'],
+      ['OOD Support Distance', unc.ood_score !== undefined ? `d_M=${Number(unc.ood_score).toFixed(4)} (${unc.ood_support_samples || 0} samples)` : 'Mahalanobis empirical buffer'],
+      ['Representation Rank', plast.effective_rank != null ? `erank=${Number(plast.effective_rank).toFixed(2)} · dead=${((plast.dead_neuron_ratio || 0) * 100).toFixed(1)}%` : `Warmup (${plast.details?.samples || 0}/10 samples)`],
+      ['Verifiable DPO Sidecar', dpo.enabled ? `Pairs=${dpo.preference_pairs_count || 0} · updates=${dpo.dpo_updates || 0}` : 'Standby (enable in config)']
     ];
     $('uncertainty-hud').replaceChildren(...uncertMetrics.map(([k, val]) => {
       const d = document.createElement('div');
@@ -1274,6 +1452,40 @@ function render(s) {
       d.append(name, v);
       return d;
     }));
+  }
+
+  // Dendritic Liquid Time-Constant (LTC) Sub-Graft HUD
+  const dend = s.telemetry?.dendritic_ltc || {};
+  if ($('dendritic-badge')) {
+    $('dendritic-badge').textContent = dend.enabled ? `Active · τ=${Number(dend.mean_tau || 1).toFixed(2)}` : 'Standby';
+    setTone($('dendritic-badge'), dend.enabled ? 'good' : 'muted');
+  }
+  if ($('dendritic-hud')) {
+    const dendMetrics = [
+      ['Compartment Status', dend.enabled ? `Active · ${dend.compartments || 32} two-compartment units` : 'Disabled (enable in Session Config)'],
+      ['Mean Liquid Time-Constant τ(t)', dend.enabled ? `${Number(dend.mean_tau || 0).toFixed(4)} [${Number(dend.min_tau || 0).toFixed(2)}..${Number(dend.max_tau || 0).toFixed(2)}]` : '—'],
+      ['NMDA Apical Plateau Gate', dend.enabled ? `${Number(dend.apical_gate_mean || 0).toFixed(4)} · coincidence=${Number(dend.coincidence_gain || 0).toFixed(4)}` : '—'],
+      ['Plateau Active Fraction', dend.enabled ? `${(Number(dend.plateau_fraction || 0) * 100).toFixed(1)}% compartments` : '—'],
+      ['Dendritic Eligibility Updates', dend.enabled ? `${dend.plastic_updates || 0} updates · ||h||=${Number(dend.state_norm || 0).toFixed(3)}` : '0']
+    ];
+    keyValues($('dendritic-hud'), dendMetrics);
+  }
+
+  // Oscillatory Phase-Coherence & Kuramoto Synchrony HUD
+  const osc = s.telemetry?.oscillatory_coherence || {};
+  if ($('oscillatory-badge')) {
+    $('oscillatory-badge').textContent = osc.enabled ? `R=${Number(osc.kuramoto_order_r || 0).toFixed(2)} · ${osc.dominant_band || 'THETA'}` : 'Standby';
+    setTone($('oscillatory-badge'), osc.enabled ? 'good' : 'muted');
+  }
+  if ($('oscillatory-hud')) {
+    const oscMetrics = [
+      ['Kuramoto Order Parameter R(t)', osc.enabled ? `${Number(osc.kuramoto_order_r || 0).toFixed(4)} (${osc.num_neuropils || 3} neuropils)` : 'Disabled (enable in Session Config)'],
+      ['Theta (4–8 Hz) / Beta (13–30 Hz)', osc.enabled ? `θ=${Number(osc.theta_power || 0).toFixed(3)} · β=${Number(osc.beta_power || 0).toFixed(3)}` : '—'],
+      ['Gamma Binding Power (40–80 Hz)', osc.enabled ? `γ=${Number(osc.gamma_power || 0).toFixed(3)} · dominant=${osc.dominant_band || 'THETA'}` : '—'],
+      ['Cross-Neuropil Coherence', osc.enabled ? `${Number(osc.cross_neuropil_coherence || 0).toFixed(4)}` : '—'],
+      ['CTC Routing Gain', osc.enabled ? `×${Number(osc.ctc_routing_gain || 1).toFixed(4)}` : '×1.0000']
+    ];
+    keyValues($('oscillatory-hud'), oscMetrics);
   }
 
   // -----------------------------------------------------------------------
@@ -1422,21 +1634,18 @@ $('experience-apply').onclick = () => action(async () => {
   render(await api('experience/mode', {
     mode: $('experience-mode').value,
     horizon: Number($('experience-horizon').value),
-    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false
+    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false,
+    planner_algorithm: $('experience-algorithm') ? $('experience-algorithm').value : 'experience_mpc'
   }));
 });
-$('experience-preview').onclick = () => action(async () => {
-  running = false;
-  const preview = await api('experience/preview', {
-    horizon: Number($('experience-horizon').value),
-    memory: $('experience-mode').value === 'memory',
-    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false
-  });
+
+function renderPlanPreview(preview) {
+  if (!preview) return;
   $('plan-preview').hidden = false;
   $('plan-step').dataset.step = String(preview.source_step);
-  $('plan-step').textContent = `Step ${preview.source_step} · horizon ${preview.horizon}`;
+  $('plan-step').textContent = `Step ${preview.source_step} · horizon ${preview.horizon} · ${preview.planner_algorithm || 'experience_mpc'}`;
   $('plan-reason').textContent = `${preview.used ? 'Proposed local change' : 'Baseline retained'}: ${preview.reason}. ${preview.evaluations || 0} model evaluations.`;
-  $('plan-actions').replaceChildren(...preview.action_order.map((name, index) => {
+  $('plan-actions').replaceChildren(...(preview.action_order || ['drive', 'turn', 'reach', 'height', 'grip']).map((name, index) => {
     const row = document.createElement('div'); row.className = 'plan-action';
     const label = document.createElement('span'), values = document.createElement('b');
     label.textContent = name;
@@ -1464,6 +1673,17 @@ $('experience-preview').onclick = () => action(async () => {
   });
   $('plan-candidates').replaceChildren(...(candidates.length ? [table] : []));
   show('plan-details', preview);
+}
+
+$('experience-preview').onclick = () => action(async () => {
+  running = false;
+  const preview = await api('experience/preview', {
+    horizon: Number($('experience-horizon').value),
+    memory: $('experience-mode').value === 'memory',
+    value_guided: $('experience-value-guided') ? $('experience-value-guided').checked : false,
+    planner_algorithm: $('experience-algorithm') ? $('experience-algorithm').value : 'experience_mpc'
+  });
+  renderPlanPreview(preview);
 });
 
 $('simspeed').onchange = updateSimSpeed;
@@ -1486,10 +1706,16 @@ $('config').onsubmit = e => {
   config.dormant_lifecycle = !!e.target.elements.dormant_lifecycle?.checked;
   config.latent_reasoning = !!e.target.elements.latent_reasoning?.checked;
   config.value_guided_planning = !!e.target.elements.value_guided_planning?.checked;
+  config.self_model = e.target.elements.self_model ? !!e.target.elements.self_model.checked : (state.config?.self_model ?? true);
+  config.experimental_cognition = e.target.elements.experimental_cognition ? !!e.target.elements.experimental_cognition.checked : (state.config?.experimental_cognition ?? false);
+  config.dendritic_ltc = !!e.target.elements.dendritic_ltc?.checked;
+  config.oscillatory_coherence = !!e.target.elements.oscillatory_coherence?.checked;
+  config.verifiable_dpo = !!e.target.elements.verifiable_dpo?.checked;
+  config.programmed_connectome = e.target.elements.programmed_connectome ? !!e.target.elements.programmed_connectome.checked : (state.config?.programmed_connectome ?? true);
+  config.planner_algorithm = e.target.elements.planner_algorithm?.value || state.config?.planner_algorithm || 'experience_mpc';
   config.experience_planning = state.config?.experience_planning ?? false;
   config.surprise_memory = state.config?.surprise_memory ?? true;
   config.experience_horizon = state.config?.experience_horizon ?? 1;
-  config.experimental_cognition = state.config?.experimental_cognition ?? false;
   config.connectome_sources = state.config?.connectome_sources ?? ['flywire', 'manc', 'optic-lobe'];
   action(async () => {
     render(await api('reset', { config }));
@@ -1759,6 +1985,220 @@ $('manifold').onclick = () => action(async () => {
   const res = await api('invoke', { id: 'manifold.gromov_wasserstein', payload: {} });
   show('manifoldresult', res);
 });
+
+if ($('diffusion-dpo')) {
+  $('diffusion-dpo').onclick = () => action(async () => {
+    show('diffusiondporesult', { status: 'running Masked Diffusion trajectory repair & Machine-Verifiable DPO assay...' });
+    const res = await api('diffusion_dpo', { horizon: 5 });
+    show('diffusiondporesult', res);
+    render(await api('state'));
+  });
+}
+
+if ($('controlled-study-btn')) {
+  $('controlled-study-btn').onclick = () => action(async () => {
+    show('controlledstudyresult', { status: 'running 6-Arm Continual Ablation Study across sequential stages...' });
+    const res = await api('controlled_study', { steps_per_stage: 12, eval_episodes_per_task: 1 });
+    show('controlledstudyresult', res);
+  });
+}
+
+if ($('causal-9arm-btn')) {
+  $('causal-9arm-btn').onclick = () => action(async () => {
+    show('causal9armresult', { status: 'running 9-Arm Connectome Causal Controls & Unified Deployment Scorecard...' });
+    const res = await api('causal_9arm', { steps_per_arm: 12, episodes_per_arm: 1 });
+    show('causal9armresult', res);
+  });
+}
+
+if ($('sweep-capabilities')) {
+  $('sweep-capabilities').onclick = () => action(async () => {
+    show('capsweepresult', { status: 'sweeping all capability families against live runtime...' });
+    const familySweep = {};
+    for (const c of catalogItems) {
+      const fam = c.family || 'general';
+      if (!familySweep[fam]) {
+        const cid = c.id || c.capability_id;
+        try {
+          const r = await api('invoke', { id: cid, payload: c.example || c.example_payload || {} });
+          familySweep[fam] = { capability_id: cid, evidence_kind: c.evidence_kind || 'measured', result: r };
+        } catch (err) {
+          familySweep[fam] = { capability_id: cid, error: err.message };
+        }
+      }
+    }
+    show('capsweepresult', { families_verified: Object.keys(familySweep).length, family_sweep: familySweep });
+  });
+}
+
+if ($('training-intensive')) {
+  $('training-intensive').onclick = () => action(async () => {
+    running = false;
+    $('training-intensive').disabled = true;
+    $('training-intensive').textContent = '🔥 Boosting Compute...';
+    try {
+      const res = await api('training/intensive', {
+        steps: 64,
+        updates: 24,
+        batch_size: Number($('training-batch')?.value || 256),
+        online_steps: 12,
+        workers: Number($('training-workers')?.value || 4)
+      });
+      show('training-receipt', res);
+      $('learn').checked = true;
+      render(await api('state'));
+      await refreshTraining();
+    } finally {
+      $('training-intensive').disabled = false;
+      $('training-intensive').textContent = '🔥 Max Compute Boost';
+    }
+  });
+}
+
+function setAllControlsToMaxUI() {
+  $('learn').checked = true;
+  if ($('simspeed')) { $('simspeed').value = '50'; updateSimSpeed(); }
+  if ($('simsteps')) $('simsteps').value = '16';
+  if ($('training-threads')) {
+    const maxOpt = Math.max(...[...$('training-threads').options].filter(o => !o.disabled).map(o => Number(o.value) || 1));
+    $('training-threads').value = String(maxOpt || 8);
+  }
+  if ($('training-active')) $('training-active').checked = true;
+  if ($('training-workers')) $('training-workers').value = '4';
+  if ($('training-batch')) $('training-batch').value = '256';
+  if ($('graph-nodes')) $('graph-nodes').value = '2000';
+  if ($('graph-edges')) $('graph-edges').value = '1600';
+  if ($('graph-grafts')) $('graph-grafts').checked = true;
+  if ($('experience-mode')) $('experience-mode').value = 'memory';
+  if ($('experience-horizon')) $('experience-horizon').value = '5';
+  if ($('experience-algorithm')) $('experience-algorithm').value = 'hybrid';
+  if ($('experience-value-guided')) $('experience-value-guided').checked = true;
+
+  const form = $('config');
+  if (form) {
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 2000) {
+      form.elements.total_neurons.value = '2000';
+    }
+    if (form.elements.microsteps) form.elements.microsteps.value = '4';
+    if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
+    if (form.elements.readout) form.elements.readout.value = 'persistent_evoked';
+    if (form.elements.planner_algorithm) form.elements.planner_algorithm.value = 'hybrid';
+    for (const field of [
+      'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
+      'value_guided_planning', 'self_model', 'experimental_cognition',
+      'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo', 'programmed_connectome'
+    ]) {
+      if (form.elements[field]) form.elements[field].checked = true;
+    }
+  }
+}
+
+if ($('config-max-preset')) {
+  $('config-max-preset').onclick = () => {
+    setAllControlsToMaxUI();
+    $('config').requestSubmit();
+  };
+}
+
+async function runTandemMaxMode() {
+  running = false;
+  setAllControlsToMaxUI();
+  const banner = $('tandem-banner');
+  if (banner) banner.hidden = false;
+  const pill = $('tandem-status-pill');
+  if (pill) {
+    pill.textContent = 'Executing Sections 01–05 in Tandem...';
+    setTone(pill, 'warn');
+  }
+  const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
+  btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
+  try {
+    const neurons = Number($('config')?.elements?.total_neurons?.value || 2000);
+    const task = $('config')?.elements?.task?.value || state.config?.task || 'forage';
+    const res = await api('tandem/max', {
+      total_neurons: Math.max(2000, neurons),
+      task,
+      pretrain_steps: 32,
+      pretrain_updates: 16,
+      batch_size: 256,
+      live_steps: 12,
+      omnibus_steps_per_task: 6
+    });
+
+    // Populate Section 01 panels
+    if (res.section_01) {
+      show('training-receipt', res.section_01.pretrain_receipt);
+      renderPlanPreview(res.section_01.plan_preview);
+    }
+    // Populate Section 02 panels
+    if (res.section_02) {
+      show('capsweepresult', res.section_02);
+      show('capresult', res.section_02.representative_invocation);
+    }
+    // Populate Section 03 panels
+    if (res.section_03) {
+      show('surfaces', res.section_03.tensors);
+      lastSynthesizedHyperpacket = res.section_03.hyperprogram;
+      if (res.section_03.hyperprogram?.packet) {
+        $('packet').value = pretty(res.section_03.hyperprogram.packet);
+      }
+      show('hyperresult', res.section_03.hyperprogram);
+      show('patchresult', { preview: res.section_03.patch_preview, screen: res.section_03.patch_screen });
+      show('atlasresult', res.section_03.atlas);
+      show('autorepairresult', res.section_03.autoprogram);
+      show('transplantresult', res.section_03.transplant);
+      show('flagshipresult', res.section_03.flagship);
+      show('metamorphicresult', res.section_03.metamorphic);
+      show('spectralresult', res.section_03.spectral);
+      show('diffusiondporesult', res.section_03.diffusion_dpo);
+    }
+    // Populate Section 04 panels
+    if (res.section_04) {
+      show('rsi-receipt', res.section_04.live_rsi);
+      show('skills-result', res.section_04.reusable_skills);
+      show('controlledstudyresult', res.section_04.six_arm_study);
+      show('causal9armresult', res.section_04.causal_9arm_and_scorecard);
+      show('studyresult', res.section_04.study_receipt);
+      lineage(res.section_04.study_receipt?.lineage || []);
+    }
+    // Populate Section 05 panels
+    if (res.section_05) {
+      $('checkpointname').value = 'tandem_max_session';
+      show('checkpointresult', res.section_05.saved_checkpoint);
+      await checkpoints();
+    }
+
+    show('tandem-receipt-out', res);
+    if ($('tandem-summary')) {
+      $('tandem-summary').textContent = `Completed all 5 sections in ${res.total_wallclock_seconds}s · ${res.total_neurons} neurons · ${res.compute_threads} CPU threads · ${res.parallel_workers} rollout workers · SHA-256 ${String(res.tandem_sha256 || '').slice(0, 16)}…`;
+    }
+    if (pill) {
+      pill.textContent = `Completed · ${res.total_wallclock_seconds}s`;
+      setTone(pill, 'good');
+    }
+    if ($('tandem-section-pills')) {
+      [...$('tandem-section-pills').children].forEach(el => setTone(el, 'good'));
+    }
+
+    if (res.state) render(res.state);
+    await refreshTraining();
+    omnibusLastPoll = 0;
+    running = true;
+    $('runstatus').textContent = 'Running · Tandem Max Active';
+  } finally {
+    if ($('btn-tandem-max')) {
+      $('btn-tandem-max').disabled = false;
+      $('btn-tandem-max').textContent = '⚡ Run Complete System in Tandem (Max Mode · Sections 1–5)';
+    }
+    if ($('btn-tandem-max-toolbar')) {
+      $('btn-tandem-max-toolbar').disabled = false;
+      $('btn-tandem-max-toolbar').textContent = '⚡ Max Mode (Sections 1–5)';
+    }
+  }
+}
+
+if ($('btn-tandem-max')) $('btn-tandem-max').onclick = () => action(runTandemMaxMode);
+if ($('btn-tandem-max-toolbar')) $('btn-tandem-max-toolbar').onclick = () => action(runTandemMaxMode);
 
 // -------------------------------------------------------------------------
 // Experiments, Jobs & Lineage

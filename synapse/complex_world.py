@@ -32,6 +32,8 @@ COMPLEX_TASKS = [
     "apex_megasite",
     "stealth_labyrinth",
     "kinetic_foundry",
+    "quantum_bifurcation",
+    "cybernetic_sanctuary",
 ]
 
 ALL_TASKS = BASE_TASKS + COMPLEX_TASKS
@@ -44,6 +46,7 @@ class ComplexWorld(BaseWorld):
         self.complex_seed = seed
         self.rng_complex = np.random.default_rng(seed)
         self.predators: List[Dict[str, Any]] = []
+        self.helper_drones: List[Dict[str, Any]] = []
         self.terrain_zones: List[Dict[str, Any]] = []
         self.dynamic_gates: List[Dict[str, Any]] = []
         self.elevation_hills: List[Dict[str, Any]] = []
@@ -60,6 +63,7 @@ class ComplexWorld(BaseWorld):
     def reset(self, task: Optional[str] = None):
         """Initializes both standard baseline and advanced complex tasks."""
         self.predators.clear()
+        self.helper_drones.clear()
         self.terrain_zones.clear()
         self.dynamic_gates.clear()
         self.elevation_hills.clear()
@@ -92,6 +96,10 @@ class ComplexWorld(BaseWorld):
             self._setup_stealth_labyrinth()
         elif self.task == "kinetic_foundry":
             self._setup_kinetic_foundry()
+        elif self.task == "quantum_bifurcation":
+            self._setup_quantum_bifurcation()
+        elif self.task == "cybernetic_sanctuary":
+            self._setup_cybernetic_sanctuary()
 
         self.base_walls = self.walls.copy()
         self.history.setdefault(self.task, deque(maxlen=50))
@@ -331,6 +339,106 @@ class ComplexWorld(BaseWorld):
         # Foundry reactor core target
         self._obj("target", 0.0, 3.8, "purple", r=0.45, movable=False)
 
+    def _setup_quantum_bifurcation(self):
+        """Quantum bifurcation: dual phase-shifting bridge gates over a cross-current, entangled cue switch, and decoy vault."""
+        self.objects.clear()
+        self.walls = self._border()
+
+        # Bifurcating corridor walls
+        self.walls.extend([
+            (-1.0, -5.0, -1.0, -1.6),
+            (-1.0, 1.6, -1.0, 5.0),
+            (1.6, -1.2, 5.0, -1.2),
+            (1.6, 1.2, 5.0, 1.2),
+        ])
+
+        # River current + ice slip zone + shadow cloak pocket
+        self.terrain_zones = [
+            {"kind": "river", "x": 0.2, "y": 0.0, "r": 1.9, "friction": 1.05, "vx": 0.0, "vy": 0.14, "color": "blue"},
+            {"kind": "ice", "x": -2.8, "y": 0.0, "r": 1.4, "friction": 0.28, "color": "cyan"},
+            {"kind": "shadow", "x": 2.4, "y": 0.0, "r": 1.2, "friction": 1.0, "color": "purple"},
+        ]
+
+        # Elevation basin & plateau
+        self.elevation_hills = [
+            {"x": -2.5, "y": -2.5, "height": 1.4, "sigma": 1.3},
+            {"x": 2.5, "y": 2.8, "height": -1.3, "sigma": 1.3},
+        ]
+
+        # Dual phase-shifting gates (one locked by entanglement button, one oscillating)
+        self.dynamic_gates = [
+            {"id": "phase_bridge_north", "x1": -1.0, "y1": 0.0, "x2": -1.0, "y2": 1.6, "open": True, "timer": 10},
+            {"id": "phase_bridge_south", "x1": -1.0, "y1": -1.6, "x2": -1.0, "y2": 0.0, "open": False, "locked": True},
+        ]
+
+        # Rotating sentinel guarding the bifurcation nexus
+        self.sentinels = [
+            {"id": 401, "x": 1.4, "y": 0.0, "angle": 0.0, "angular_vel": 0.05, "range": 2.6, "cone_half_angle": 0.40, "alerted": False, "color": "orange"}
+        ]
+
+        # Entanglement calibration switch & quantum target core
+        self._obj("button", -3.2, -2.5, "yellow", r=0.35, shape="button", movable=False, solid=False, pressed=False)
+        self._obj("target", 3.8, 0.0, "cyan", r=0.44, movable=False)
+        self._obj("food", -3.0, 2.5, "gold", r=0.28, movable=False)
+        self._obj("food", 0.3, -2.8, "green", r=0.25, movable=False)
+
+    def _setup_cybernetic_sanctuary(self):
+        """Cybernetic sanctuary: autonomous cooperative helper drone with protective shield field, bio-reactor valves, and pack hunters."""
+        self.objects.clear()
+        self.walls = self._border()
+
+        # Sanctuary inner ring walls
+        self.walls.extend([
+            (1.8, -5.0, 1.8, -1.1),
+            (1.8, 1.1, 1.8, 5.0),
+        ])
+        self.dynamic_gates = [
+            {"id": "sanctuary_bulkhead", "x1": 1.8, "y1": -1.1, "x2": 1.8, "y2": 1.1, "open": False, "locked": True}
+        ]
+
+        self.terrain_zones = [
+            {"kind": "conveyor", "x": -1.8, "y": 1.8, "r": 1.5, "friction": 0.9, "vx": 0.14, "vy": -0.06, "color": "orange"},
+            {"kind": "shadow", "x": -0.5, "y": -2.2, "r": 1.4, "friction": 1.0, "color": "purple"},
+        ]
+
+        # Cooperative Helper Drone (orbits and projects a stabilizing shield aura)
+        self.helper_drones = [
+            {
+                "id": 501,
+                "x": 1.0,
+                "y": 0.0,
+                "th": 0.0,
+                "orbit_angle": 0.0,
+                "orbit_center": [-0.6, 0.0],
+                "orbit_radius": 1.6,
+                "shield_radius": 1.6,
+                "r": 0.32,
+                "kind": "guardian_drone",
+                "color": "cyan",
+                "active": True,
+            }
+        ]
+
+        # Perimeter stalker drone
+        self.predators.append({
+            "id": 205,
+            "x": -3.2,
+            "y": -3.0,
+            "th": 0.5,
+            "speed": 0.12,
+            "kind": "pack_leader",
+            "r": 0.36,
+            "color": "red",
+            "alerted": False,
+        })
+
+        # Bio-reactor valve button & sanctuary core target
+        self._obj("button", -2.8, 2.4, "yellow", r=0.36, shape="button", movable=False, solid=False, pressed=False)
+        self._obj("target", 3.6, 0.0, "gold", r=0.45, movable=False)
+        for _ in range(3):
+            spot = self._free_spot(avoid=[(o['x'], o['y']) for o in self.objects])
+            self._obj("food", spot[0], spot[1], "green", r=0.25, movable=False)
+
     # ------------------------------------------------------------------
     # Step Physics & Environmental Updates
     # ------------------------------------------------------------------
@@ -522,23 +630,38 @@ class ComplexWorld(BaseWorld):
                 spot = self._free_spot(avoid=[(o['x'], o['y']) for o in self.objects])
                 self._obj("food", spot[0], spot[1], "green", r=0.25, movable=False)
 
-        # 10. Ambient Illumination Cycle
+        # 10. Ambient Illumination Cycle & Cooperative Helper Drones
         self.day_night_clock += 0.015
         self.ambient_light = float(0.65 + 0.35 * math.sin(self.day_night_clock))
         info["ambient_light"] = self.ambient_light
+
+        helper_shield_active = False
+        for drone in self.helper_drones:
+            drone["orbit_angle"] = float(drone.get("orbit_angle", 0.0) + 0.065) % (math.pi * 2)
+            cx, cy = drone.get("orbit_center", [0.0, 0.0])
+            rad = float(drone.get("orbit_radius", 1.5))
+            nx = float(cx + math.cos(drone["orbit_angle"]) * rad)
+            ny = float(cy + math.sin(drone["orbit_angle"]) * rad)
+            drone["th"] = float(math.atan2(ny - drone["y"], nx - drone["x"]))
+            drone["x"], drone["y"] = nx, ny
+            if math.hypot(ax - nx, ay - ny) <= float(drone.get("shield_radius", 1.6)):
+                helper_shield_active = True
+                reward += 0.04
+                info["min_hazard_dist"] = max(float(info.get("min_hazard_dist", 10.0)), 6.0)
+        info["helper_shield_active"] = helper_shield_active
 
         # 11. Complex Task Completion and Terminal Goal Rewards
         target_obj = next((o for o in self.objects if o.get("kind") == "target"), None)
         if target_obj is not None:
             dist_to_target = math.hypot(ax - target_obj["x"], ay - target_obj["y"])
             if dist_to_target < (target_obj.get("r", 0.4) + 0.25):
-                if self.task == "puzzle_chamber":
+                if self.task in ("puzzle_chamber", "cybernetic_sanctuary"):
                     btn = next((o for o in self.objects if o.get("kind") == "button"), None)
                     if btn and btn.get("pressed"):
                         done = True
-                        reward += 6.0
+                        reward += 6.0 if self.task == "puzzle_chamber" else 8.5
                         info["outcome"] = "success"
-                elif self.task in ("dynamic_arena", "apex_megasite", "stealth_labyrinth", "kinetic_foundry"):
+                elif self.task in ("dynamic_arena", "apex_megasite", "stealth_labyrinth", "kinetic_foundry", "quantum_bifurcation"):
                     done = True
                     reward += 8.0
                     info["outcome"] = "success"
@@ -606,6 +729,15 @@ class ComplexWorld(BaseWorld):
                 return 3.0 - math.hypot(ax - target["x"], ay - target["y"])
             return 0.0
 
+        if t in ("quantum_bifurcation", "cybernetic_sanctuary"):
+            btn = next((o for o in self.objects if o.get("kind") == "button"), None)
+            target = next((o for o in self.objects if o.get("kind") == "target"), None)
+            if btn and not btn.get("pressed"):
+                return -math.hypot(ax - btn["x"], ay - btn["y"])
+            if target:
+                return 3.0 - math.hypot(ax - target["x"], ay - target["y"])
+            return 0.0
+
         # Delegate base tasks to BaseWorld._progress
         return super()._progress()
 
@@ -655,6 +787,19 @@ class ComplexWorld(BaseWorld):
         snap["elevation_hills"] = self.elevation_hills
         snap["sentinels"] = self.sentinels
         snap["sound_tripwires"] = self.sound_tripwires
+        snap["helper_drones"] = [
+            {
+                "id": d["id"],
+                "x": round(float(d["x"]), 3),
+                "y": round(float(d["y"]), 3),
+                "th": round(float(d.get("th", 0.0)), 3),
+                "r": d.get("r", 0.32),
+                "shield_radius": d.get("shield_radius", 1.6),
+                "kind": d.get("kind", "guardian_drone"),
+                "color": d.get("color", "cyan"),
+            }
+            for d in self.helper_drones
+        ]
         snap["ambient_light"] = round(self.ambient_light, 3)
         snap["alarm_tripped"] = self.last_alarm_tripped
         return snap

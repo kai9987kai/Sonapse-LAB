@@ -83,15 +83,18 @@ class MachineVerifiableDPOEngine:
         self.action_dim = action_dim
         self.beta = beta
 
-        torch.manual_seed(seed)
-        self.policy = DPOPolicyNetwork(obs_dim, action_dim)
-        # Reference policy is a frozen copy of the initial policy
-        self.ref_policy = copy.deepcopy(self.policy)
-        for param in self.ref_policy.parameters():
-            param.requires_grad = False
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            self.policy = DPOPolicyNetwork(obs_dim, action_dim)
+            # Reference policy is a frozen copy of the initial policy
+            self.ref_policy = copy.deepcopy(self.policy)
+            for param in self.ref_policy.parameters():
+                param.requires_grad = False
 
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=lr)
+        self.rng = np.random.default_rng(seed)
         self.preference_buffer: List[PreferencePair] = []
+        self.last_margin: float = 0.0
 
     def record_preference(
         self,
@@ -118,7 +121,7 @@ class MachineVerifiableDPOEngine:
         if len(self.preference_buffer) < 4:
             return {'status': 'insufficient_data', 'loss': 0.0, 'buffer_size': len(self.preference_buffer)}
 
-        indices = np.random.choice(len(self.preference_buffer), size=min(batch_size, len(self.preference_buffer)), replace=False)
+        indices = self.rng.choice(len(self.preference_buffer), size=min(batch_size, len(self.preference_buffer)), replace=False)
         batch = [self.preference_buffer[i] for i in indices]
 
         obs_batch = torch.as_tensor(np.stack([p.context for p in batch]), dtype=torch.float32)
@@ -156,3 +159,47 @@ class MachineVerifiableDPOEngine:
             'batch_size': len(batch),
             'buffer_size': len(self.preference_buffer),
         }
+
+    def export_state(self) -> Dict[str, Any]:
+        return {
+            'policy': copy.deepcopy(self.policy.state_dict()),
+            'ref_policy': copy.deepcopy(self.ref_policy.state_dict()),
+            'optimizer': copy.deepcopy(self.optimizer.state_dict()),
+            'rng': copy.deepcopy(self.rng.bit_generator.state),
+            'last_margin': float(getattr(self, 'last_margin', 0.0)),
+            'preference_buffer': [
+                {
+                    'pair_id': p.pair_id,
+                    'context': p.context.copy(),
+                    'winner_action': p.winner_action.copy(),
+                    'loser_action': p.loser_action.copy(),
+                    'criterion': p.criterion,
+                    'delta_utility': float(p.delta_utility),
+                }
+                for p in self.preference_buffer
+            ],
+        }
+
+    def import_state(self, state: Dict[str, Any]):
+        if 'policy' in state:
+            self.policy.load_state_dict(copy.deepcopy(state['policy']))
+        if 'ref_policy' in state:
+            self.ref_policy.load_state_dict(copy.deepcopy(state['ref_policy']))
+        if 'optimizer' in state:
+            self.optimizer.load_state_dict(copy.deepcopy(state['optimizer']))
+        else:
+            self.optimizer.state.clear()
+        if 'rng' in state:
+            self.rng.bit_generator.state = copy.deepcopy(state['rng'])
+        self.last_margin = float(state.get('last_margin', 0.0))
+        self.preference_buffer = [
+            PreferencePair(
+                pair_id=str(p['pair_id']),
+                context=np.asarray(p['context'], dtype=np.float32).copy(),
+                winner_action=np.asarray(p['winner_action'], dtype=np.float32).copy(),
+                loser_action=np.asarray(p['loser_action'], dtype=np.float32).copy(),
+                criterion=str(p['criterion']),
+                delta_utility=float(p['delta_utility']),
+            )
+            for p in state.get('preference_buffer', [])
+        ]
