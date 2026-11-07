@@ -28,12 +28,31 @@ from graftbrain.brain import GraftedBrain
 from graftbrain.graft import GraftedGraph
 
 
+def build_multi_connectome(
+    sources: Optional[List[str]] = None,
+    nodes_per_source: int = 32,
+    seed: int = 42,
+) -> GraftedGraph:
+    """Build multi-connectome GraftedGraph across Drosophila connectome sources."""
+    if sources is None:
+        sources = ["flywire", "manc", "optic-lobe"]
+    return build_multiconnectome_graph(sources=sources, nodes_per_source=nodes_per_source, seed=seed)
+
+
 @dataclass
 class RegionalActivityTelemetry:
     regional_means: Dict[str, float]
     total_active_neurons: int
     inter_connectome_flux: float
     neuromodulatory_gains: Dict[str, Dict[str, float]]
+    comm_payload_bits_per_step: int = 0
+    comm_utilization: float = 0.0
+    comm_causal_gain: float = 0.0
+    comm_probe_accuracy: float = 0.0
+    comm_effective_rank: float = 1.0
+    comm_drop_rate: float = 0.0
+    comm_latency_steps: int = 0
+    flux_scope: str = "mean_abs_graft_weight_proxy_not_mutual_information"
     timestamp: float = field(default_factory=time.time)
 
 
@@ -165,7 +184,8 @@ class MultiConnectomeHub(nn.Module):
             'base_edges_count': len(self.graph.base_pre),
             'graft_edges_count': len(self.graph.graft_pre),
             'regions': reg_info,
-            'latest_telemetry': self.last_telemetry.__dict__ if self.last_telemetry else None
+            'latest_telemetry': self.last_telemetry.__dict__ if self.last_telemetry else None,
+            'inter_connectome_flux_scope': 'mean_abs_graft_weight_proxy_not_mutual_information',
         }
 
 

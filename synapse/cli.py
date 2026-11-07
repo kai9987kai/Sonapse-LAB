@@ -16,7 +16,7 @@ def main(argv=None):
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 4000)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 6000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -65,6 +65,14 @@ def main(argv=None):
     sub.add_parser('uncertainty-calibrate')
     sub.add_parser('self-model-audit')
     sub.add_parser('reusable-skills')
+    p=sub.add_parser('neural-comm'); p.add_argument('--steps', type=int, default=15)
+    p=sub.add_parser('world4d'); p.add_argument('--steps', type=int, default=20)
+    p=sub.add_parser('tool-arena'); p.add_argument('--steps', type=int, default=10)
+    sub.add_parser('benchmarks')
+    sub.add_parser('motifs')
+    sub.add_parser('meta-plasticity')
+    sub.add_parser('ablation')
+    sub.add_parser('checkpoint-migration')
     p=sub.add_parser('omnibus'); p.add_argument('--steps-per-task',type=int,default=30); p.add_argument('--tasks',nargs='+',default=None); p.add_argument('--save-report',type=Path)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
@@ -87,7 +95,7 @@ def main(argv=None):
     p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        total=args.total_neurons if args.total_neurons is not None else (4000 if args.nodes is None else None)
+        total=args.total_neurons if args.total_neurons is not None else (6000 if args.nodes is None else None)
         if getattr(args, 'frontier_all', False):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:
@@ -391,6 +399,60 @@ def main(argv=None):
                 result = receipt.to_dict()
                 if args.save_report:
                     args.save_report.write_text(json.dumps(result, indent=2), encoding='utf-8')
+            elif args.command=='neural-comm':
+                from .neural_comm_bench import SancfMatrixBenchmark
+                bench = SancfMatrixBenchmark(num_steps=args.steps, seed=args.seed)
+                m_res = bench.run_benchmark()
+                nw_res = bench.run_neurowave_assay()
+                import dataclasses
+                result = {
+                    'sancf_matrix': [dataclasses.asdict(a) for a in m_res.arm_results],
+                    'neurowave_modes': [dataclasses.asdict(m) for m in nw_res.modes],
+                    'neurowave_controls': [dataclasses.asdict(c) for c in nw_res.controls],
+                }
+            elif args.command=='world4d':
+                from .world4d import World4DEnvironment
+                env = World4DEnvironment(seed=args.seed)
+                env.reset()
+                import numpy as np
+                step_res = env.step(np.array([0.5, 0.0, 0.3, 0.0, 0.0], dtype=np.float32))
+                result = {'obs_dim': len(step_res[0]), 'reward': step_res[1], 'done': step_res[2], 'snapshot': env.snapshot()}
+            elif args.command=='tool-arena':
+                from .digital_tool_arena import DigitalToolArena, ToolActionType
+                arena = DigitalToolArena(seed=args.seed)
+                t_info = arena.reset()
+                step_res = arena.step(ToolActionType.LIST, {})
+                import dataclasses
+                result = {'task': dataclasses.asdict(t_info), 'step_result': dataclasses.asdict(step_res), 'snapshot': arena.snapshot()}
+            elif args.command=='benchmarks':
+                from .benchmark_suite import BenchmarkRunner, ResearchScorecard
+                runner = BenchmarkRunner()
+                b_results = runner.run_all(seed=args.seed)
+                scorecard = ResearchScorecard().generate_scorecard(b_results)
+                result = {'overall_pass_rate': scorecard.overall_pass_rate, 'scorecard': scorecard.summary_markdown}
+            elif args.command=='motifs':
+                from .causal_connectome_assay import CausalConnectomeAssay
+                assay = CausalConnectomeAssay(num_nodes=200, seed=args.seed)
+                c_res = assay.run_full_assay()
+                result = {'motifs_count': len(c_res.motifs), 'interventions_count': len(c_res.interventions), 'notes': c_res.disclaimer}
+            elif args.command=='meta-plasticity':
+                from .plasticity_rule_learner import PlasticityRuleLearner
+                learner = PlasticityRuleLearner(seed=args.seed)
+                l_res = learner.train_and_evaluate(meta_epochs=3)
+                result = {'learned_rule_score': l_res.learned_rule_score, 'hebbian_baseline_score': l_res.hebbian_baseline_score}
+            elif args.command=='ablation':
+                from .ablation_engine import FactorialAblationEngine
+                ablation = FactorialAblationEngine(num_seeds=2)
+                a_res = ablation.run_study()
+                import dataclasses
+                result = {'summary': a_res.summary_findings, 'conditions': [dataclasses.asdict(c) for c in a_res.conditions]}
+            elif args.command=='checkpoint-migration':
+                from .checkpoint_migration import CheckpointMigrationSimulator
+                import dataclasses
+                mig = CheckpointMigrationSimulator()
+                dummy_state = {'config': {'seed': args.seed}, 'activations': [0.1, 0.2, 0.3], 'step_count': 100}
+                res = mig.simulate_migration(dummy_state)
+                result = dataclasses.asdict(res)
         if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan','rsi-verify'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}

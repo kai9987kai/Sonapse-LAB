@@ -46,55 +46,117 @@ class SynapseConfig:
     criticality_homeostat: bool = False
     holographic_vsa: bool = False
 
+    # SANCF (Sonapse Adaptive Neural Communication Fabric) & Advanced Research Features
+    neural_comm_enabled: bool = False
+    neural_comm_mode: str = 'continuous'
+    neural_comm_dim: int = 16
+    neural_comm_precision_bits: int = 4
+    neural_comm_every: int = 1
+    neural_comm_max_messages: int = 4
+    neural_comm_max_bits: int = 128
+    neural_comm_max_aux_current: float = 0.5
+    neural_comm_topology: str = 'hybrid_causal'
+    neural_comm_drop_rate: float = 0.0
+    neural_comm_latency_steps: int = 0
+    neurowave_enabled: bool = False
+    overflow_mini_brain: bool = False
+    grafted_diffusion: bool = False
+    selective_state_space: bool = False
+    multitimescale_learning: bool = False
+    meta_plasticity: bool = False
+    causal_world_model: bool = False
+    relational_memory: bool = False
+    verifier_rsi: bool = False
+    event_driven_backend: bool = False
+
     def __post_init__(self):
-        for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
-                    'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
-                    'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all',
-                    'neural_graft','active_training','programmed_connectome','structural_learning',
-                    'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-                    'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa'):
+        bool_keys = (
+            'experience_planning', 'surprise_memory', 'experimental_cognition',
+            'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
+            'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all',
+            'neural_graft', 'active_training', 'programmed_connectome', 'structural_learning',
+            'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
+            'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa',
+            'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain',
+            'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
+            'meta_plasticity', 'causal_world_model', 'relational_memory',
+            'verifier_rsi', 'event_driven_backend'
+        )
+        for key in bool_keys:
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
+
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
             raise ValueError('seed must be a nonnegative 31-bit integer')
-        for key, low, high in [('nodes_per_source', 16, 10000), ('microsteps', 1, 8), ('cognition_interval', 1, 128), ('experience_horizon', 1, 5), ('compute_threads',1,32), ('graft_batch_size',8,1024), ('graft_updates',1,32)]:
+
+        int_ranges = [
+            ('nodes_per_source', 16, 10000),
+            ('microsteps', 1, 8),
+            ('cognition_interval', 1, 128),
+            ('experience_horizon', 1, 5),
+            ('compute_threads', 1, 32),
+            ('graft_batch_size', 8, 1024),
+            ('graft_updates', 1, 32),
+            ('neural_comm_dim', 1, 128),
+            ('neural_comm_precision_bits', 1, 32),
+            ('neural_comm_every', 1, 16),
+            ('neural_comm_max_messages', 1, 64),
+            ('neural_comm_max_bits', 1, 4096),
+            ('neural_comm_latency_steps', 0, 16),
+        ]
+        for key, low, high in int_ranges:
             value = getattr(self, key)
             if type(value) is not int or not low <= value <= high:
                 raise ValueError(f'{key} must be an integer in [{low},{high}]')
+
+        if not 0.0 <= self.neural_comm_max_aux_current <= 5.0:
+            raise ValueError('neural_comm_max_aux_current must be in [0.0, 5.0]')
+        if not 0.0 <= self.neural_comm_drop_rate <= 1.0:
+            raise ValueError('neural_comm_drop_rate must be in [0.0, 1.0]')
+
         if self.readout not in {'absolute', 'evoked', 'persistent_evoked'}:
             raise ValueError('unsupported graph readout')
         if self.planner_algorithm not in {'experience_mpc', 'recurrent_latent', 'hybrid'}:
             raise ValueError('unsupported planner algorithm')
-        if self.connectome_mode not in {'proxy','prefer_authentic','strict_authentic'}:
+        if self.connectome_mode not in {'proxy', 'prefer_authentic', 'strict_authentic'}:
             raise ValueError('unsupported connectome mode')
         if self.active_training and not self.neural_graft:
             raise ValueError('active_training requires neural_graft')
         if self.programmed_connectome and not self.neural_graft:
             raise ValueError('programmed_connectome requires neural_graft')
-        valid_tasks = {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber', 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry', 'quantum_bifurcation', 'cybernetic_sanctuary', 'continental_biosphere', 'chrono_tidepool_citadel'}
+
+        valid_tasks = {
+            'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert',
+            'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase',
+            'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber',
+            'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry',
+            'quantum_bifurcation', 'cybernetic_sanctuary', 'continental_biosphere',
+            'chrono_tidepool_citadel', 'world4d_tesseract_bypass', 'digital_tool_arena'
+        }
         if self.task not in valid_tasks:
             raise ValueError('unknown task')
         if not isinstance(self.connectome_sources, tuple) or len(self.connectome_sources) == 0:
             raise ValueError('connectome_sources must be a non-empty tuple of dataset names')
+
         if self.total_neurons is not None:
-            count=len(self.connectome_sources)
-            if type(self.total_neurons) is not int or not 16*count <= self.total_neurons <= 10000*count:
+            count = len(self.connectome_sources)
+            if type(self.total_neurons) is not int or not 16 * count <= self.total_neurons <= 10000 * count:
                 raise ValueError(f'total_neurons must be an integer in [{16*count},{10000*count}]')
 
     def source_node_counts(self):
         """Allocate an exact total while preserving legacy per-source configs."""
-        count=len(self.connectome_sources)
+        count = len(self.connectome_sources)
         if self.total_neurons is None:
-            return (self.nodes_per_source,)*count
-        base,remainder=divmod(self.total_neurons,count)
-        return tuple(base+(index<remainder) for index in range(count))
+            return (self.nodes_per_source,) * count
+        base, remainder = divmod(self.total_neurons, count)
+        return tuple(base + (index < remainder) for index in range(count))
 
     def total_neuron_count(self) -> int:
         return int(sum(self.source_node_counts()))
 
     @classmethod
-    def frontier_apex(cls, total_neurons: int = 4000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
-        """Omnibus configuration activating all frontier cognitive and neuromorphic features."""
+    def frontier_apex(cls, total_neurons: int = 6000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
+        """Omnibus configuration activating all frontier cognitive, neuromorphic, and SANCF communication features."""
         cfg_dict = dict(
             seed=seed,
             total_neurons=total_neurons,
@@ -122,15 +184,28 @@ class SynapseConfig:
             tether_coordinator=True,
             criticality_homeostat=True,
             holographic_vsa=True,
-            compute_threads=min(4,os.cpu_count() or 1),
+            neural_comm_enabled=True,
+            neural_comm_mode='continuous',
+            neural_comm_dim=24,
+            neurowave_enabled=True,
+            overflow_mini_brain=True,
+            grafted_diffusion=True,
+            selective_state_space=True,
+            multitimescale_learning=True,
+            meta_plasticity=True,
+            causal_world_model=True,
+            relational_memory=True,
+            verifier_rsi=True,
+            event_driven_backend=True,
+            compute_threads=min(4, os.cpu_count() or 1),
             connectome_mode='prefer_authentic',
         )
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
 
     @classmethod
-    def max_tandem(cls, total_neurons: int = 4000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
-        """Maximum tandem configuration activating every optional feature, hybrid planning, and full CPU compute."""
+    def max_tandem(cls, total_neurons: int = 6000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, and full CPU compute."""
         cfg_dict = dict(
             seed=seed,
             total_neurons=total_neurons,
@@ -160,6 +235,19 @@ class SynapseConfig:
             tether_coordinator=True,
             criticality_homeostat=True,
             holographic_vsa=True,
+            neural_comm_enabled=True,
+            neural_comm_mode='continuous',
+            neural_comm_dim=32,
+            neurowave_enabled=True,
+            overflow_mini_brain=True,
+            grafted_diffusion=True,
+            selective_state_space=True,
+            multitimescale_learning=True,
+            meta_plasticity=True,
+            causal_world_model=True,
+            relational_memory=True,
+            verifier_rsi=True,
+            event_driven_backend=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
@@ -178,20 +266,31 @@ class SynapseConfig:
         """Only new optional settings may be omitted by legacy checkpoints."""
         if not isinstance(saved, dict):
             return False
-        normalized = {'experience_planning': False, 'surprise_memory': True, 'experience_horizon': 1,
-                      'experimental_cognition': False, 'continual_backprop': False,
-                      'fast_weight_memory': False, 'dormant_lifecycle': True,
-                      'latent_reasoning': False, 'value_guided_planning': False,
-                      'self_model': False,
-                      'frontier_all': False,
-                      'planner_algorithm': 'experience_mpc',
-                      'total_neurons': None,
-                      'neural_graft':False,'active_training':False,'programmed_connectome':False,
-                      'compute_threads':1,'graft_batch_size':64,'graft_updates':2,'connectome_mode':'proxy',
-                      'structural_learning':True,
-                      'dendritic_ltc':False,'oscillatory_coherence':False,'verifiable_dpo':False,
-                      'dvgem_memory':False,'tether_coordinator':False,'criticality_homeostat':False,'holographic_vsa':False,
-                      'connectome_sources': ('flywire', 'manc', 'optic-lobe'), **saved}
+        normalized = {
+            'experience_planning': False, 'surprise_memory': True, 'experience_horizon': 1,
+            'experimental_cognition': False, 'continual_backprop': False,
+            'fast_weight_memory': False, 'dormant_lifecycle': True,
+            'latent_reasoning': False, 'value_guided_planning': False,
+            'self_model': False,
+            'frontier_all': False,
+            'planner_algorithm': 'experience_mpc',
+            'total_neurons': None,
+            'neural_graft': False, 'active_training': False, 'programmed_connectome': False,
+            'compute_threads': 1, 'graft_batch_size': 64, 'graft_updates': 2, 'connectome_mode': 'proxy',
+            'structural_learning': True,
+            'dendritic_ltc': False, 'oscillatory_coherence': False, 'verifiable_dpo': False,
+            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False,
+            'neural_comm_enabled': False, 'neural_comm_mode': 'continuous', 'neural_comm_dim': 16,
+            'neural_comm_precision_bits': 4, 'neural_comm_every': 1, 'neural_comm_max_messages': 4,
+            'neural_comm_max_bits': 128, 'neural_comm_max_aux_current': 0.5,
+            'neural_comm_topology': 'hybrid_causal', 'neural_comm_drop_rate': 0.0,
+            'neural_comm_latency_steps': 0, 'neurowave_enabled': False,
+            'overflow_mini_brain': False, 'grafted_diffusion': False, 'selective_state_space': False,
+            'multitimescale_learning': False, 'meta_plasticity': False, 'causal_world_model': False,
+            'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False,
+            'connectome_sources': ('flywire', 'manc', 'optic-lobe'),
+            **saved
+        }
         if isinstance(normalized.get('connectome_sources'), list):
             normalized['connectome_sources'] = tuple(normalized['connectome_sources'])
         try:

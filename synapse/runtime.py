@@ -15,7 +15,15 @@ from .actions import ACTION_NAMES, govern_action, validate_action
 class LabRuntime:
     def __init__(self,config,output_root=None):
         self.config=config; self.output_root=Path(output_root or ROOT/'state')
-        self.agent=IntegratedAgent(config); self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
+        self.agent=IntegratedAgent(config)
+        if config.task == 'world4d_tesseract_bypass':
+            from .world4d import World4DEnvironment
+            self.world = World4DEnvironment(seed=config.seed)
+        elif config.task == 'digital_tool_arena':
+            from .digital_tool_arena import DigitalToolArena
+            self.world = DigitalToolArena(seed=config.seed)
+        else:
+            self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
         from .reusable_skills import ReusableSkillLibrary
         self.skill_library=ReusableSkillLibrary(seed=config.seed)
         self._init_monitors()
@@ -173,11 +181,14 @@ class LabRuntime:
             'tether_coordinator':deepcopy(self.last.get('tether_coordinator',{'enabled':bool(self.config.tether_coordinator)})),
             'criticality_homeostat':deepcopy(self.last.get('criticality_homeostat',{'enabled':bool(self.config.criticality_homeostat)})),
             'holographic_vsa':deepcopy(self.last.get('holographic_vsa',{'enabled':bool(self.config.holographic_vsa)})),
+            'sancf':deepcopy(self.last.get('sancf',{'enabled':bool(self.config.neural_comm_enabled)})),
+            'overflow_mini_brain':deepcopy(self.last.get('overflow_mini_brain',{'enabled':bool(self.config.overflow_mini_brain)})),
+            'event_driven':deepcopy(self.last.get('event_driven',{'enabled':bool(self.config.event_driven_backend)})),
         }
     def snapshot(self):
         b=self.agent.brain; g=self.agent.graph; r=b.r.detach().numpy()
-        indices=np.linspace(0,g.n-1,min(4000,g.n)).astype(int)
-        edge_indices=np.linspace(0,len(g.base_pre)-1,min(1600,len(g.base_pre))).astype(int)
+        indices=np.linspace(0,g.n-1,min(6000,g.n)).astype(int)
+        edge_indices=np.linspace(0,len(g.base_pre)-1,min(3200,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}
         result={'config':self.config.to_dict(),'steps':self.total_steps,'world':self.world.snapshot(),'action':self.last_action.tolist(),'telemetry':deepcopy(self.last),'recent':deepcopy(self.recent),'experience':experience,'graph':{'nodes':[{'id':int(i),'origin':int(g.origin[i]),'role':str(g.role[i]),'activity':float(r[i])} for i in indices],'edges':[[int(g.base_pre[i]),int(g.base_post[i]),float(g.base_w[i])] for i in edge_indices],'neurons':g.n,'graft_edges':len(g.graft_pre)},'status':{'bridge_training':'experimental supervised preparation' if self.agent.bridge_updates else 'untrained','readout':self.config.readout,'camera_live':bool(self.last.get('camera_consumed',False)),'experience_planning':self.config.experience_planning}}
@@ -187,13 +198,15 @@ class LabRuntime:
         result['graph']['sources']=deepcopy(self.agent.source_provenance)
         indices_set=set(indices.tolist())
         graft_rows=[i for i,(pre,post) in enumerate(zip(g.graft_pre,g.graft_post)) if pre in indices_set and post in indices_set and bool(self.agent.plasticity.active_mask[i])]
-        result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:1200]]
+        result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:2400]]
         result['graph']['layout_scope']='schematic source/role layout; coordinates are not measured anatomy'
         return result
     def _path(self,name):
         if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',name): raise ValueError('checkpoint name must use 1..64 letters digits underscores or hyphens')
         return self.output_root/(name+'.pt')
     def _world_state(self):
+        if not hasattr(self.world, 'history'):
+            return {'task': getattr(self.world, 'snapshot', lambda: {})().get('task', 'custom'), 'rng': self.world.rng.bit_generator.state}
         d=deepcopy(self.world.__dict__); d['rng']=self.world.rng.bit_generator.state
         if hasattr(self.world, 'rng_complex'):
             d['rng_complex']=self.world.rng_complex.bit_generator.state
@@ -213,19 +226,23 @@ class LabRuntime:
     def load(self,name):
         data=load_state(self._path(name))
         if data.get('schema')!=1 or not self.config.matches_saved(data.get('config')): raise ValueError('runtime checkpoint/config mismatch')
-        self.agent.import_state(data['agent']); d=data['world']; rng=np.random.default_rng(); rng.bit_generator.state=d['rng']; d['rng']=rng
-        if 'rng_complex' in d and hasattr(self.world, 'rng_complex'):
-            rng_c = np.random.default_rng()
-            rng_c.bit_generator.state = d['rng_complex']
-            d['rng_complex'] = rng_c
-        d['history']={k:deque(v,maxlen=50) for k,v in d['history'].items()}
-        def decode(v):
-            if isinstance(v,dict):
-                if set(v)=={'__object_ref__'}: return d['objects'][v['__object_ref__']]
-                return {k:decode(x) for k,x in v.items()}
-            if isinstance(v,list): return [decode(x) for x in v]
-            return v
-        d['st']=decode(d['st']); self.world.__dict__.clear(); self.world.__dict__.update(d)
+        self.agent.import_state(data['agent']); d=data['world']
+        if 'history' in d and hasattr(self.world, 'history'):
+            rng=np.random.default_rng(); rng.bit_generator.state=d['rng']; d['rng']=rng
+            if 'rng_complex' in d and hasattr(self.world, 'rng_complex'):
+                rng_c = np.random.default_rng()
+                rng_c.bit_generator.state = d['rng_complex']
+                d['rng_complex'] = rng_c
+            d['history']={k:deque(v,maxlen=50) for k,v in d['history'].items()}
+            def decode(v):
+                if isinstance(v,dict):
+                    if set(v)=={'__object_ref__'}: return d['objects'][v['__object_ref__']]
+                    return {k:decode(x) for k,x in v.items()}
+                if isinstance(v,list): return [decode(x) for x in v]
+                return v
+            d['st']=decode(d['st']); self.world.__dict__.clear(); self.world.__dict__.update(d)
+        elif 'rng' in d and hasattr(self.world, 'rng'):
+            self.world.rng.bit_generator.state = d['rng']
         if 'skill_library' in data: self.skill_library.import_state(data['skill_library'])
         self._import_monitors(data.get('monitors'))
         self.obs=data['obs']; self.total_steps=data['steps']; self.recent=data['recent']; self.last=data['last']; self.last_action=data['last_action']
@@ -233,10 +250,27 @@ class LabRuntime:
     def reset(self,task=None,seed=None):
         cfg=replace(self.config,task=task or self.config.task,seed=self.config.seed if seed is None else seed)
         if seed is not None:
-            self.config=cfg; self.agent=IntegratedAgent(cfg); self.world=ComplexWorld(seed=cfg.seed,curriculum=cfg.task)
+            self.config=cfg; self.agent=IntegratedAgent(cfg)
+            if cfg.task == 'world4d_tesseract_bypass':
+                from .world4d import World4DEnvironment
+                self.world = World4DEnvironment(seed=cfg.seed)
+            elif cfg.task == 'digital_tool_arena':
+                from .digital_tool_arena import DigitalToolArena
+                self.world = DigitalToolArena(seed=cfg.seed)
+            else:
+                self.world = ComplexWorld(seed=cfg.seed, curriculum=cfg.task)
             self._init_monitors()
         else:
-            self.config=cfg; self.agent.config=cfg; self.world.curriculum=cfg.task; self.world.reset(None if cfg.task=='auto' else cfg.task); self.agent.reset_episode()
+            self.config=cfg; self.agent.config=cfg
+            if cfg.task == 'world4d_tesseract_bypass':
+                from .world4d import World4DEnvironment
+                self.world = World4DEnvironment(seed=cfg.seed)
+            elif cfg.task == 'digital_tool_arena':
+                from .digital_tool_arena import DigitalToolArena
+                self.world = DigitalToolArena(seed=cfg.seed)
+            else:
+                self.world.curriculum=cfg.task; self.world.reset(None if cfg.task=='auto' else cfg.task)
+            self.agent.reset_episode()
             self._prev_uncertainty_transition=None
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
         return self.snapshot()

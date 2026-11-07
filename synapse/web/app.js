@@ -1623,6 +1623,68 @@ function render(s) {
     keyValues($('vsa-hud'), vsaMetrics);
   }
 
+  // SANCF Virtual Neural Communication Fabric HUD
+  const sancf = s.telemetry?.sancf || {};
+  if ($('sancf-badge')) {
+    const isSancf = sancf.channel_mode !== undefined;
+    $('sancf-badge').textContent = isSancf ? `Active · ${sancf.channel_mode} · ${sancf.messages_sent || 0} msgs` : 'Standby';
+    setTone($('sancf-badge'), isSancf ? 'good' : 'muted');
+  }
+  if ($('sancf-hud')) {
+    const sancfMetrics = [
+      ['Channel Mode & Dim', sancf.channel_mode ? `${sancf.channel_mode} (dim=${sancf.dim || 16}, bits=${sancf.precision_bits || 4})` : 'Disabled (enable in Session Config)'],
+      ['Effective Bandwidth & Messages', sancf.channel_mode ? `${sancf.messages_sent || 0} msgs sent · ${sancf.bits_transmitted || 0} bits` : '—'],
+      ['Phase-Gated Transfer', sancf.channel_mode ? `gated=${sancf.messages_gated_by_phase || 0} · drop_rate=${sancf.packet_drop_rate || 0}` : '—'],
+      ['Auxiliary Residual Current', sancf.channel_mode ? `||I_aux||=${Number(sancf.auxiliary_current_norm || 0).toFixed(4)}` : '—'],
+      ['Theoretical Energy Savings', sancf.channel_mode ? `sparse SynOps savings: ×${Number(sancf.theoretical_energy_saving || 1).toFixed(2)}` : '—']
+    ];
+    keyValues($('sancf-hud'), sancfMetrics);
+  }
+
+  // Overflow Mini-Brain & Causal World Model HUD
+  const overflow = s.telemetry?.overflow_mini_brain || {};
+  const causal = s.telemetry?.causal_world || {};
+  if ($('overflow-badge')) {
+    $('overflow-badge').textContent = overflow.enabled ? `256-N Active · ||h||=${Number(overflow.state_norm || 0).toFixed(2)}` : 'Standby';
+    setTone($('overflow-badge'), overflow.enabled ? 'good' : 'muted');
+  }
+  if ($('overflow-hud')) {
+    const ofMetrics = [
+      ['256-N Mini-Brain State', overflow.enabled ? `Active · Dale's law signed · spectral norm ≤ 0.95` : 'Standby'],
+      ['Causal World Model', causal.active ? `Pearl do-calculus active · MSE=${Number(causal.prediction_error || 0).toFixed(4)}` : 'Standby'],
+      ['Event-Driven Execution', s.telemetry?.event_driven ? `sparsity=${((Number(s.telemetry.event_driven.sparsity_ratio || 0))*100).toFixed(1)}% · ${s.telemetry.event_driven.active_neurons || 0} active` : 'Dense execution'],
+      ['Selective State-Space (Mamba)', s.telemetry?.selective_ssm ? `Active (input-dependent selection gate)` : 'Standby'],
+      ['Mini-Diffusion Policy', s.telemetry?.grafted_diffusion ? `DDIM 5-step proposal active` : 'Standby']
+    ];
+    keyValues($('overflow-hud'), ofMetrics);
+  }
+
+  // World4D Hypercube & Tool Arena HUD
+  const w4d = s.world?.pos_4d ? s.world : {};
+  const toolArena = s.world?.task === 'digital_tool_arena' ? s.world : {};
+  if ($('world4d-badge')) {
+    if (w4d.pos_4d) {
+      $('world4d-badge').textContent = `4D Active · w=${Number(w4d.pos_4d[3] || 0).toFixed(2)}`;
+      setTone($('world4d-badge'), 'good');
+    } else if (toolArena.task) {
+      $('world4d-badge').textContent = `Tool Arena · ${toolArena.notes?.length || 0} notes`;
+      setTone($('world4d-badge'), 'good');
+    } else {
+      $('world4d-badge').textContent = 'Environments Standby';
+      setTone($('world4d-badge'), 'muted');
+    }
+  }
+  if ($('world4d-hud')) {
+    const wMetrics = [
+      ['Current Environment Task', s.config?.task || 'forage'],
+      ['4D Hyperposition [x, y, z, w]', w4d.pos_4d ? `[${w4d.pos_4d.map(v => Number(v).toFixed(2)).join(', ')}]` : '3D Euclidean mode'],
+      ['Tesseract Obstacle Bypass', w4d.dist_to_goal ? `dist=${Number(w4d.dist_to_goal).toFixed(2)} · bypassed=${w4d.pos_4d[3] > 0.5 ? 'YES' : 'NO'}` : '—'],
+      ['Synthetic Tool Arena', toolArena.task ? `Folder: ${toolArena.current_folder} · Active: ${toolArena.active_doc_id || 'none'}` : '—'],
+      ['Sandbox Security Invariant', 'Strict synthetic in-memory; zero unconstrained host access']
+    ];
+    keyValues($('world4d-hud'), wMetrics);
+  }
+
   // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
@@ -2263,8 +2325,8 @@ function setAllControlsToMaxUI() {
   if ($('training-active')) $('training-active').checked = true;
   if ($('training-workers')) $('training-workers').value = '4';
   if ($('training-batch')) $('training-batch').value = '256';
-  if ($('graph-nodes')) $('graph-nodes').value = '4000';
-  if ($('graph-edges')) $('graph-edges').value = '1600';
+  if ($('graph-nodes')) $('graph-nodes').value = '6000';
+  if ($('graph-edges')) $('graph-edges').value = '3200';
   if ($('graph-grafts')) $('graph-grafts').checked = true;
   if ($('experience-mode')) $('experience-mode').value = 'memory';
   if ($('experience-horizon')) $('experience-horizon').value = '5';
@@ -2273,8 +2335,8 @@ function setAllControlsToMaxUI() {
 
   const form = $('config');
   if (form) {
-    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 4000) {
-      form.elements.total_neurons.value = '4000';
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 6000) {
+      form.elements.total_neurons.value = '6000';
     }
     if (form.elements.microsteps) form.elements.microsteps.value = '4';
     if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
@@ -2284,7 +2346,10 @@ function setAllControlsToMaxUI() {
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome'
+      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
+      'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain', 'grafted_diffusion',
+      'selective_state_space', 'multitimescale_learning', 'meta_plasticity',
+      'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -2311,10 +2376,10 @@ async function runTandemMaxMode() {
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
   try {
-    const neurons = Number($('config')?.elements?.total_neurons?.value || 4000);
-    const task = $('config')?.elements?.task?.value || state.config?.task || 'forage';
+    const neurons = Number($('config')?.elements?.total_neurons?.value || 6000);
+    const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
     const res = await api('tandem/max', {
-      total_neurons: Math.max(4000, neurons),
+      total_neurons: Math.max(6000, neurons),
       task,
       pretrain_steps: 32,
       pretrain_updates: 16,
@@ -2500,6 +2565,84 @@ if (window.ResizeObserver) {
   window.addEventListener('resize', () => {
     if ($('overview') && $('overview').classList.contains('active')) {
       render(state);
+    }
+  });
+}
+
+// SANCF & Advanced Research Controls
+if ($('btn-sancf-bench')) {
+  $('btn-sancf-bench').onclick = () => action(async () => {
+    $('btn-sancf-bench').disabled = true;
+    $('btn-sancf-bench').textContent = 'Evaluating 10-Arm Matrix...';
+    try {
+      const res = await api('neural-comm/bench', { steps: 15 });
+      show('sancf-bench-out', res);
+    } finally {
+      $('btn-sancf-bench').disabled = false;
+      $('btn-sancf-bench').textContent = 'Run 10-Arm SANCF Benchmark';
+    }
+  });
+}
+
+if ($('btn-neurowave-modes')) {
+  $('btn-neurowave-modes').onclick = () => action(async () => {
+    const res = await api('neural-comm/bench', { steps: 10 });
+    show('sancf-bench-out', { neurowave_modes: res.neurowave, controls: res.controls });
+  });
+}
+
+if ($('btn-causal-assay')) {
+  $('btn-causal-assay').onclick = () => action(async () => {
+    const res = await api('causal-world/run', {});
+    show('causal-assay-out', res);
+  });
+}
+
+if ($('btn-meta-plasticity')) {
+  $('btn-meta-plasticity').onclick = () => action(async () => {
+    const res = await api('meta-plasticity/run', { epochs: 3 });
+    show('causal-assay-out', res);
+  });
+}
+
+if ($('btn-run-tool-arena')) {
+  $('btn-run-tool-arena').onclick = () => action(async () => {
+    const res = await api('tool-arena/status');
+    show('tool-arena-out', res);
+  });
+}
+
+if ($('btn-checkpoint-migration')) {
+  $('btn-checkpoint-migration').onclick = () => action(async () => {
+    const res = await api('checkpoint-migration/run', {});
+    show('tool-arena-out', res);
+  });
+}
+
+if ($('btn-run-benchmarks')) {
+  $('btn-run-benchmarks').onclick = () => action(async () => {
+    $('btn-run-benchmarks').disabled = true;
+    $('btn-run-benchmarks').textContent = 'Running Benchmark Suite...';
+    try {
+      const res = await api('benchmark-suite/run', {});
+      show('benchmark-suite-out', res);
+    } finally {
+      $('btn-run-benchmarks').disabled = false;
+      $('btn-run-benchmarks').textContent = 'Run Benchmark Suite';
+    }
+  });
+}
+
+if ($('btn-run-ablation')) {
+  $('btn-run-ablation').onclick = () => action(async () => {
+    $('btn-run-ablation').disabled = true;
+    $('btn-run-ablation').textContent = 'Running 18-Arm Ablation...';
+    try {
+      const res = await api('ablation-engine/run', { seeds: 2 });
+      show('benchmark-suite-out', res);
+    } finally {
+      $('btn-run-ablation').disabled = false;
+      $('btn-run-ablation').textContent = 'Run 18-Arm Ablation';
     }
   });
 }

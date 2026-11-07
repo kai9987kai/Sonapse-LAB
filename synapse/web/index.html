@@ -96,9 +96,11 @@
           <option value="cybernetic_sanctuary">cybernetic_sanctuary (Cooperative Helper Drones)</option>
           <option value="continental_biosphere">continental_biosphere (17x17 Mega-Biome + Wormholes)</option>
           <option value="chrono_tidepool_citadel">chrono_tidepool_citadel (15x15 Aliased Surge + Portals)</option>
+          <option value="world4d_tesseract_bypass">world4d_tesseract_bypass (4D Hypercube Navigation)</option>
+          <option value="digital_tool_arena">digital_tool_arena (Permissioned Synthetic Tool Arena)</option>
         </select>
       </label>
-      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 4,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
+      <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 6,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
       <button id="btn-tandem-max-toolbar" class="tandem-max-button" title="Enable all optional features, switch to maximum configuration, and execute Sections 1–5 in tandem">⚡ Max Mode (Sections 1–5)</button>
       <span class="muted" id="runstatus">Paused</span>
     </div>
@@ -154,8 +156,8 @@
           <label>Source<select id="graph-source"><option value="all">All active sources</option></select></label>
           <label>Role<select id="graph-role"><option value="all">All roles</option></select></label>
           <label>Activity scale<select id="graph-activity"><option value="1">1×</option><option value="3">3×</option><option value="10">10×</option><option value="0.3">0.3×</option></select></label>
-          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option selected>4000</option></select></label>
-          <label>Edge budget<select id="graph-edges"><option>0</option><option>200</option><option selected>500</option><option>1600</option></select></label>
+          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option>4000</option><option selected>6000</option></select></label>
+          <label>Edge budget<select id="graph-edges"><option>0</option><option>200</option><option>500</option><option selected>1600</option><option>3200</option></select></label>
           <label class="toggle-label"><input id="graph-grafts" type="checkbox" checked> Executing graft links</label>
           <button id="graph-camera-reset" title="Reset orbit and zoom">Reset view</button>
         </div>
@@ -403,6 +405,69 @@
         </div>
         <div id="vsa-hud" class="keyvalues cognition-values"></div>
       </article>
+    </div>
+
+    <!-- SANCF & NEUROWAVE MULTIPLEXING -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>SANCF Virtual Neural Communication Fabric</h2>
+            <span class="tag">ADDITIVE CHANNELS · QUANTIZATION · ZERO-INIT BIAS</span>
+          </div>
+          <span id="sancf-badge" class="tag cognition-tag">SANCF Inactive</span>
+        </div>
+        <div id="sancf-hud" class="keyvalues cognition-values"></div>
+        <div class="toolbar" style="margin-top: 8px;">
+          <button id="btn-sancf-bench" class="primary">Run 10-Arm SANCF Benchmark</button>
+          <button id="btn-neurowave-modes">NeuroWave Phase Assay</button>
+        </div>
+        <pre id="sancf-bench-out" style="max-height: 120px; overflow-y: auto; font-size: 11px; margin-top: 6px;" hidden></pre>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Overflow Mini-Brain &amp; Causal World Model</h2>
+            <span class="tag">256-N DALE-SIGNED · DO-CALCULUS DISENTANGLEMENT</span>
+          </div>
+          <span id="overflow-badge" class="tag thrust-tag">Mini-Brain Standby</span>
+        </div>
+        <div id="overflow-hud" class="keyvalues cognition-values"></div>
+        <div class="toolbar" style="margin-top: 8px;">
+          <button id="btn-causal-assay">Run Causal Do-Calculus Assay</button>
+          <button id="btn-meta-plasticity">Meta-Plasticity Learner</button>
+        </div>
+        <pre id="causal-assay-out" style="max-height: 120px; overflow-y: auto; font-size: 11px; margin-top: 6px;" hidden></pre>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>World4D Hypercube &amp; Digital Tool Arena</h2>
+            <span class="tag">4D TESSERACT BYPASS · PERMISSIONED SYNTHETIC SANDBOX</span>
+          </div>
+          <span id="world4d-badge" class="tag omnibus-tag">Environments Standby</span>
+        </div>
+        <div id="world4d-hud" class="keyvalues cognition-values"></div>
+        <div class="toolbar" style="margin-top: 8px;">
+          <button id="btn-run-tool-arena">Audit Tool Arena</button>
+          <button id="btn-checkpoint-migration">Simulate Live Migration</button>
+        </div>
+        <pre id="tool-arena-out" style="max-height: 120px; overflow-y: auto; font-size: 11px; margin-top: 6px;" hidden></pre>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Unified Benchmark Suite &amp; 18-Arm Ablation Engine</h2>
+            <span class="tag">FACTORIAL ABLATION · BENCHMARK SCORECARD · NON-CLAIM AUDIT</span>
+          </div>
+          <span id="benchmark-badge" class="tag good">All Benchmarks Ready</span>
+        </div>
+        <div id="benchmark-hud" class="keyvalues cognition-values"></div>
+        <div class="toolbar" style="margin-top: 8px;">
+          <button id="btn-run-benchmarks" class="omnibus-button">Run Benchmark Suite</button>
+          <button id="btn-run-ablation">Run 18-Arm Ablation</button>
+        </div>
+        <pre id="benchmark-suite-out" style="max-height: 140px; overflow-y: auto; font-size: 11px; margin-top: 6px;" hidden></pre>
       </article>
     </div>
 
@@ -437,11 +502,13 @@
             <option>cybernetic_sanctuary</option>
             <option>continental_biosphere</option>
             <option>chrono_tidepool_citadel</option>
+            <option>world4d_tesseract_bypass</option>
+            <option>digital_tool_arena</option>
             <option>auto</option>
           </select>
         </label>
         <label>Seed<input name="seed" type="number" value="7" min="0"></label>
-        <label>Total neurons<input name="total_neurons" type="number" value="4000" min="48" max="30000"></label>
+        <label>Total neurons<input name="total_neurons" type="number" value="6000" min="48" max="30000"></label>
         <label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label>
         <label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label>
         <label>Readout
@@ -473,6 +540,17 @@
         <label><input name="criticality_homeostat" type="checkbox"> SOC Criticality Homeostat</label>
         <label><input name="holographic_vsa" type="checkbox"> Holographic VSA Memory</label>
         <label><input name="programmed_connectome" type="checkbox" checked> MaleCNS Programmed Prior</label>
+        <label><input name="neural_comm_enabled" type="checkbox"> SANCF Virtual Neural Communication Fabric</label>
+        <label><input name="neurowave_enabled" type="checkbox"> NeuroWave Multiplexing Modes</label>
+        <label><input name="overflow_mini_brain" type="checkbox" checked> 256-N Overflow Mini-Brain</label>
+        <label><input name="grafted_diffusion" type="checkbox"> Grafted Mini-Diffusion Policy</label>
+        <label><input name="selective_state_space" type="checkbox"> Selective State-Space (Mamba)</label>
+        <label><input name="multitimescale_learning" type="checkbox"> Multi-Timescale Coordinator</label>
+        <label><input name="meta_plasticity" type="checkbox"> Parameterized Meta-Plasticity</label>
+        <label><input name="causal_world_model" type="checkbox"> Causal World Model (Do-Calculus)</label>
+        <label><input name="relational_memory" type="checkbox"> Relational HRR Memory</label>
+        <label><input name="verifier_rsi" type="checkbox"> Verifier-Gated RSI Engine</label>
+        <label><input name="event_driven_backend" type="checkbox"> Event-Driven Sparse Backend</label>
         <button>Reset session</button>
       </form>
     </article>

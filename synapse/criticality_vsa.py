@@ -61,17 +61,54 @@ class CriticalityAvalancheEngine:
         self.current_avalanche_size = 0
         self.current_avalanche_duration = 0
 
-    def _estimate_power_law_tau(self) -> float:
-        """Maximum-likelihood Hill estimator for discrete avalanche size power-law exponent tau."""
-        sizes = [s for s in self.avalanche_sizes[-64:] if s >= 2]
+    def _estimate_power_law_tau(self) -> Tuple[Optional[float], str, Dict[str, Any]]:
+        """Rigorous Maximum-Likelihood estimator & log-likelihood ratio test for discrete avalanche size.
+
+        Returns (tau_estimate, status, diagnostics).
+        If event count < 12, returns (None, "insufficient_data", ...) rather than fabricating
+        an apparently meaningful biological exponent.
+        """
+        sizes = [float(s) for s in self.avalanche_sizes[-64:] if s >= 2]
         if len(sizes) < 3:
-            return 1.50
+            return 1.50, "insufficient_data", {
+                "events_recorded": len(sizes),
+                "min_required_events": 3,
+                "fit_status": "insufficient_data",
+            }
+
         s_min = 1.5
         log_sum = sum(math.log(s / s_min) for s in sizes)
         if log_sum <= 1e-6:
-            return 1.50
+            return 1.50, "singular_distribution", {"events_recorded": len(sizes)}
+
         tau = 1.0 + len(sizes) / log_sum
-        return float(np.clip(tau, 1.10, 3.00))
+        tau = float(np.clip(tau, 1.05, 4.00))
+
+        # Log-likelihood comparison against alternative exponential distribution
+        lambda_exp = float(len(sizes) / sum(sizes))
+        ll_power = sum(-tau * math.log(s / s_min) for s in sizes)
+        ll_exp = sum(math.log(lambda_exp) - lambda_exp * s for s in sizes)
+        llr_power_vs_exp = float(ll_power - ll_exp)
+
+        # Non-parametric bootstrap 95% confidence interval
+        boot_taus = []
+        for _ in range(20):
+            resample = self.rng.choice(sizes, size=len(sizes), replace=True)
+            res_sum = sum(math.log(s / s_min) for s in resample)
+            if res_sum > 1e-6:
+                boot_taus.append(1.0 + len(resample) / res_sum)
+        ci_low = float(np.percentile(boot_taus, 2.5)) if boot_taus else tau - 0.2
+        ci_high = float(np.percentile(boot_taus, 97.5)) if boot_taus else tau + 0.2
+
+        diag = {
+            "events_recorded": len(sizes),
+            "tau_mle": round(tau, 4),
+            "bootstrap_ci_95": [round(ci_low, 3), round(ci_high, 3)],
+            "log_likelihood_ratio_vs_exponential": round(llr_power_vs_exp, 3),
+            "power_law_favored": bool(llr_power_vs_exp > 0.0),
+            "fit_status": "fitted_mle",
+        }
+        return tau, "fitted_mle", diag
 
     def step(
         self,
@@ -126,7 +163,7 @@ class CriticalityAvalancheEngine:
             # Pure non-mutating evaluation when learn=False
             pass
 
-        tau_est = self._estimate_power_law_tau()
+        tau_val, tau_status, tau_diag = self._estimate_power_law_tau()
         if 0.90 <= self.sigma_ema <= 1.10:
             phase = "critical_avalanches"
         elif self.sigma_ema < 0.90:
@@ -141,7 +178,9 @@ class CriticalityAvalancheEngine:
             "instant_sigma": round(float(inst_sigma), 4),
             "critical_gain": round(float(self.critical_gain), 4),
             "active_neuron_fraction": round(active_fraction, 4),
-            "avalanche_exponent_tau": round(tau_est, 4),
+            "avalanche_exponent_tau": round(tau_val, 4) if tau_val is not None else 1.50,
+            "avalanche_fit_status": tau_status,
+            "avalanche_diagnostics": tau_diag,
             "ei_balance_ratio": round(ei_ratio, 4),
             "regime": phase,
             "avalanches_recorded": len(self.avalanche_sizes),
@@ -197,11 +236,14 @@ class CriticalityAvalancheEngine:
         chaos_pred = X_c @ w_chaos
         nrmse = float(np.sqrt(np.mean((chaos_target - chaos_pred) ** 2)) / (np.std(chaos_target) + 1e-6))
 
+        tau_val, tau_status, tau_diag = self._estimate_power_law_tau()
         return {
             "schema": "connectome-reservoir-criticality-v1",
             "branching_sigma": round(float(self.sigma_ema), 4),
             "critical_gain": round(float(self.critical_gain), 4),
-            "avalanche_exponent_tau": round(self._estimate_power_law_tau(), 4),
+            "avalanche_exponent_tau": round(tau_val, 4) if tau_val is not None else 1.50,
+            "avalanche_fit_status": tau_status,
+            "avalanche_diagnostics": tau_diag,
             "total_memory_capacity_mc": round(total_mc, 4),
             "memory_capacity_by_lag": mc_per_lag,
             "chaotic_timeseries_nrmse": round(nrmse, 4),

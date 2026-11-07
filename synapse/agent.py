@@ -111,6 +111,16 @@ class IntegratedAgent:
         self.tether_coordinator=None
         self.criticality_homeostat=None
         self.holographic_vsa=None
+        self.comm_fabric=None
+        self.overflow_mini_brain=None
+        self.grafted_diffusion=None
+        self.selective_ssm=None
+        self.multitimescale=None
+        self.meta_plasticity=None
+        self.causal_world=None
+        self.intervention_planner=None
+        self.relational_memory=None
+        self.event_backend=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -151,6 +161,54 @@ class IntegratedAgent:
             if getattr(self.config, 'holographic_vsa', False) and self.holographic_vsa is None:
                 from .criticality_vsa import HolographicVSAWorkingMemory
                 self.holographic_vsa = HolographicVSAWorkingMemory(seed=self.config.seed)
+            if getattr(self.config, 'neural_comm_enabled', False) and self.comm_fabric is None:
+                from .neural_comm import NeuralCommFabric
+                from .neural_comm_channels import CommChannelSpec
+                comm_spec = CommChannelSpec(
+                    mode=getattr(self.config, 'neural_comm_mode', 'continuous'),
+                    message_dim=getattr(self.config, 'neural_comm_dim', 16),
+                    precision_bits=getattr(self.config, 'neural_comm_precision_bits', 32),
+                    packet_loss_probability=getattr(self.config, 'neural_comm_drop_rate', 0.0),
+                    max_latency_steps=getattr(self.config, 'neural_comm_latency_steps', 0),
+                    seed=self.config.seed,
+                )
+                self.comm_fabric = NeuralCommFabric(
+                    self.graph,
+                    spec=comm_spec,
+                    enabled=True,
+                    max_aux_current=self.config.neural_comm_max_aux_current,
+                    topology_strategy=getattr(self.config, 'neural_comm_topology', 'hybrid_causal'),
+                    seed=self.config.seed,
+                )
+            if getattr(self.config, 'overflow_mini_brain', False) and self.overflow_mini_brain is None:
+                from .grafted_sections import OverflowMiniBrain
+                self.overflow_mini_brain = OverflowMiniBrain(num_neurons=256, sensory_dim=155, motor_dim=5)
+                self.modules['overflow_mini_brain'] = self.overflow_mini_brain
+            if getattr(self.config, 'grafted_diffusion', False) and self.grafted_diffusion is None:
+                from .grafted_sections import GraftedMiniDiffusionModel
+                self.grafted_diffusion = GraftedMiniDiffusionModel(action_dim=5, cond_dim=64, num_steps=5)
+                self.modules['grafted_diffusion'] = self.grafted_diffusion
+            if getattr(self.config, 'selective_state_space', False) and self.selective_ssm is None:
+                from .grafted_sections import SelectiveStateSpaceSection
+                self.selective_ssm = SelectiveStateSpaceSection(d_model=64, d_state=16)
+                self.modules['selective_ssm'] = self.selective_ssm
+            if getattr(self.config, 'multitimescale_learning', False) and self.multitimescale is None:
+                from .adaptation_coordinator import AdaptationCoordinator
+                self.multitimescale = AdaptationCoordinator(num_neurons=self.brain.n, seed=self.config.seed)
+            if getattr(self.config, 'meta_plasticity', False) and self.meta_plasticity is None:
+                from .meta_plasticity import ParameterizedPlasticityRule
+                self.meta_plasticity = ParameterizedPlasticityRule()
+            if getattr(self.config, 'causal_world_model', False) and self.causal_world is None:
+                from .causal_world_model import CausalWorldModel
+                from .intervention_planner import InterventionPlanner
+                self.causal_world = CausalWorldModel(state_dim=64, action_dim=5, seed=self.config.seed)
+                self.intervention_planner = InterventionPlanner(self.causal_world)
+            if getattr(self.config, 'relational_memory', False) and self.relational_memory is None:
+                from .relational_memory import RelationalMemoryBank
+                self.relational_memory = RelationalMemoryBank(dim=256)
+            if getattr(self.config, 'event_driven_backend', False) and self.event_backend is None:
+                from .event_driven_backend import EventDrivenSparseBackend
+                self.event_backend = EventDrivenSparseBackend(delta_threshold=0.05)
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -206,6 +264,10 @@ class IntegratedAgent:
         if getattr(self, 'tether_coordinator', None) is not None: self.tether_coordinator.reset()
         if getattr(self, 'criticality_homeostat', None) is not None: self.criticality_homeostat.reset()
         if getattr(self, 'holographic_vsa', None) is not None: self.holographic_vsa.reset()
+        if getattr(self, 'comm_fabric', None) is not None: self.comm_fabric.reset()
+        if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
+        if getattr(self, 'selective_ssm', None) is not None: self.selective_ssm.reset_state()
+        if getattr(self, 'event_backend', None) is not None: self.event_backend.reset()
         self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
@@ -264,7 +326,13 @@ class IntegratedAgent:
                 effective=self.astrocytes.modulate_graft_weights(effective,torch.as_tensor(self.graph.graft_pre,dtype=torch.long),self.brain.n)
             previous=self.brain.r.clone()
             baseline=self.brain(torch.zeros_like(current),effective,adapt=False,advance=False) if self.config.readout!='absolute' else None
-            r=self.brain(current,effective,adapt=learn)
+            r=self.brain(
+                current,
+                effective,
+                adapt=learn,
+                comm_fabric=getattr(self, 'comm_fabric', None),
+                phase_angles=getattr(self.oscillatory_coherence, 'theta_phases', None) if getattr(self, 'oscillatory_coherence', None) is not None else None,
+            )
             if hasattr(self,'astrocytes'):
                 self.astrocytes.step(r.detach())
             if learn: self.plasticity.observe(r)
@@ -342,6 +410,8 @@ class IntegratedAgent:
                 self.consolidations+=1
             pooled=pooled+.01*self.consolidated+.05*torch.tanh(self.native(pooled))
             features=torch.cat([pooled,self.hidden[0,:16],mbon,self.intent,compass[:8]])
+            if getattr(self, 'selective_ssm', None) is not None:
+                features = features + 0.05 * torch.tanh(self.selective_ssm.step(features))
             if learn and self.config.structural_learning and hasattr(self, 'neurogenesis'):
                 self.neurogenesis.record_activity(r)
                 if self.ticks % 16 == 0 or learn:
@@ -359,6 +429,9 @@ class IntegratedAgent:
             # Every action is gated by actual graph activity; no action from a world oracle.
             gains=self.neuromod.compute_gains() if hasattr(self, 'neuromod') else {'motor_vigor':1.0}
             action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)*gains['motor_vigor']
+            if getattr(self, 'overflow_mini_brain', None) is not None:
+                of_curr, of_act, _ = self.overflow_mini_brain(o, motor_feedback=action)
+                action = action + 0.05 * of_act
             if 'steer_bias' in pred_info and abs(pred_info['steer_bias'])>1e-4:
                 action[TURN]=torch.clamp(action[TURN]+pred_info['steer_bias'],-1.0,1.0)
             fe = float(self.predictive.state.free_energy) if hasattr(self, 'predictive') else 0.0
@@ -451,6 +524,17 @@ class IntegratedAgent:
         if vsa_info is not None: self.last_telemetry['holographic_vsa']=vsa_info
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
+        if getattr(self, 'comm_fabric', None) is not None:
+            self.last_telemetry['sancf'] = self.comm_fabric.get_telemetry_dict()
+        if getattr(self, 'overflow_mini_brain', None) is not None:
+            self.last_telemetry['overflow_mini_brain'] = {'enabled': True, 'state_norm': float(torch.norm(self.overflow_mini_brain.state).item())}
+        if getattr(self, 'event_backend', None) is not None:
+            from dataclasses import asdict
+            _, _, ev_m = self.event_backend.detect_events(r)
+            self.last_telemetry['event_driven'] = asdict(ev_m)
+        if getattr(self, 'grafted_diffusion', None) is not None:
+            diff_proposal = self.grafted_diffusion.sample_action(features)
+            self.last_telemetry['grafted_diffusion'] = {'proposal': diff_proposal.tolist()}
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 
@@ -529,6 +613,15 @@ class IntegratedAgent:
             diagnostics['tether_coordinator'] = self.tether_coordinator.update_successor_td(
                 state, executed, float(reward), next_state, executed, done=bool(done)
             )
+        if getattr(self, 'multitimescale', None) is not None:
+            diagnostics['multitimescale'] = self.multitimescale.step(float(reward), novelty=float(abs(diagnostics.get('prediction_error', 0.0))))
+        if getattr(self, 'causal_world', None) is not None:
+            f_t = torch.as_tensor(self.last_features, dtype=torch.float32)
+            a_t = torch.as_tensor(executed, dtype=torch.float32)
+            next_f = torch.as_tensor(next_state[:64] if len(next_state) >= 64 else np.pad(next_state, (0, 64 - len(next_state))), dtype=torch.float32)
+            diagnostics['causal_world'] = self.causal_world.observe(f_t, a_t, next_f)
+        if getattr(self, 'relational_memory', None) is not None:
+            diagnostics['relational_memory'] = self.relational_memory.bind_step(state, executed, next_state)
         self.pending_transition=None
         return diagnostics
     def feedback(self,reward,done=False):
@@ -676,6 +769,14 @@ class IntegratedAgent:
         state['tether_coordinator']=self.tether_coordinator.export_state() if getattr(self,'tether_coordinator',None) is not None else None
         state['criticality_homeostat']=self.criticality_homeostat.export_state() if getattr(self,'criticality_homeostat',None) is not None else None
         state['holographic_vsa']=self.holographic_vsa.export_state() if getattr(self,'holographic_vsa',None) is not None else None
+        state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
+        state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
+        state['selective_ssm']=self.selective_ssm.state_dict() if getattr(self,'selective_ssm',None) is not None else None
+        state['grafted_diffusion']=self.grafted_diffusion.export_state() if getattr(self,'grafted_diffusion',None) is not None else None
+        state['event_backend']=self.event_backend.export_state() if getattr(self,'event_backend',None) is not None else None
+        state['multitimescale']=self.multitimescale.export_state() if getattr(self,'multitimescale',None) is not None else None
+        state['relational_memory']=self.relational_memory.export_state() if getattr(self,'relational_memory',None) is not None else None
+        state['torch_rng']=torch.random.get_rng_state()
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
         return state
@@ -778,6 +879,22 @@ class IntegratedAgent:
             self.criticality_homeostat.import_state(state['criticality_homeostat'])
         if getattr(self,'holographic_vsa',None) is not None and state.get('holographic_vsa') is not None:
             self.holographic_vsa.import_state(state['holographic_vsa'])
+        if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
+            self.comm_fabric.import_state(state['comm_fabric'])
+        if getattr(self,'overflow_mini_brain',None) is not None and state.get('overflow_mini_brain') is not None:
+            self.overflow_mini_brain.load_state_dict(state['overflow_mini_brain'])
+        if getattr(self,'selective_ssm',None) is not None and state.get('selective_ssm') is not None:
+            self.selective_ssm.load_state_dict(state['selective_ssm'])
+        if getattr(self,'grafted_diffusion',None) is not None and state.get('grafted_diffusion') is not None:
+            self.grafted_diffusion.import_state(state['grafted_diffusion'])
+        if getattr(self,'event_backend',None) is not None and state.get('event_backend') is not None:
+            self.event_backend.import_state(state['event_backend'])
+        if getattr(self,'multitimescale',None) is not None and state.get('multitimescale') is not None:
+            self.multitimescale.import_state(state['multitimescale'])
+        if getattr(self,'relational_memory',None) is not None and state.get('relational_memory') is not None:
+            self.relational_memory.import_state(state['relational_memory'])
+        if 'torch_rng' in state:
+            torch.random.set_rng_state(state['torch_rng'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))
         self.source_provenance=deepcopy(state.get('source_provenance',self.source_provenance))
 

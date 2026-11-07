@@ -243,24 +243,36 @@ is selected.
 ## Frontier Capabilities & Research Additions
 
 The runtime provides toggleable research implementations of recent frontier techniques:
-- **Dormant Expert Dynamic Lifecycle (`synapse/dormant_lifecycle.py`)**:
-  Recruits dynamic capacity when graph delta exceeds novelty thresholds. Experts advance
-  through validated states (`DORMANT` $\to$ `INITIALIZING` $\to$ `ACTIVATING` $\to$ `ACTIVE` $\to$ `CONSOLIDATING` $\to$ `RETIRED`)
-  with orthogonal initialization, gradual activation ramping, directional cosine contribution testing,
-  and native parameter distillation with slot recycling.
-- **Value-Guided MPC Critic (`synapse/experience.py`, `synapse/experience_planner.py`)**:
-  Eliminates horizon truncation bias in short MPC trajectories ($H \in [1, 5]$) by learning an online TD critic
-  $V(s) \approx \mathbb{E}[\sum_{\tau=0}^\infty \gamma^\tau r_\tau]$ alongside the transition ensemble.
-- **Two-Channel Evoked Readout (`synapse/agent.py`)**:
-  Separates resting manifold activity $m = O(r_{\text{null}})$ from task-evoked perturbation $d = O(r_{\text{actual}}) - O(r_{\text{null}})$
-  with input-dependent gating $\alpha$, exposing full telemetry for persistent state dynamics.
-- **Continual Backpropagation (`synapse/continual_backprop.py`)**:
-  Applies Dohare et al. (Nature 2024) selective unit reinitialization based on feature utility to prevent
-  loss of plasticity during continual adaptation.
-- **Universal Fast-Weight Memory (`synapse/fast_weight_memory.py`)**:
-  Implements dual-speed associative learning (Titans / uTTT) with surprise-gated inner-loop updates.
-- **Continuous Latent Deliberation (`synapse/latent_reasoner.py`)**:
-  Applies Coconut continuous latent-space thinking when variational free energy or prediction error exceeds bounds.
+- **SANCF — Sonapse Adaptive Neural Communication Fabric (`synapse/neural_comm.py`, `synapse/neural_comm_channels.py`, `synapse/neural_comm_topology.py`)**:
+  Additive virtual neural communication fabric operating alongside traditional scalar plastic grafts (`gamma=0.0` zero-init baseline). Features continuous, uniform quantized, VQ codebook, orthogonal mode (DCT/Hadamard/learned basis), and impaired (latency queue, drop, burst, ARQ) channel models with regional message encoders, decoders, and communication-through-coherence phase gating.
+- **6,000 Biological Neuron Connectome Scaling (`synapse/config.py`, `synapse/multi_connectome.py`)**:
+  Scales high-capacity Drosophila multi-connectome substrate to 6,000 neurons partitioned across FlyWire (2,000), MANC (2,000), and FlyEM Optic Lobe (2,000), backed by 128 MaleCNS motor priors and an auxiliary 256-neuron Dale-compliant Overflow Mini-Brain.
+- **Scientific Non-Claims & Physical Boundary Disclaimers**:
+  Oscillatory modes in SANCF and `oscillatory_coherence.py` are abstract coupled mathematical modes, **not** literal biophysical membrane rhythms. Digital orthogonal channels are mathematical basis projections, not physical orbital angular momentum, radio waves, or quantum communication channels.
+- **Opt-in 4D Environment (`synapse/world4d.py`)**:
+  `world4d_tesseract_bypass` features 4-spatial-dimensional hyper-torus physics, 6-plane hyper-rotations ($XY, XZ, XW, YZ, YW, ZW$), 155D multi-plane shadow projection adapters, and a 4D obstacle bypass maze.
+- **Permissioned Digital Tool Arena (`synapse/digital_tool_arena.py`)**:
+  `digital_tool_arena` provides a strictly closed, permissioned synthetic document retrieval sandbox with zero shell, subprocess, socket, or host filesystem access.
+- **Background Simulation Worker & Uncapped SPS (`synapse/sim_worker.py`)**:
+  Server-owned background thread operating via re-entrant locks for batch stepping and uncapped throughput execution.
+- **Causal Connectome Discovery Lab (`synapse/causal_connectome_assay.py`, `synapse/motif_discovery.py`, `synapse/connectome_interventions.py`)**:
+  Extracts 10 canonical microcircuit motifs (feedforward loop, feedback inhibition, reciprocal bridge, mutual excitation, lateral inhibition, cross-region relay, converging hub, diverging broadcaster, chain relay, ring oscillator) and evaluates 10 causal graph interventions with cross-region transferability assays.
+- **Multi-Timescale Plasticity Coordinator (`synapse/adaptation_coordinator.py`, `synapse/multitimescale_learning.py`)**:
+  Harmonizes fast-weight associative updates (fast), neural graft active replay & DPO (medium), and dormant structural lifecycle (slow) with live effective rank and condition number tracking.
+- **Meta-Learning of Synaptic Plasticity Rules (`synapse/meta_plasticity.py`, `synapse/plasticity_rule_learner.py`)**:
+  Meta-learns parameterized synaptic update functions $f_\phi(\text{pre}, \text{post}, \delta, \text{DA}, \text{ACh}, u, c)$ respecting Dale's law and weight magnitude bounds, evaluated against classical Hebbian baselines.
+- **Rigorous Criticality Engine (`synapse/criticality_vsa.py`)**:
+  Upgrades connectome reservoir criticality with Maximum-Likelihood Hill estimator, log-likelihood ratio tests against exponential alternatives, and 95% bootstrap confidence intervals.
+- **Causal World Model with Pearlian Do-Calculus (`synapse/causal_world_model.py`, `synapse/intervention_planner.py`, `synapse/causal_experiment_assay.py`)**:
+  Disentangles passive environmental drift from agent interventional effects $P(s' \mid \text{do}(a))$ across 4 competing hypotheses with active information-gain planning.
+- **Relational & Holographic Working Memory (`synapse/relational_memory.py`, `synapse/compositional_retrieval.py`, `synapse/memory_interference_assay.py`)**:
+  HRR circular convolution role-filler binding with codebook cleanup memory and empirical interference capacity benchmarks.
+- **Verifier-Gated Recursive Architectural Improvement (`synapse/verifier_rsi.py`)**:
+  4-stage verification gate battery (static validity, numerical stability, benchmark non-regression, paired bootstrap testing) with cryptographic DAG lineage tracking and automated rollback.
+- **Event-Driven Sparse Update Engine (`synapse/event_driven_backend.py`, `synapse/energy_efficiency_assay.py`)**:
+  Delta-thresholded event propagation engine tracking synaptic operations (SynOps) and theoretical energy speedup over dense matrix multiplication.
+- **18-Arm Factorial Ablation Engine & Unified Benchmark Suite (`synapse/ablation_engine.py`, `synapse/benchmark_suite.py`)**:
+  18-condition ablation study isolating each architectural mechanism with bootstrap confidence intervals and reproducible scorecard receipts.
 
 All options are configurable in `SynapseConfig`, controllable via the web workbench HUD and settings, and fully preserved across mid-episode state checkpoints.
 

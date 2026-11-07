@@ -31,8 +31,10 @@ class Workbench:
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(total_neurons=4000),output_root=self.root)
+            runtime=LabRuntime(config or SynapseConfig(total_neurons=6000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
+        from .sim_worker import SimulationWorker
+        self.sim_worker=SimulationWorker(self.runtime, self.lock)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -180,6 +182,37 @@ class Workbench:
                 if getattr(self, 'omnibus_runner', None) is not None:
                     return self.omnibus_runner.summary()
                 return {'status': 'idle', 'total_neurons': self.runtime.config.total_neuron_count()}
+            if path=='/api/neural-comm/status':
+                agent = self.runtime.agent
+                fabric = getattr(agent, 'comm_fabric', None)
+                return {
+                    'enabled': bool(getattr(self.runtime.config, 'neural_comm_enabled', False)),
+                    'mode': getattr(self.runtime.config, 'neural_comm_mode', 'continuous'),
+                    'dim': getattr(self.runtime.config, 'neural_comm_dim', 16),
+                    'precision_bits': getattr(self.runtime.config, 'neural_comm_precision_bits', 4),
+                    'neurowave_enabled': bool(getattr(self.runtime.config, 'neurowave_enabled', False)),
+                    'telemetry': fabric.get_telemetry_dict() if fabric is not None else {},
+                    'non_claim': 'Abstract digital numerical channel; not literal physical radio or biological membrane rhythm.',
+                }
+            if path=='/api/sim-worker/status':
+                return self.sim_worker.status()
+            if path=='/api/world4d/status':
+                if hasattr(self.runtime.world, 'snapshot') and getattr(self.runtime.config, 'task', '') == 'world4d_tesseract_bypass':
+                    return {'active': True, **self.runtime.world.snapshot()}
+                return {'active': False, 'task': getattr(self.runtime.config, 'task', '')}
+            if path=='/api/tool-arena/status':
+                if hasattr(self.runtime.world, 'snapshot') and getattr(self.runtime.config, 'task', '') == 'digital_tool_arena':
+                    return {'active': True, **self.runtime.world.snapshot()}
+                return {'active': False, 'task': getattr(self.runtime.config, 'task', '')}
+            if path=='/api/supermix/status':
+                return {
+                    'adapters': ['Poseidon', 'Expanse', 'NeuroGraft', 'Tether', 'Faultline', 'GhostInTheMachine'],
+                    'status': 'integrated',
+                    'safety_boundary': 'in-memory strict compliance; zero unconstrained host access',
+                }
+            if path=='/api/benchmark-suite/catalog':
+                from .benchmark_suite import BenchmarkRegistry
+                return {'benchmarks': BenchmarkRegistry().list_benchmarks()}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -432,6 +465,157 @@ class Workbench:
             if path=='/api/tandem/max':
                 from .tandem_max import run_tandem_max_orchestration
                 return run_tandem_max_orchestration(self, data)
+            if path=='/api/neural-comm/config':
+                enabled = data.get('enabled', self.runtime.config.neural_comm_enabled)
+                mode = data.get('mode', self.runtime.config.neural_comm_mode)
+                dim = integer(data.get('dim', self.runtime.config.neural_comm_dim), 'dim', 1, 128)
+                bits = integer(data.get('precision_bits', self.runtime.config.neural_comm_precision_bits), 'precision_bits', 1, 32)
+                neurowave = data.get('neurowave_enabled', self.runtime.config.neurowave_enabled)
+                config = dataclasses.replace(
+                    self.runtime.config,
+                    neural_comm_enabled=bool(enabled),
+                    neural_comm_mode=str(mode),
+                    neural_comm_dim=dim,
+                    neural_comm_precision_bits=bits,
+                    neurowave_enabled=bool(neurowave)
+                )
+                self.runtime.config = config
+                self.runtime.agent.config = config
+                if hasattr(self.runtime.agent, '_setup_frontier_extensions'):
+                    self.runtime.agent._setup_frontier_extensions()
+                return self.runtime.snapshot()
+            if path=='/api/neural-comm/bench':
+                from .neural_comm_bench import SancfMatrixBenchmark
+                bench = SancfMatrixBenchmark(
+                    num_steps=integer(data.get('steps', 15), 'steps', 5, 50),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                matrix_res = bench.run_benchmark()
+                neurowave_res = bench.run_neurowave_assay()
+                return {
+                    'sancf_matrix': [dataclasses.asdict(arm) for arm in matrix_res.arm_results],
+                    'neurowave': [dataclasses.asdict(m) for m in neurowave_res.modes],
+                    'controls': [dataclasses.asdict(c) for c in neurowave_res.controls],
+                }
+            if path=='/api/sim-worker/control':
+                action = str(data.get('action', 'status'))
+                target_sps = data.get('target_sps')
+                if action == 'start':
+                    self.sim_worker.start()
+                elif action == 'pause':
+                    self.sim_worker.pause()
+                elif action == 'stop':
+                    self.sim_worker.stop()
+                elif action == 'set_target_sps':
+                    self.sim_worker.set_target_sps(float(target_sps) if target_sps is not None else None)
+                return self.sim_worker.status()
+            if path=='/api/motif-discovery/run':
+                from .causal_connectome_assay import CausalConnectomeAssay
+                assay = CausalConnectomeAssay(
+                    num_nodes=integer(data.get('nodes', 300), 'nodes', 50, 1000),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                c_res = assay.run_full_assay()
+                return {
+                    'status': 'completed',
+                    'motifs_count': len(c_res.motifs),
+                    'interventions_count': len(c_res.interventions),
+                    'disclaimer': c_res.disclaimer,
+                }
+            if path=='/api/causal-world/run':
+                from .causal_experiment_assay import CausalExperimentAssay
+                cw_assay = CausalExperimentAssay(
+                    state_dim=64,
+                    action_dim=5,
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                cw_res = cw_assay.run_assay()
+                return {
+                    'status': 'completed',
+                    'passed': cw_res.passed,
+                    'disentanglement_score': cw_res.disentanglement_score,
+                    'passive_drift_prediction_error': cw_res.passive_drift_prediction_error,
+                }
+            if path=='/api/relational-memory/run':
+                from .memory_interference_assay import MemoryInterferenceAssay
+                m_assay = MemoryInterferenceAssay(
+                    dim=integer(data.get('dim', 256), 'dim', 64, 1024),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                m_res = m_assay.run_assay(max_pairs=integer(data.get('max_pairs', 8), 'max_pairs', 1, 16))
+                return {
+                    'status': 'completed',
+                    'max_clean_capacity': m_res.max_clean_capacity,
+                    'distractor_resistance': m_res.distractor_resistance_score,
+                    'capacity_curve': [dataclasses.asdict(cp) for cp in m_res.capacity_curve],
+                }
+            if path=='/api/meta-plasticity/run':
+                from .plasticity_rule_learner import PlasticityRuleLearner
+                learner = PlasticityRuleLearner(seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1))
+                l_res = learner.train_and_evaluate(meta_epochs=integer(data.get('epochs', 3), 'epochs', 1, 10))
+                return {
+                    'status': 'completed',
+                    'learned_rule_score': l_res.learned_rule_score,
+                    'hebbian_baseline_score': l_res.hebbian_baseline_score,
+                    'passed': l_res.learned_rule_score >= l_res.hebbian_baseline_score - 0.05,
+                }
+            if path=='/api/verifier-rsi/run':
+                from .verifier_rsi import RecursiveImprovementEngine
+                rsi = RecursiveImprovementEngine(base_config=self.runtime.config.to_dict(), seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1))
+                prop = rsi.propose_mutation()
+                rec = rsi.evaluate_proposal(prop)
+                return {
+                    'status': 'completed',
+                    'proposal': dataclasses.asdict(prop),
+                    'receipt': dataclasses.asdict(rec),
+                    'lineage': rsi.lineage.export_lineage(),
+                }
+            if path=='/api/event-driven/run':
+                from .energy_efficiency_assay import EnergyEfficiencyAssay
+                eff_assay = EnergyEfficiencyAssay(
+                    num_neurons=integer(data.get('neurons', 200), 'neurons', 50, 1000),
+                    num_steps=integer(data.get('steps', 10), 'steps', 5, 50),
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1)
+                )
+                eff_res = eff_assay.run_assay()
+                return {
+                    'status': 'completed',
+                    'trials': [dataclasses.asdict(t) for t in eff_res.trials],
+                    'recommended_threshold': eff_res.recommended_threshold,
+                    'summary': eff_res.summary,
+                }
+            if path=='/api/benchmark-suite/run':
+                from .benchmark_suite import BenchmarkRunner, ResearchScorecard
+                runner = BenchmarkRunner()
+                b_results = runner.run_all(seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1))
+                scorecard = ResearchScorecard().generate_scorecard(b_results)
+                return {
+                    'status': 'completed',
+                    'overall_pass_rate': scorecard.overall_pass_rate,
+                    'scorecard_md': scorecard.summary_markdown,
+                    'results_count': len(scorecard.results),
+                }
+            if path=='/api/ablation-engine/run':
+                from .ablation_engine import FactorialAblationEngine
+                ablation = FactorialAblationEngine(
+                    base_config=self.runtime.config.to_dict(),
+                    num_seeds=integer(data.get('seeds', 3), 'seeds', 1, 10)
+                )
+                a_res = ablation.run_study()
+                return {
+                    'status': 'completed',
+                    'summary': a_res.summary_findings,
+                    'conditions': [dataclasses.asdict(c) for c in a_res.conditions],
+                }
+            if path=='/api/checkpoint-migration/run':
+                from .checkpoint_migration import CheckpointMigrationSimulator
+                mig = CheckpointMigrationSimulator()
+                state_snap = self.runtime.agent.export_state()
+                mig_res = mig.simulate_migration(state_snap)
+                return {
+                    'status': 'completed',
+                    'migration_report': dataclasses.asdict(mig_res),
+                }
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):

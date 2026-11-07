@@ -77,13 +77,17 @@ class GraftedBrain(nn.Module):
         weights = self.graft_w if graft_weights is None else graft_weights
         return torch.zeros_like(r).index_add(0, self.graft_post, weights * r[self.graft_pre])
 
-    def forward(self, i_sens: torch.Tensor, graft_weights=None, adapt=True, advance=True):
+    def forward(self, i_sens: torch.Tensor, graft_weights=None, adapt=True, advance=True, comm_fabric=None, phase_angles=None):
         r = self.r.detach().clone()
         drive = torch.zeros(self.n).index_add(0, self.sensory_idx, i_sens)
-        for _ in range(self.microsteps):
+        for microstep in range(self.microsteps):
             x = (torch.zeros_like(r)
                  .index_add(0, self.base_post, self.base_w * r[self.base_pre])
                  + self.graft_current(r, graft_weights)) + self.bias + drive
+            if comm_fabric is not None and getattr(comm_fabric, "enabled", False):
+                x = x + comm_fabric.compute_current(
+                    r, microstep=microstep, advance=advance, adapt=adapt, phase_angles=phase_angles
+                ).residual_current
             r = (1 - self.leak) * r + self.leak * F.relu(torch.tanh(x))
             if self.noise:
                 r = r + self.noise * torch.randn_like(r)

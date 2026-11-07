@@ -328,7 +328,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     t_start = time.perf_counter()
     max_cpu = min(32, max(1, os.cpu_count() or 4))
     workers = max(1, min(4, int(data.get('workers', min(4, max(1, os.cpu_count() or 2))))))
-    neurons = int(data.get('total_neurons', max(4000, workbench.runtime.config.total_neuron_count())))
+    neurons = int(data.get('total_neurons', max(6000, workbench.runtime.config.total_neuron_count())))
     neurons = max(48, min(30000, neurons))
     task = str(data.get('task', workbench.runtime.config.task or 'forage'))
     seed = int(data.get('seed', workbench.runtime.config.seed or 7))
@@ -476,6 +476,17 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
         criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
 
+        from .neural_comm_bench import SancfMatrixBenchmark
+        sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
+        sancf_matrix_res = sancf_bench.run_benchmark()
+        sancf_neurowave_res = sancf_bench.run_neurowave_assay()
+        sancf_section_res = {
+            'matrix_arms': len(sancf_matrix_res.arm_results),
+            'neurowave_modes': len(sancf_neurowave_res.modes),
+            'controls': len(sancf_neurowave_res.controls),
+            'disclaimer': 'Payload capacity represents digital floating-point channel transfer; oscillatory modes are abstract mathematical models.',
+        }
+
         section_03 = {
             'section': '03 · Weight-Space Patches & Mechanistic Assays',
             'tensors': tensors_info,
@@ -491,6 +502,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
             'diffusion_dpo': diffusion_dpo_res,
             'dvgem_tether': dvgem_tether_res,
             'criticality_vsa': criticality_vsa_res,
+            'sancf_comm_matrix': sancf_section_res,
         }
 
         # -------------------------------------------------------------------
