@@ -111,6 +111,9 @@ class IntegratedAgent:
         self.tether_coordinator=None
         self.criticality_homeostat=None
         self.holographic_vsa=None
+        self.apical_engine=None
+        self.spectral_reservoir=None
+        self.hyperbolic_manifold=None
         self.comm_fabric=None
         self.overflow_mini_brain=None
         self.grafted_diffusion=None
@@ -167,6 +170,17 @@ class IntegratedAgent:
             if getattr(self.config, 'holographic_vsa', False) and self.holographic_vsa is None:
                 from .criticality_vsa import HolographicVSAWorkingMemory
                 self.holographic_vsa = HolographicVSAWorkingMemory(seed=self.config.seed)
+            if getattr(self.config, 'apical_amplification', False) and getattr(self, 'apical_engine', None) is None:
+                from .apical_amplification import ApicalAmplificationEngine
+                self.apical_engine = ApicalAmplificationEngine(num_units=64, seed=self.config.seed)
+                self.modules['apical_engine'] = self.apical_engine
+            if getattr(self.config, 'spectral_reservoir', False) and getattr(self, 'spectral_reservoir', None) is None:
+                from .spectral_reservoir import SpectralReservoirEngine
+                self.spectral_reservoir = SpectralReservoirEngine(seed=self.config.seed)
+                self.modules['spectral_reservoir'] = self.spectral_reservoir
+            if getattr(self.config, 'hyperbolic_manifold', False) and getattr(self, 'hyperbolic_manifold', None) is None:
+                from .hyperbolic_manifold import HyperbolicManifoldEngine
+                self.hyperbolic_manifold = HyperbolicManifoldEngine(seed=self.config.seed)
             if getattr(self.config, 'neural_comm_enabled', False) and self.comm_fabric is None:
                 from .neural_comm import NeuralCommFabric
                 from .neural_comm_channels import CommChannelSpec
@@ -326,6 +340,8 @@ class IntegratedAgent:
         if getattr(self, 'tether_coordinator', None) is not None: self.tether_coordinator.reset()
         if getattr(self, 'criticality_homeostat', None) is not None: self.criticality_homeostat.reset()
         if getattr(self, 'holographic_vsa', None) is not None: self.holographic_vsa.reset()
+        if getattr(self, 'apical_engine', None) is not None: self.apical_engine.reset()
+        if getattr(self, 'spectral_reservoir', None) is not None: self.spectral_reservoir.reset()
         if getattr(self, 'comm_fabric', None) is not None: self.comm_fabric.reset()
         if getattr(self, 'neurowave_x2', None) is not None: self.neurowave_x2.reset()
         if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
@@ -597,6 +613,24 @@ class IntegratedAgent:
         if tether_diag is not None: self.last_telemetry['tether_coordinator']=tether_diag
         if criticality_info is not None: self.last_telemetry['criticality_homeostat']=criticality_info
         if vsa_info is not None: self.last_telemetry['holographic_vsa']=vsa_info
+        if getattr(self, 'apical_engine', None) is not None:
+            _, apical_telem = self.apical_engine(
+                r[:64],
+                apical_context=torch.tensor(self.last_features[:32], dtype=torch.float32),
+                neuromod_ach=getattr(self.neuromod.state, 'acetylcholine', 1.0) if hasattr(self, 'neuromod') else 1.0,
+                neuromod_da=getattr(self.neuromod.state, 'dopamine', 1.0) if hasattr(self, 'neuromod') else 1.0,
+            )
+            self.last_telemetry['apical_amplification'] = apical_telem.to_dict()
+        if getattr(self, 'spectral_reservoir', None) is not None:
+            res_readout, res_telem = self.spectral_reservoir.step(
+                torch.tensor(self.last_features[:32], dtype=torch.float32),
+                learn=learn,
+                target=torch.tensor(executed[:5], dtype=torch.float32) if learn else None,
+            )
+            self.last_telemetry['spectral_reservoir'] = res_telem.to_dict()
+        if getattr(self, 'hyperbolic_manifold', None) is not None:
+            hyp_telem = self.hyperbolic_manifold.step(active_node_ids=list(range(min(4, self.brain.n))))
+            self.last_telemetry['hyperbolic_manifold'] = hyp_telem.to_dict()
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'comm_fabric', None) is not None:
@@ -868,6 +902,9 @@ class IntegratedAgent:
         state['tether_coordinator']=self.tether_coordinator.export_state() if getattr(self,'tether_coordinator',None) is not None else None
         state['criticality_homeostat']=self.criticality_homeostat.export_state() if getattr(self,'criticality_homeostat',None) is not None else None
         state['holographic_vsa']=self.holographic_vsa.export_state() if getattr(self,'holographic_vsa',None) is not None else None
+        if getattr(self, 'apical_engine', None) is not None: state['apical_engine'] = self.apical_engine.export_state()
+        if getattr(self, 'spectral_reservoir', None) is not None: state['spectral_reservoir'] = self.spectral_reservoir.export_state()
+        if getattr(self, 'hyperbolic_manifold', None) is not None: state['hyperbolic_manifold'] = self.hyperbolic_manifold.export_state()
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
         state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
@@ -984,6 +1021,12 @@ class IntegratedAgent:
             self.criticality_homeostat.import_state(state['criticality_homeostat'])
         if getattr(self,'holographic_vsa',None) is not None and state.get('holographic_vsa') is not None:
             self.holographic_vsa.import_state(state['holographic_vsa'])
+        if getattr(self, 'apical_engine', None) is not None and state.get('apical_engine') is not None:
+            self.apical_engine.import_state(state['apical_engine'])
+        if getattr(self, 'spectral_reservoir', None) is not None and state.get('spectral_reservoir') is not None:
+            self.spectral_reservoir.import_state(state['spectral_reservoir'])
+        if getattr(self, 'hyperbolic_manifold', None) is not None and state.get('hyperbolic_manifold') is not None:
+            self.hyperbolic_manifold.import_state(state['hyperbolic_manifold'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:

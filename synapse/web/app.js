@@ -1037,8 +1037,8 @@ function world() {
 
       x.fillStyle = col;
       x.font = '9px Consolas, monospace';
-      const stateTag = pred.state ?  [] : (pred.alerted ? ' [ALERT]' : '');
-      x.fillText(${(pred.kind || 'stalker').toUpperCase()}, pp[0] + prad + 4, pp[1] - 2);
+      const stateTag = pred.state ? ` [${pred.state}]` : (pred.alerted ? ' [ALERT]' : '');
+      x.fillText(`${(pred.kind || 'stalker').toUpperCase()}${stateTag}`, pp[0] + prad + 4, pp[1] - 2);
     });
 
     // Cooperative Helper Drones & Protective Shield Aura
@@ -1302,13 +1302,13 @@ gba(5, 12, 24, );
 
       x.fillStyle = isDay ? '#fbbf24' : '#94a3b8';
       x.font = '8px Consolas, monospace';
-      x.fillText(isDay ? SOLAR % : LUNAR %, arcCx - 20, arcCy + arcR + 10);
+      x.fillText(isDay ? 'SOLAR ☼' : 'LUNAR ☽', arcCx - 20, arcCy + arcR + 10);
     }
 
     // -----------------------------------------------------------------------
     // Retinotopic Camera Viewfinder mini-HUD
     // -----------------------------------------------------------------------
-    if ((world-retina-cam?.checked ?? true) && Array.isArray(s.rays) && s.rays.length > 0) {
+    if (($('world-retina-cam')?.checked ?? true) && Array.isArray(s.rays) && s.rays.length > 0) {
       const vW = 100, vH = 50;
       const vX = w - vW - 14, vY = h - vH - 14;
       x.fillStyle = 'rgba(8, 17, 26, 0.85)';
@@ -1322,7 +1322,7 @@ gba(5, 12, 24, );
 
       x.fillStyle = '#5de0c1';
       x.font = '8px Consolas, monospace';
-      x.fillText(RETINA [ RAYS 120 deg], vX + 5, vY + 10);
+      x.fillText(`RETINA [${s.rays.length || 0} RAYS 120 deg]`, vX + 5, vY + 10);
 
       const rOriginX = vX + vW / 2;
       const rOriginY = vY + vH - 5;
@@ -2156,6 +2156,368 @@ function neurowaveView() {
   }
 }
 
+function apicalView() {
+  try {
+    const [x, w, h] = canvas('apical-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.apical_amplification || state.agent?.telemetry?.apical_amplification || {};
+    const gain = Number(telem.mean_amplification_gain ?? 1.0);
+    const somTrace = Array.isArray(telem.recent_somatic_trace) && telem.recent_somatic_trace.length ? telem.recent_somatic_trace : [-65, -60, -55, -45, 10, -70, -65, -62, -58, -48, 15, -68, -65];
+    const apiTrace = Array.isArray(telem.recent_apical_trace) && telem.recent_apical_trace.length ? telem.recent_apical_trace : [-65, -64, -63, -35, -28, -26, -29, -40, -55, -62, -64, -65];
+    const caSpikes = Number(telem.calcium_spike_count ?? 0);
+    const plateaus = Number(telem.active_plateaus ?? 0);
+    const burstRatio = Number(telem.coincidence_burst_ratio ?? 0);
+    const step = Number(state.steps || 0);
+
+    const diaX = 16, diaY = 18, diaW = 80;
+    x.fillStyle = '#8b9daf';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Pyramidal Circuit', diaX, diaY + 8);
+
+    const apiCy = diaY + 30;
+    const isPlateau = plateaus > 0 || (apiTrace.length && apiTrace[apiTrace.length - 1] > -35);
+    x.beginPath();
+    x.arc(diaX + 40, apiCy, 12, 0, Math.PI * 2);
+    x.fillStyle = isPlateau ? '#f59e0b' : '#334155';
+    x.fill();
+    x.strokeStyle = isPlateau ? '#fbbf24' : '#64748b';
+    x.lineWidth = isPlateau ? 2 : 1;
+    x.stroke();
+    x.fillStyle = isPlateau ? '#1e1b4b' : '#94a3b8';
+    x.font = 'bold 8px Consolas, monospace';
+    x.textAlign = 'center';
+    x.fillText('Apical', diaX + 40, apiCy + 3);
+
+    x.beginPath();
+    x.moveTo(diaX + 40, apiCy + 12);
+    x.lineTo(diaX + 40, apiCy + 38);
+    x.strokeStyle = gain > 1.2 ? '#f59e0b' : '#475569';
+    x.lineWidth = gain > 1.2 ? 3 : 1.5;
+    x.stroke();
+
+    const somCy = apiCy + 50;
+    x.beginPath();
+    x.arc(diaX + 40, somCy, 14, 0, Math.PI * 2);
+    x.fillStyle = gain > 1.3 ? '#06b6d4' : '#1e293b';
+    x.fill();
+    x.strokeStyle = '#22d3ee';
+    x.lineWidth = 1.5;
+    x.stroke();
+    x.fillStyle = gain > 1.3 ? '#ffffff' : '#94a3b8';
+    x.fillText('Soma', diaX + 40, somCy + 3);
+    x.textAlign = 'start';
+
+    const oscX = diaX + diaW + 15;
+    const oscW = Math.max(80, w - oscX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Dual Membrane Dynamics (Soma: Teal · Apical Ca2+: Gold)', oscX, 24);
+
+    x.strokeStyle = '#1e293b';
+    x.lineWidth = 0.8;
+    for (let g = 0; g <= 3; g++) {
+      const gy = 35 + g * 25;
+      x.beginPath();
+      x.moveTo(oscX, gy);
+      x.lineTo(oscX + oscW, gy);
+      x.stroke();
+    }
+
+    if (apiTrace.length > 1) {
+      x.strokeStyle = '#f59e0b';
+      x.lineWidth = 1.8;
+      x.beginPath();
+      const nPts = apiTrace.length;
+      for (let i = 0; i < nPts; i++) {
+        const px = oscX + (i / (nPts - 1)) * oscW;
+        const norm = Math.max(0, Math.min(1, (apiTrace[i] + 75) / 95));
+        const py = 110 - norm * 75;
+        if (i === 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+
+    if (somTrace.length > 1) {
+      x.strokeStyle = '#22d3ee';
+      x.lineWidth = 1.6;
+      x.beginPath();
+      const nPts = somTrace.length;
+      for (let i = 0; i < nPts; i++) {
+        const px = oscX + (i / (nPts - 1)) * oscW;
+        const norm = Math.max(0, Math.min(1, (somTrace[i] + 75) / 95));
+        const py = 110 - norm * 75;
+        if (i === 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+
+    const cardX = oscX + oscW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 18, cW, 86, 5);
+      else x.rect(cardX, 18, cW, 86);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Burst Gain Λ', cardX + 8, 32);
+
+      x.fillStyle = gain > 1.2 ? '#f59e0b' : '#38bdf8';
+      x.font = 'bold 13px Consolas, monospace';
+      x.fillText(`${gain.toFixed(2)}x`, cardX + 8, 48);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Ca²⁺ Spikes: ${caSpikes}`, cardX + 8, 64);
+      x.fillText(`Plateaus: ${plateaus}`, cardX + 8, 78);
+      x.fillText(`Burst: ${(burstRatio * 100).toFixed(0)}%`, cardX + 8, 92);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Apical Dendritic Ca²⁺ Plateau Initiation & Coincidence Multiplier Engine', 14, h - 6);
+  } catch (err) {
+    console.error('apical view error:', err);
+  }
+}
+
+function reservoirView() {
+  try {
+    const [x, w, h] = canvas('reservoir-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.spectral_reservoir || state.agent?.telemetry?.spectral_reservoir || {};
+    const radius = Number(telem.spectral_radius ?? 0.98);
+    const capacity = Number(telem.fading_memory_capacity ?? 12.4);
+    const entropy = Number(telem.reservoir_entropy ?? 3.8);
+    const rlsErr = Number(telem.rls_prediction_error ?? 0.012);
+    const evReal = Array.isArray(telem.eigenvalues_real) && telem.eigenvalues_real.length ? telem.eigenvalues_real : [0.72, -0.65, 0.45, -0.82, 0.12, -0.34, 0.91, -0.15];
+    const evImag = Array.isArray(telem.eigenvalues_imag) && telem.eigenvalues_imag.length ? telem.eigenvalues_imag : [0.65, 0.71, -0.85, 0.48, -0.96, 0.91, 0.32, -0.95];
+    const step = Number(state.steps || 0);
+
+    const specCx = 65, specCy = 65, specR = 45;
+    x.fillStyle = '#8b9daf';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Complex Spectrum ρ(W)', 16, 16);
+
+    x.strokeStyle = '#334155';
+    x.lineWidth = 1;
+    x.setLineDash([3, 3]);
+    x.beginPath();
+    x.arc(specCx, specCy, specR, 0, Math.PI * 2);
+    x.stroke();
+    x.setLineDash([]);
+
+    x.strokeStyle = '#1e293b';
+    x.beginPath();
+    x.moveTo(specCx - specR - 4, specCy); x.lineTo(specCx + specR + 4, specCy);
+    x.moveTo(specCx, specCy - specR - 4); x.lineTo(specCx, specCy + specR + 4);
+    x.stroke();
+
+    const nE = Math.min(evReal.length, evImag.length);
+    for (let i = 0; i < nE; i++) {
+      const ex = specCx + evReal[i] * specR;
+      const ey = specCy - evImag[i] * specR;
+      x.beginPath();
+      x.arc(ex, ey, 2.5, 0, Math.PI * 2);
+      x.fillStyle = '#a855f7';
+      x.fill();
+    }
+
+    const waveX = specCx + specR + 25;
+    const waveW = Math.max(80, w - waveX - 145);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Delay-Tap Echo State Activity (τ₁, τ₂, τ₃)', waveX, 22);
+
+    const delays = [1, 3, 7];
+    const colors = ['#38bdf8', '#818cf8', '#c084fc'];
+    delays.forEach((d, idx) => {
+      const baseCy = 42 + idx * 24;
+      x.strokeStyle = colors[idx];
+      x.lineWidth = 1.4;
+      x.beginPath();
+      for (let i = 0; i <= waveW; i += 3) {
+        const frac = i / waveW;
+        const wy = baseCy + Math.sin(frac * Math.PI * 4 * (1 / d) + step * 0.15 + idx) * 8 * Math.cos(frac * Math.PI);
+        if (i === 0) x.moveTo(waveX + i, wy);
+        else x.lineTo(waveX + i, wy);
+      }
+      x.stroke();
+      x.fillStyle = colors[idx];
+      x.font = '8px Consolas, monospace';
+      x.fillText(`τ=${d}`, waveX + waveW - 20, baseCy - 2);
+    });
+
+    const cardX = waveX + waveW + 14;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 16, cW, 88, 5);
+      else x.rect(cardX, 16, cW, 88);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Spectral Radius', cardX + 8, 30);
+
+      x.fillStyle = '#38bdf8';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText(`ρ = ${radius.toFixed(3)}`, cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Memory Cap: ${capacity.toFixed(2)}`, cardX + 8, 62);
+      x.fillText(`Entropy: ${entropy.toFixed(2)} nats`, cardX + 8, 76);
+      x.fillText(`RLS Err: ${rlsErr.toFixed(4)}`, cardX + 8, 90);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Orthogonalized Recurrent Reservoir Computer at the Edge of Chaos', 14, h - 6);
+  } catch (err) {
+    console.error('reservoir view error:', err);
+  }
+}
+
+function hyperbolicView() {
+  try {
+    const [x, w, h] = canvas('hyperbolic-canvas');
+    if (!x) return;
+
+    const telem = state.telemetry?.hyperbolic_manifold || state.agent?.telemetry?.hyperbolic_manifold || {};
+    const meanRad = Number(telem.mean_hyperbolic_radius ?? 0.54);
+    const meanDist = Number(telem.mean_geodesic_distance ?? 2.65);
+    const nodes = Array.isArray(telem.poincare_nodes) && telem.poincare_nodes.length ? telem.poincare_nodes : [
+      { id: 0, name: 'AL_L', x: -0.45, y: -0.32, activity: 0.8 },
+      { id: 1, name: 'AL_R', x: -0.45, y: 0.32, activity: 0.75 },
+      { id: 2, name: 'MB_CA', x: 0.22, y: -0.58, activity: 0.9 },
+      { id: 3, name: 'MB_PED', x: 0.42, y: -0.38, activity: 0.85 },
+      { id: 4, name: 'LH', x: -0.15, y: 0.65, activity: 0.6 },
+      { id: 5, name: 'EB', x: 0.05, y: -0.12, activity: 0.95 },
+      { id: 6, name: 'FB', x: 0.18, y: 0.15, activity: 0.88 },
+      { id: 7, name: 'VNC_T1', x: 0.68, y: 0.42, activity: 0.7 }
+    ];
+    const geodesics = Array.isArray(telem.active_geodesics) && telem.active_geodesics.length ? telem.active_geodesics : [];
+    const step = Number(state.steps || 0);
+
+    const diskR = Math.min(70, (h - 32) * 0.5);
+    const diskCx = diskR + 24;
+    const diskCy = h * 0.5;
+
+    x.fillStyle = 'rgba(15, 23, 42, 0.7)';
+    x.beginPath();
+    x.arc(diskCx, diskCy, diskR, 0, Math.PI * 2);
+    x.fill();
+    x.strokeStyle = '#06b6d4';
+    x.lineWidth = 1.5;
+    x.stroke();
+
+    [0.35, 0.65, 0.85].forEach((rFrac) => {
+      x.strokeStyle = '#1e3a5f';
+      x.lineWidth = 0.8;
+      x.setLineDash([2, 4]);
+      x.beginPath();
+      x.arc(diskCx, diskCy, diskR * rFrac, 0, Math.PI * 2);
+      x.stroke();
+    });
+    x.setLineDash([]);
+
+    geodesics.forEach((g) => {
+      if (Array.isArray(g.path) && g.path.length > 1) {
+        x.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        x.lineWidth = 1.5;
+        x.beginPath();
+        g.path.forEach((pt, idx) => {
+          const gx = diskCx + pt[0] * diskR;
+          const gy = diskCy - pt[1] * diskR;
+          if (idx === 0) x.moveTo(gx, gy);
+          else x.lineTo(gx, gy);
+        });
+        x.stroke();
+      }
+    });
+
+    if (geodesics.length === 0 && nodes.length >= 4) {
+      x.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      x.lineWidth = 1.2;
+      for (let i = 0; i < Math.min(nodes.length - 1, 5); i++) {
+        const u = nodes[i], v = nodes[(i + 1) % nodes.length];
+        const ux = diskCx + u.x * diskR, uy = diskCy - u.y * diskR;
+        const vx = diskCx + v.x * diskR, vy = diskCy - v.y * diskR;
+        x.beginPath();
+        x.moveTo(ux, uy);
+        x.quadraticCurveTo(diskCx, diskCy, vx, vy);
+        x.stroke();
+      }
+    }
+
+    nodes.forEach((n) => {
+      const nx = diskCx + n.x * diskR;
+      const ny = diskCy - n.y * diskR;
+      const act = Number(n.activity ?? 0.5);
+
+      x.beginPath();
+      x.arc(nx, ny, 3.5, 0, Math.PI * 2);
+      x.fillStyle = act > 0.7 ? '#38bdf8' : '#10b981';
+      x.fill();
+      x.strokeStyle = '#ffffff';
+      x.lineWidth = 0.8;
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '8px Consolas, monospace';
+      x.fillText(n.name || `N${n.id}`, nx + 5, ny + 3);
+    });
+
+    const cardX = diskCx + diskR + 24;
+    const cardW = w - cardX - 12;
+    if (cardW > 90) {
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 18, cardW, h - 42, 5);
+      else x.rect(cardX, 18, cardW, h - 42);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Hyperbolic Geometry', cardX + 10, 34);
+
+      x.fillStyle = '#38bdf8';
+      x.font = 'bold 12px Consolas, monospace';
+      x.fillText('Curvature K = -1.0', cardX + 10, 52);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Mean Geodesic: ${meanDist.toFixed(2)}`, cardX + 10, 72);
+      x.fillText(`Mean Radius: ${meanRad.toFixed(2)}`, cardX + 10, 88);
+      x.fillText(`Active Geodesics: ${geodesics.length || nodes.length}`, cardX + 10, 104);
+      x.fillText(`Distortion: ${(Number(telem.boundary_distortion ?? 0.02) * 100).toFixed(2)}%`, cardX + 10, 120);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('Poincaré Hyperbolic Manifold (Isometric Embedding & Geodesic Routing)', 14, h - 6);
+  } catch (err) {
+    console.error('hyperbolic view error:', err);
+  }
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -2307,7 +2669,8 @@ function render(s) {
       'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle', 'latent_reasoning',
       'value_guided_planning', 'self_model', 'experimental_cognition',
       'dendritic_ltc', 'oscillatory_coherence', 'verifiable_dpo',
-      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome'
+      'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
+      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -2787,6 +3150,57 @@ function render(s) {
   }
 
   // -----------------------------------------------------------------------
+  // Frontier V3: Apical, Reservoir, Hyperbolic Telemetry
+  // -----------------------------------------------------------------------
+  const apical = s.agent?.telemetry?.apical_amplification || s.telemetry?.apical_amplification || {};
+  if ($('apical-badge')) {
+    const isApicalActive = Number(apical.mean_amplification_gain || 1) > 1.05 || (apical.active_plateaus || 0) > 0 || (apical.calcium_spike_count || 0) > 0;
+    $('apical-badge').textContent = isApicalActive ? `Gain ${Number(apical.mean_amplification_gain || 1).toFixed(2)}x` : 'Apical Standby';
+    setTone($('apical-badge'), isApicalActive ? 'good' : 'muted');
+  }
+  if ($('apical-hud')) {
+    keyValues($('apical-hud'), [
+      ['Amplification Gain Λ', `${Number(apical.mean_amplification_gain || 1).toFixed(2)}x`],
+      ['Ca²⁺ Spikes', String(apical.calcium_spike_count || 0)],
+      ['Active Plateaus', String(apical.active_plateaus || 0)],
+      ['Burst Coincidence', `${(Number(apical.coincidence_burst_ratio || 0) * 100).toFixed(1)}%`],
+      ['Soma / Apical V', `${Number(apical.mean_somatic_voltage || 0).toFixed(1)} / ${Number(apical.mean_apical_voltage || 0).toFixed(1)} mV`]
+    ]);
+  }
+
+  const resTelem = s.agent?.telemetry?.spectral_reservoir || s.telemetry?.spectral_reservoir || {};
+  if ($('reservoir-badge')) {
+    const isResActive = (resTelem.fading_memory_capacity || 0) > 0 || (resTelem.mean_state_norm || 0) > 0;
+    $('reservoir-badge').textContent = isResActive ? `ρ(W) ${Number(resTelem.spectral_radius || 0.98).toFixed(3)}` : 'Reservoir Standby';
+    setTone($('reservoir-badge'), isResActive ? 'good' : 'muted');
+  }
+  if ($('reservoir-hud')) {
+    keyValues($('reservoir-hud'), [
+      ['Spectral Radius ρ(W)', Number(resTelem.spectral_radius || 0.98).toFixed(3)],
+      ['Memory Capacity', Number(resTelem.fading_memory_capacity || 0).toFixed(2)],
+      ['Reservoir Entropy', `${Number(resTelem.reservoir_entropy || 0).toFixed(2)} nats`],
+      ['RLS Prediction Error', Number(resTelem.rls_prediction_error || 0).toFixed(5)],
+      ['State Norm', Number(resTelem.mean_state_norm || 0).toFixed(3)]
+    ]);
+  }
+
+  const hypTelem = s.agent?.telemetry?.hyperbolic_manifold || s.telemetry?.hyperbolic_manifold || {};
+  if ($('hyperbolic-badge')) {
+    const isHypActive = (hypTelem.poincare_nodes && hypTelem.poincare_nodes.length > 0) || (hypTelem.mean_geodesic_distance || 0) > 0;
+    $('hyperbolic-badge').textContent = isHypActive ? `K = ${Number(hypTelem.curvature || -1.0).toFixed(1)} (Active)` : 'Hyperbolic Standby';
+    setTone($('hyperbolic-badge'), isHypActive ? 'good' : 'muted');
+  }
+  if ($('hyperbolic-hud')) {
+    keyValues($('hyperbolic-hud'), [
+      ['Curvature K', String(hypTelem.curvature || -1.0)],
+      ['Mean Geodesic Dist', Number(hypTelem.mean_geodesic_distance || 0).toFixed(3)],
+      ['Mean Radius ŕ_H', Number(hypTelem.mean_hyperbolic_radius || 0).toFixed(3)],
+      ['Active Geodesics', String(Array.isArray(hypTelem.active_geodesics) ? hypTelem.active_geodesics.length : 0)],
+      ['Boundary Distortion', Number(hypTelem.boundary_distortion || 0).toFixed(4)]
+    ]);
+  }
+
+  // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
   if ($('omnibus-hud') && Date.now() - omnibusLastPoll > 2500) {
@@ -2867,6 +3281,9 @@ function render(s) {
   vsaView();
   causalEntropyView();
   neurowaveView();
+  apicalView();
+  reservoirView();
+  hyperbolicView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -3066,6 +3483,9 @@ $('config').onsubmit = e => {
   config.neurowave_x2_plasticity = !!e.target.elements.neurowave_x2_plasticity?.checked;
   config.neurowave_x2_development = !!e.target.elements.neurowave_x2_development?.checked;
   config.neurowave_x2_dendritic = !!e.target.elements.neurowave_x2_dendritic?.checked;
+  config.apical_amplification = !!e.target.elements.apical_amplification?.checked;
+  config.spectral_reservoir = !!e.target.elements.spectral_reservoir?.checked;
+  config.hyperbolic_manifold = !!e.target.elements.hyperbolic_manifold?.checked;
   config.overflow_mini_brain = !!e.target.elements.overflow_mini_brain?.checked;
   config.grafted_diffusion = !!e.target.elements.grafted_diffusion?.checked;
   config.selective_state_space = !!e.target.elements.selective_state_space?.checked;
@@ -3474,7 +3894,8 @@ function setAllControlsToMaxUI() {
       'selective_state_space', 'multitimescale_learning', 'meta_plasticity',
       'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend',
       'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
-      'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic'
+      'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic',
+      'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }

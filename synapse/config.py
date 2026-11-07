@@ -45,6 +45,9 @@ class SynapseConfig:
     tether_coordinator: bool = False
     criticality_homeostat: bool = False
     holographic_vsa: bool = False
+    apical_amplification: bool = False
+    spectral_reservoir: bool = False
+    hyperbolic_manifold: bool = False
 
     # SANCF (Sonapse Adaptive Neural Communication Fabric) & Advanced Research Features
     neural_comm_enabled: bool = False
@@ -209,6 +212,9 @@ class SynapseConfig:
             tether_coordinator=True,
             criticality_homeostat=True,
             holographic_vsa=True,
+            apical_amplification=True,
+            spectral_reservoir=True,
+            hyperbolic_manifold=True,
             neural_comm_enabled=True,
             neural_comm_mode='continuous',
             neural_comm_dim=24,
@@ -326,7 +332,7 @@ class SynapseConfig:
             'compute_threads': 1, 'graft_batch_size': 64, 'graft_updates': 2, 'connectome_mode': 'proxy',
             'structural_learning': True,
             'dendritic_ltc': False, 'oscillatory_coherence': False, 'verifiable_dpo': False,
-            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False,
+            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False, 'apical_amplification': False, 'spectral_reservoir': False, 'hyperbolic_manifold': False,
             'neural_comm_enabled': False, 'neural_comm_mode': 'continuous', 'neural_comm_dim': 16,
             'neural_comm_precision_bits': 4, 'neural_comm_every': 1, 'neural_comm_max_messages': 4,
             'neural_comm_max_bits': 128, 'neural_comm_max_aux_current': 0.5,

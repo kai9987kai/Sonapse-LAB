@@ -173,6 +173,15 @@ class Workbench:
             if path=='/api/uncertainty/status':
                 base=self.runtime.uncertainty_status() if hasattr(self.runtime,'uncertainty_status') else {'status':'active'}
                 return {**base, 'tripartite_decomposer': True}
+            if path=='/api/apical/status':
+                engine = getattr(self.runtime.agent, 'apical_engine', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/reservoir/status':
+                engine = getattr(self.runtime.agent, 'spectral_reservoir', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/hyperbolic/status':
+                engine = getattr(self.runtime.agent, 'hyperbolic_manifold', None)
+                return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
             if path=='/api/tandem/status':
                 return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
@@ -223,6 +232,12 @@ class Workbench:
                 ident=safe_name(data.get('id')); job=self.jobs[ident]
                 if ident in self.cancel: self.cancel[ident].set(); job['cancel_requested']=True; self.persist(job)
                 return dict(job)
+        if path=='/api/apical_reservoir_hyperbolic':
+            from .tandem_max import run_apical_reservoir_and_hyperbolic_assay
+            return run_apical_reservoir_and_hyperbolic_assay(
+                self.runtime,
+                seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+            )
         if path=='/api/tandem/max':
             from .tandem_max import run_tandem_max_orchestration
             return run_tandem_max_orchestration(self, data)

@@ -231,6 +231,34 @@ def run_criticality_and_vsa_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     }
 
 
+def run_apical_reservoir_and_hyperbolic_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Run Apical Coincidence Amplification, Unitary Spectral Reservoir, and Poincare Hyperbolic Manifold Assay."""
+    from .apical_amplification import ApicalAmplificationEngine
+    from .spectral_reservoir import SpectralReservoirEngine
+    from .hyperbolic_manifold import HyperbolicManifoldEngine
+
+    t0 = time.perf_counter()
+    agent = runtime.agent
+    apical = getattr(agent, 'apical_engine', None) or ApicalAmplificationEngine(num_units=64, seed=seed)
+    reservoir = getattr(agent, 'spectral_reservoir', None) or SpectralReservoirEngine(seed=seed)
+    hyperbolic = getattr(agent, 'hyperbolic_manifold', None) or HyperbolicManifoldEngine(seed=seed)
+
+    soma_input = agent.brain.r[:64].detach()
+    context = torch.tensor(agent.last_features[:32], dtype=torch.float32)
+    _, apical_report = apical(soma_input, apical_context=context)
+    _, res_report = reservoir.step(context, learn=False)
+    hyp_report = hyperbolic.step(active_node_ids=list(range(min(4, agent.brain.n))))
+
+    return {
+        'status': 'completed',
+        'evidence_kind': 'apical_reservoir_hyperbolic_verified_assay',
+        'apical_amplification': apical_report.to_dict(),
+        'spectral_reservoir': res_report.to_dict(),
+        'hyperbolic_manifold': hyp_report.to_dict(),
+        'wallclock_ms': round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+
+
 def run_causal_9arm_and_scorecard(
     runtime,
     steps_per_arm: int = 12,
@@ -524,6 +552,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
     frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
     frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
+    apical_res_hyp_res = run_apical_reservoir_and_hyperbolic_assay(runtime, seed=seed)
 
     from .neural_comm_bench import SancfMatrixBenchmark
     sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
@@ -565,6 +594,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'criticality_vsa': criticality_vsa_res,
         'frontier_innovations': frontier_innovations_res,
         'frontier_v2_innovations': frontier_v2_res,
+        'apical_reservoir_hyperbolic': apical_res_hyp_res,
         'sancf_comm_matrix': sancf_section_res,
         'neurowave_x2_assay': neurowave_x2_assay,
     }
