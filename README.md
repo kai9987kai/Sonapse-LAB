@@ -245,8 +245,16 @@ is selected.
 The runtime provides toggleable research implementations of recent frontier techniques:
 - **SANCF — Sonapse Adaptive Neural Communication Fabric (`synapse/neural_comm.py`, `synapse/neural_comm_channels.py`, `synapse/neural_comm_topology.py`)**:
   Additive virtual neural communication fabric operating alongside traditional scalar plastic grafts (`gamma=0.0` zero-init baseline). Features continuous, uniform quantized, VQ codebook, orthogonal mode (DCT/Hadamard/learned basis), and impaired (latency queue, drop, burst, ARQ) channel models with regional message encoders, decoders, and communication-through-coherence phase gating.
-- **6,500 Biological Neuron Connectome Scaling (`synapse/config.py`, `synapse/multi_connectome.py`)**:
-  Scales high-capacity Drosophila multi-connectome substrate to 6,500 biological neurons partitioned across FlyWire (2,167), MANC (2,167), and FlyEM Optic Lobe (2,166), backed by 128 MaleCNS motor priors and an auxiliary 256-neuron Dale-compliant Overflow Mini-Brain.
+- **8,000 Biological Neuron Connectome Scaling (`synapse/config.py`, `synapse/multi_connectome.py`)**:
+  Scales high-capacity Drosophila multi-connectome substrate to 8,000 biological neurons partitioned across FlyWire (2,667), MANC (2,667), and FlyEM Optic Lobe (2,666), loading 427,390 authentic biological synapses alongside 128 MaleCNS motor priors and an auxiliary 256-neuron Dale-compliant Overflow Mini-Brain.
+- **Non-Equilibrium Neural Thermodynamics & Arrow-of-Time Dissipation (`synapse/thermodynamics.py`)**:
+  Quantifies broken detailed balance, net state-transition probability flux, and non-equilibrium entropy production rate $\dot{S} = \sum J_{ij} \ln(P_{ij} / P_{ji}) \ge 0$, tracking thermodynamic information efficiency $\eta = \Delta I_{\text{task}} / (\dot{S} + \epsilon)$ (Lynn & Bassett, Nature Physics 2021; Deco et al., Cell Reports 2022).
+- **Homeostatic Metaplasticity & BCM Sliding Threshold Engine (`synapse/metaplasticity_bcm.py`)**:
+  Implements Bienenstock-Cooper-Munro sliding modification threshold $\theta_M(t) = (1 - \alpha) \theta_M(t-1) + \alpha (r_i / r_0)^2$ and Turrigiano multiplicative homeostatic scaling $w \leftarrow w \cdot (r_{\text{target}} / \bar{r})^\gamma$, preventing runaway excitation or quiescence across 8,000 neurons while guaranteeing exact replay determinism.
+- **Dynamic Transfer Entropy & Partial Information Decomposition (`synapse/transfer_entropy.py`)**:
+  Measures directed transfer entropy $\text{TE}_{X \to Y} = I(Y_{t+1}; X_t \mid Y_t)$ between Sensory (Optic Lobe), Central (FlyWire), and Motor (MANC) connectomes, decomposing joint mutual information into synergistic vs. redundant components to quantify emergent multi-connectome integration.
+- **3D Causal & Transfer-Entropy Geodesic Streamlines in Observatory (`synapse/observatory.py`, `synapse/web/app.js`)**:
+  Renders directed signal highways directly into the WebGL Observatory canvas with real-time thermodynamic dissipation and transfer entropy HUD gauges.
 - **Chebyshev Spectral Graph Diffusion Engine (`synapse/graph_diffusion.py`)**:
   Computes multi-scale topological signal diffusion across the 6,500-neuron connectome via K=4 Chebyshev polynomial recurrence over the normalized graph Laplacian in O(E) time, with zero-initialized readout gating for exact frozen baseline preservation.
 - **Non-Linear Multi-Branch Dendritic dSpikes (`synapse/dendritic_ltc.py`)**:

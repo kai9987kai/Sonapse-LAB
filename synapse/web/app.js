@@ -322,6 +322,16 @@ function graph() {
     });
     x.font = '10px Consolas, monospace'; x.fillStyle = '#8b9daf';
     x.fillText(`${graphMode.toUpperCase()} ${graphMode === '2d' ? 'phyllotaxis spiral' : 'anatomical'} layout · schematic`, 12, 20);
+    const thermo = state.telemetry?.thermodynamics;
+    const te = state.telemetry?.transfer_entropy;
+    if (thermo && thermo.entropy_production_rate !== undefined) {
+      x.fillStyle = '#ff7b72';
+      x.fillText(`Thermo S_dot=${Number(thermo.entropy_production_rate || 0).toFixed(2)} | Eff=${Number(thermo.thermodynamic_efficiency || 0).toFixed(1)}`, 16, h - 34);
+    }
+    if (te && te.te_sensory_to_central !== undefined) {
+      x.fillStyle = '#79c0ff';
+      x.fillText(`TransferEntropy S->C=${Number(te.te_sensory_to_central || 0).toFixed(2)} | C->M=${Number(te.te_central_to_motor || 0).toFixed(2)} | Syn=${Number(te.synergy_index || 0).toFixed(2)}`, 16, h - 20);
+    }
     const osc = state.telemetry?.oscillatory_coherence;
     if (osc?.enabled) {
       x.fillStyle = '#5de0c1';
@@ -2325,7 +2335,7 @@ function setAllControlsToMaxUI() {
   if ($('training-active')) $('training-active').checked = true;
   if ($('training-workers')) $('training-workers').value = '4';
   if ($('training-batch')) $('training-batch').value = '256';
-  if ($('graph-nodes')) $('graph-nodes').value = '6500';
+  if ($('graph-nodes')) $('graph-nodes').value = '8000';
   if ($('graph-edges')) $('graph-edges').value = '3200';
   if ($('graph-grafts')) $('graph-grafts').checked = true;
   if ($('experience-mode')) $('experience-mode').value = 'memory';
@@ -2335,8 +2345,8 @@ function setAllControlsToMaxUI() {
 
   const form = $('config');
   if (form) {
-    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 6500) {
-      form.elements.total_neurons.value = '6500';
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 8000) {
+      form.elements.total_neurons.value = '8000';
     }
     if (form.elements.microsteps) form.elements.microsteps.value = '4';
     if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
@@ -2349,7 +2359,8 @@ function setAllControlsToMaxUI() {
       'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
       'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain', 'grafted_diffusion',
       'selective_state_space', 'multitimescale_learning', 'meta_plasticity',
-      'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend'
+      'causal_world_model', 'relational_memory', 'verifier_rsi', 'event_driven_backend',
+      'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -2376,10 +2387,10 @@ async function runTandemMaxMode() {
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
   try {
-    const neurons = Number($('config')?.elements?.total_neurons?.value || 6500);
+    const neurons = Number($('config')?.elements?.total_neurons?.value || 8000);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
     const res = await api('tandem/max', {
-      total_neurons: Math.max(6500, neurons),
+      total_neurons: Math.max(8000, neurons),
       task,
       pretrain_steps: 32,
       pretrain_updates: 16,

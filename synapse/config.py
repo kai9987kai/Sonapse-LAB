@@ -70,6 +70,9 @@ class SynapseConfig:
     event_driven_backend: bool = False
     graph_diffusion: bool = False
     active_inference_planner: bool = False
+    thermodynamics: bool = False
+    metaplasticity_bcm: bool = False
+    transfer_entropy: bool = False
 
     def __post_init__(self):
         bool_keys = (
@@ -82,7 +85,7 @@ class SynapseConfig:
             'neural_comm_enabled', 'neurowave_enabled', 'overflow_mini_brain',
             'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
             'meta_plasticity', 'causal_world_model', 'relational_memory',
-            'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner'
+            'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy'
         )
         for key in bool_keys:
             if type(getattr(self, key)) is not bool:
@@ -201,6 +204,9 @@ class SynapseConfig:
             event_driven_backend=True,
             graph_diffusion=True,
             active_inference_planner=True,
+            thermodynamics=True,
+            metaplasticity_bcm=True,
+            transfer_entropy=True,
             compute_threads=min(4, os.cpu_count() or 1),
             connectome_mode='prefer_authentic',
         )
@@ -254,6 +260,9 @@ class SynapseConfig:
             event_driven_backend=True,
             graph_diffusion=True,
             active_inference_planner=True,
+            thermodynamics=True,
+            metaplasticity_bcm=True,
+            transfer_entropy=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
@@ -293,7 +302,7 @@ class SynapseConfig:
             'neural_comm_latency_steps': 0, 'neurowave_enabled': False,
             'overflow_mini_brain': False, 'grafted_diffusion': False, 'selective_state_space': False,
             'multitimescale_learning': False, 'meta_plasticity': False, 'causal_world_model': False,
-            'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False, 'graph_diffusion': False, 'active_inference_planner': False,
+            'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False, 'graph_diffusion': False, 'active_inference_planner': False, 'thermodynamics': False, 'metaplasticity_bcm': False, 'transfer_entropy': False,
             'connectome_sources': ('flywire', 'manc', 'optic-lobe'),
             **saved
         }

@@ -16,7 +16,7 @@ def main(argv=None):
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 6500)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 8000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
@@ -74,6 +74,7 @@ def main(argv=None):
     sub.add_parser('ablation')
     sub.add_parser('checkpoint-migration')
     sub.add_parser('frontier-innovations')
+    sub.add_parser('frontier-v2')
     p=sub.add_parser('omnibus'); p.add_argument('--steps-per-task',type=int,default=30); p.add_argument('--tasks',nargs='+',default=None); p.add_argument('--save-report',type=Path)
     p=sub.add_parser('evidence'); p.add_argument('--save-report',type=Path)
     p.add_argument('--receipt',type=Path,help='read and verify an existing measured adaptation receipt')
@@ -459,6 +460,11 @@ def main(argv=None):
                 from .tandem_max import run_frontier_innovations_assay
                 rt = LabRuntime(config)
                 result = run_frontier_innovations_assay(rt, seed=args.seed)
+            elif args.command=='frontier-v2':
+                from .runtime import LabRuntime
+                from .tandem_max import run_frontier_v2_innovations_assay
+                rt = LabRuntime(config)
+                result = run_frontier_v2_innovations_assay(rt, seed=args.seed)
         if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan','rsi-verify'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}

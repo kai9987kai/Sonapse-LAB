@@ -123,6 +123,9 @@ class IntegratedAgent:
         self.event_backend=None
         self.graph_diffusion=None
         self.active_inference=None
+        self.thermodynamics=None
+        self.metaplasticity_bcm=None
+        self.transfer_entropy=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -230,6 +233,18 @@ class IntegratedAgent:
                     hidden_dim=32,
                     seed=self.config.seed,
                 )
+            if getattr(self.config, 'thermodynamics', False) and self.thermodynamics is None:
+                from .thermodynamics import NeuralThermodynamicsEngine
+                self.thermodynamics = NeuralThermodynamicsEngine(num_states=8)
+            if getattr(self.config, 'metaplasticity_bcm', False) and self.metaplasticity_bcm is None:
+                from .metaplasticity_bcm import BcmMetaplasticityEngine
+                self.metaplasticity_bcm = BcmMetaplasticityEngine(
+                    num_neurons=self.brain.n,
+                    target_activity=0.25,
+                )
+            if getattr(self.config, 'transfer_entropy', False) and self.transfer_entropy is None:
+                from .transfer_entropy import TransferEntropyEngine
+                self.transfer_entropy = TransferEntropyEngine(buffer_size=64)
 
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
@@ -561,6 +576,24 @@ class IntegratedAgent:
             self.last_telemetry['sancf'] = self.comm_fabric.get_telemetry_dict()
         if getattr(self, 'graph_diffusion', None) is not None and graph_diff_info is not None:
             self.last_telemetry['graph_diffusion'] = graph_diff_info
+        if getattr(self, 'thermodynamics', None) is not None:
+            t_st = self.thermodynamics.step(r.detach().numpy(), task_utility=0.75, learn=learn)
+            self.last_telemetry['thermodynamics'] = t_st.to_dict()
+        if getattr(self, 'metaplasticity_bcm', None) is not None:
+            bcm_delta, bcm_st = self.metaplasticity_bcm.step(
+                r.detach().numpy(),
+                graft_weights=self.brain.graft_w,
+                graft_pre=self.brain.graft_pre,
+                graft_post=self.brain.graft_post,
+                learn=learn,
+            )
+            if learn and bcm_delta is not None and self.brain.graft_w is not None:
+                with torch.no_grad():
+                    self.brain.graft_w.add_(0.01 * bcm_delta.clamp(-0.1, 0.1))
+            self.last_telemetry['metaplasticity_bcm'] = bcm_st.to_dict()
+        if getattr(self, 'transfer_entropy', None) is not None:
+            te_st = self.transfer_entropy.step(r.detach().numpy(), self.graph.origin, learn=learn)
+            self.last_telemetry['transfer_entropy'] = te_st.to_dict()
         if getattr(self, 'overflow_mini_brain', None) is not None:
             self.last_telemetry['overflow_mini_brain'] = {'enabled': True, 'state_norm': float(torch.norm(self.overflow_mini_brain.state).item())}
         if getattr(self, 'event_backend', None) is not None:
@@ -815,6 +848,9 @@ class IntegratedAgent:
         state['relational_memory']=self.relational_memory.export_state() if getattr(self,'relational_memory',None) is not None else None
         state['graph_diffusion']=self.graph_diffusion.export_state() if getattr(self,'graph_diffusion',None) is not None else None
         state['active_inference']=self.active_inference.export_state() if getattr(self,'active_inference',None) is not None else None
+        state['thermodynamics']=self.thermodynamics.export_state() if getattr(self,'thermodynamics',None) is not None else None
+        state['metaplasticity_bcm']=self.metaplasticity_bcm.export_state() if getattr(self,'metaplasticity_bcm',None) is not None else None
+        state['transfer_entropy']=self.transfer_entropy.export_state() if getattr(self,'transfer_entropy',None) is not None else None
         state['torch_rng']=torch.random.get_rng_state()
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
@@ -936,6 +972,12 @@ class IntegratedAgent:
             self.graph_diffusion.import_state(state['graph_diffusion'])
         if getattr(self,'active_inference',None) is not None and state.get('active_inference') is not None:
             self.active_inference.import_state(state['active_inference'])
+        if getattr(self,'thermodynamics',None) is not None and state.get('thermodynamics') is not None:
+            self.thermodynamics.import_state(state['thermodynamics'])
+        if getattr(self,'metaplasticity_bcm',None) is not None and state.get('metaplasticity_bcm') is not None:
+            self.metaplasticity_bcm.import_state(state['metaplasticity_bcm'])
+        if getattr(self,'transfer_entropy',None) is not None and state.get('transfer_entropy') is not None:
+            self.transfer_entropy.import_state(state['transfer_entropy'])
         if 'torch_rng' in state:
             torch.random.set_rng_state(state['torch_rng'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))

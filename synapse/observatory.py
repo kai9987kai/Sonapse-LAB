@@ -164,6 +164,33 @@ class NeuralObservatory:
                 })
                 cluster_id += 1
 
+        # Generate 3D Causal & Information Flow Streamlines between neuropil clusters
+        streamlines = []
+        if len(lod_clusters) >= 2:
+            sensory_c = [c for c in lod_clusters if c['role'] == 'sensory']
+            central_c = [c for c in lod_clusters if c['role'] == 'central']
+            motor_c = [c for c in lod_clusters if c['role'] == 'motor']
+            for s in sensory_c[:4]:
+                for c in central_c[:3]:
+                    streamlines.append({
+                        'source_cluster': s['id'],
+                        'target_cluster': c['id'],
+                        'flow_type': 'sensory_to_central',
+                        'p0': [s['x'], s['y'], s['z']],
+                        'p1': [c['x'], c['y'], c['z']],
+                        'gain': 0.88,
+                    })
+            for c in central_c[:3]:
+                for m in motor_c[:3]:
+                    streamlines.append({
+                        'source_cluster': c['id'],
+                        'target_cluster': m['id'],
+                        'flow_type': 'central_to_motor',
+                        'p0': [c['x'], c['y'], c['z']],
+                        'p1': [m['x'], m['y'], m['z']],
+                        'gain': 0.94,
+                    })
+
         return {
             'total_nodes': n,
             'total_edges': base_count + active_graft_count,
@@ -173,6 +200,8 @@ class NeuralObservatory:
             'graft_links': graft_links,
             'lod_clusters': lod_clusters,
             'num_lod_clusters': len(lod_clusters),
+            'streamlines': streamlines,
+            'num_streamlines': len(streamlines),
             'layout_scope': 'schematic source/role layout; coordinates are not measured anatomy',
             'nodes': nodes,
             'edges': edges,

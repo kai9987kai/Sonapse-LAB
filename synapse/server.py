@@ -31,7 +31,7 @@ class Workbench:
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(total_neurons=6500),output_root=self.root)
+            runtime=LabRuntime(config or SynapseConfig(total_neurons=8000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
         from .sim_worker import SimulationWorker
         self.sim_worker=SimulationWorker(self.runtime, self.lock)
@@ -465,6 +465,12 @@ class Workbench:
             if path=='/api/frontier/innovations':
                 from .tandem_max import run_frontier_innovations_assay
                 return run_frontier_innovations_assay(
+                    self.runtime,
+                    seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
+                )
+            if path=='/api/frontier/v2_innovations':
+                from .tandem_max import run_frontier_v2_innovations_assay
+                return run_frontier_v2_innovations_assay(
                     self.runtime,
                     seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
                 )

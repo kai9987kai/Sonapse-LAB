@@ -188,6 +188,24 @@ def run_frontier_innovations_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     }
 
 
+def run_frontier_v2_innovations_assay(runtime, seed: int = 42) -> Dict[str, Any]:
+    """Runs Non-Equilibrium Thermodynamics, BCM Metaplasticity, and Dynamic Transfer Entropy assays."""
+    from .thermodynamics import run_thermodynamics_assay
+    from .metaplasticity_bcm import run_bcm_metaplasticity_assay
+    from .transfer_entropy import run_transfer_entropy_assay
+
+    thermo_res = run_thermodynamics_assay(runtime, steps=24, seed=seed)
+    bcm_res = run_bcm_metaplasticity_assay(runtime, steps=24, seed=seed)
+    te_res = run_transfer_entropy_assay(runtime, steps=24, seed=seed)
+
+    return {
+        'status': 'completed',
+        'thermodynamics': thermo_res,
+        'metaplasticity_bcm': bcm_res,
+        'transfer_entropy': te_res,
+    }
+
+
 def run_criticality_and_vsa_assay(runtime, seed: int = 42) -> Dict[str, Any]:
     """Run Connectome Echo-State Reservoir Criticality Assay and 6-Pair Holographic VSA Binding Assay."""
     from .criticality_vsa import CriticalityAvalancheEngine, HolographicVSAWorkingMemory
@@ -360,7 +378,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     t_start = time.perf_counter()
     max_cpu = min(32, max(1, os.cpu_count() or 4))
     workers = max(1, min(4, int(data.get('workers', min(4, max(1, os.cpu_count() or 2))))))
-    neurons = int(data.get('total_neurons', max(6500, workbench.runtime.config.total_neuron_count())))
+    neurons = int(data.get('total_neurons', max(8000, workbench.runtime.config.total_neuron_count())))
     neurons = max(48, min(30000, neurons))
     task = str(data.get('task', workbench.runtime.config.task or 'forage'))
     seed = int(data.get('seed', workbench.runtime.config.seed or 7))
@@ -508,6 +526,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
         criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
         frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
+        frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
 
         from .neural_comm_bench import SancfMatrixBenchmark
         sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
@@ -536,6 +555,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
             'dvgem_tether': dvgem_tether_res,
             'criticality_vsa': criticality_vsa_res,
             'frontier_innovations': frontier_innovations_res,
+            'frontier_v2_innovations': frontier_v2_res,
             'sancf_comm_matrix': sancf_section_res,
         }
 
