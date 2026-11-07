@@ -1,4 +1,4 @@
-"""Automatically Discovered Reusable Skill Library (TESSERA-Inspired Macro-Actions).
+"""Trajectory-derived candidate macro actions (TESSERA-inspired).
 
 Grounding & Review Requirements:
 Enables developmental agents to distill frequently successful sensorimotor trajectories
@@ -11,6 +11,7 @@ into reusable macro-action subroutines with:
 from __future__ import annotations
 import math
 import hashlib
+from copy import deepcopy
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -18,7 +19,7 @@ import numpy as np
 
 @dataclass
 class MacroSkill:
-    """A verified reusable macro-action policy."""
+    """An observed action motif; execution/transfer require separate validation."""
     skill_id: str
     name: str
     precondition_centroid: List[float]
@@ -123,7 +124,8 @@ class ReusableSkillLibrary:
                     action_sequence=actions,
                     expected_duration=len(actions),
                     expected_reward=float(cum_reward),
-                    created_at_step=span[0]['step']
+                    created_at_step=span[0]['step'],
+                    metadata={'evidence_kind': 'observed_trajectory', 'transfer_verified': False},
                 )
                 self.skills[skill_id] = skill
                 self.total_discoveries += 1
@@ -179,13 +181,23 @@ class ReusableSkillLibrary:
         }
 
     def export_state(self) -> Dict[str, Any]:
-        return {
+        return deepcopy({
+            'schema': 2,
+            'settings': {k: getattr(self, k) for k in ('max_skills', 'discovery_window', 'min_skill_length', 'max_skill_length')},
+            'rng': self.rng.bit_generator.state,
+            'trajectory_buffer': self.trajectory_buffer,
             'total_discoveries': self.total_discoveries,
             'total_executions': self.total_executions,
             'skills': {sid: s.to_dict() for sid, s in self.skills.items()}
-        }
+        })
 
     def import_state(self, state: Dict[str, Any]):
+        for k, value in state.get('settings', {}).items():
+            if k in ('max_skills', 'discovery_window', 'min_skill_length', 'max_skill_length'):
+                setattr(self, k, int(value))
+        if 'rng' in state:
+            self.rng.bit_generator.state = deepcopy(state['rng'])
+        self.trajectory_buffer = deepcopy(state.get('trajectory_buffer', []))
         self.total_discoveries = int(state.get('total_discoveries', 0))
         self.total_executions = int(state.get('total_executions', 0))
         self.skills.clear()
@@ -200,5 +212,6 @@ class ReusableSkillLibrary:
                 expected_reward=d['expected_reward'],
                 success_count=d.get('success_count', 0),
                 attempt_count=d.get('attempt_count', 0),
-                created_at_step=d.get('created_at_step', 0)
+                created_at_step=d.get('created_at_step', 0),
+                metadata=deepcopy(d.get('metadata', {})),
             )

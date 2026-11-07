@@ -1,0 +1,259 @@
+{
+  "date": "2026-11-07",
+  "protocol": {
+    "seeds": [
+      7,
+      11,
+      19
+    ],
+    "tasks": [
+      "forage",
+      "push"
+    ],
+    "support_steps": 64,
+    "query_steps": 48,
+    "nodes_per_source": 16,
+    "compute_threads": 4
+  },
+  "parallel_pretraining_pilot": {
+    "steps": 128,
+    "recorded_transitions": 128,
+    "workers_used": 2,
+    "worker_pids": [
+      19092,
+      5860
+    ],
+    "worker_world_seeds": [
+      100010,
+      200013
+    ],
+    "optimizer_updates": 32,
+    "actor_updates": 0,
+    "policy_frozen": true,
+    "initial_prediction_loss": 0.073937,
+    "final_prediction_loss": 0.005502,
+    "value_loss": 0.001434,
+    "session_cpu_seconds": 3.3438,
+    "collection_worker_cpu_seconds": 2.8125,
+    "session_wall_seconds": 19.9181
+  },
+  "paired_evaluation_records": [
+    {
+      "task": "forage",
+      "seed": 7,
+      "query_seed": 5010,
+      "returns": {
+        "baseline_actor": 0.243555,
+        "graft_pretrained_frozen_policy": 0.217548,
+        "graft_online_training": 0.234702,
+        "graft_online_malecns_prior": 0.497463
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": -0.026007,
+        "graft_online_training": -0.008854,
+        "graft_online_malecns_prior": 0.253908
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1585
+    },
+    {
+      "task": "forage",
+      "seed": 11,
+      "query_seed": 5014,
+      "returns": {
+        "baseline_actor": -0.226643,
+        "graft_pretrained_frozen_policy": -0.226572,
+        "graft_online_training": -0.457793,
+        "graft_online_malecns_prior": -0.557301
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": 7.1e-05,
+        "graft_online_training": -0.23115,
+        "graft_online_malecns_prior": -0.330658
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1442
+    },
+    {
+      "task": "forage",
+      "seed": 19,
+      "query_seed": 5022,
+      "returns": {
+        "baseline_actor": -0.601925,
+        "graft_pretrained_frozen_policy": -0.601927,
+        "graft_online_training": -1.145564,
+        "graft_online_malecns_prior": -0.967548
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": -2e-06,
+        "graft_online_training": -0.543639,
+        "graft_online_malecns_prior": -0.365624
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1758
+    },
+    {
+      "task": "push",
+      "seed": 7,
+      "query_seed": 5010,
+      "returns": {
+        "baseline_actor": -0.49955,
+        "graft_pretrained_frozen_policy": -0.50789,
+        "graft_online_training": -0.526655,
+        "graft_online_malecns_prior": -0.510833
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": -0.00834,
+        "graft_online_training": -0.027105,
+        "graft_online_malecns_prior": -0.011283
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1585
+    },
+    {
+      "task": "push",
+      "seed": 11,
+      "query_seed": 5014,
+      "returns": {
+        "baseline_actor": -0.262023,
+        "graft_pretrained_frozen_policy": -0.262307,
+        "graft_online_training": -0.192045,
+        "graft_online_malecns_prior": -0.240734
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": -0.000284,
+        "graft_online_training": 0.069978,
+        "graft_online_malecns_prior": 0.021289
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1442
+    },
+    {
+      "task": "push",
+      "seed": 19,
+      "query_seed": 5022,
+      "returns": {
+        "baseline_actor": -0.449906,
+        "graft_pretrained_frozen_policy": -0.449896,
+        "graft_online_training": -0.396451,
+        "graft_online_malecns_prior": -0.476615
+      },
+      "diffs_vs_baseline": {
+        "graft_pretrained_frozen_policy": 1e-05,
+        "graft_online_training": 0.053456,
+        "graft_online_malecns_prior": -0.026708
+      },
+      "online_graft_updates": 24,
+      "online_actor_updates": 8,
+      "prior_bound": true,
+      "prior_edges": 1758
+    }
+  ],
+  "mean_returns": {
+    "baseline_actor": -0.299415,
+    "graft_pretrained_frozen_policy": -0.305174,
+    "graft_online_training": -0.413968,
+    "graft_online_malecns_prior": -0.375928
+  },
+  "mean_differences_vs_baseline": {
+    "graft_pretrained_frozen_policy": -0.005759,
+    "graft_online_training": -0.114552,
+    "graft_online_malecns_prior": -0.076513
+  },
+  "live_rsi_pilot": {
+    "status": "complete",
+    "parent_digest": "15ee30eb5971e63b391369917506882ddaf80260aff4f58f0af373ba1eebc42c",
+    "result_digest": "15ee30eb5971e63b391369917506882ddaf80260aff4f58f0af373ba1eebc42c",
+    "candidates_evaluated": 2,
+    "accepted_count": 0,
+    "screens": [
+      {
+        "accepted": false,
+        "baseline": {
+          "score": 0.8974333296478633,
+          "retention": -1.496536591336456
+        },
+        "candidate": {
+          "score": 0.8974333296478633,
+          "retention": -1.496536591336456
+        },
+        "gain": 0.0,
+        "reason": "gain_or_retention_screen_failed",
+        "receipt": null,
+        "scope": "matched finite-world development screen; no statistical or global preservation guarantee",
+        "task": "forage",
+        "retention_task": "forage",
+        "steps_per_world": 24,
+        "seeds": [
+          1016
+        ],
+        "paired_returns": {
+          "baseline": [
+            0.8974333296478633
+          ],
+          "candidate": [
+            0.8974333296478633
+          ],
+          "retention_baseline": [
+            -1.496536591336456
+          ],
+          "retention_candidate": [
+            -1.496536591336456
+          ]
+        },
+        "world_steps": 96,
+        "evidence_kind": "measured_world_development_screen"
+      },
+      {
+        "accepted": false,
+        "baseline": {
+          "score": 0.8974333296478633,
+          "retention": -1.496536591336456
+        },
+        "candidate": {
+          "score": 0.8974333296478633,
+          "retention": -1.4970028431977551
+        },
+        "gain": 0.0,
+        "reason": "gain_or_retention_screen_failed",
+        "receipt": null,
+        "scope": "matched finite-world development screen; no statistical or global preservation guarantee",
+        "task": "forage",
+        "retention_task": "forage",
+        "steps_per_world": 24,
+        "seeds": [
+          1016
+        ],
+        "paired_returns": {
+          "baseline": [
+            0.8974333296478633
+          ],
+          "candidate": [
+            0.8974333296478633
+          ],
+          "retention_baseline": [
+            -1.496536591336456
+          ],
+          "retention_candidate": [
+            -1.4970028431977551
+          ]
+        },
+        "world_steps": 96,
+        "evidence_kind": "measured_world_development_screen"
+      }
+    ],
+    "evidence_kind": "measured_world_development_screen",
+    "scope": "bounded stochastic numeric search, not open-ended recursive self-improvement"
+  },
+  "total_wall_seconds": 140.54
+}

@@ -1,11 +1,13 @@
-"""Dormant Expert Complete Lifecycle Engine.
+"""Bounded dormant-expert lifecycle with heuristic recruitment and EMA merging.
 
 Grounding:
 Fulfills the 5 November 2026 Developmental Connectome specification:
     "A candidate graft progresses through explicit stages: dormant identity,
      fitted initialization, gradual activation, contribution test,
      consolidation, and retirement."
-Closes the open lifecycle documented in docs/design-audit.md.
+States track recruitment and retirement. Orthogonal initialization is unfitted;
+output norm is a usage heuristic, not held-out causal contribution. Consolidation
+interpolates weights; it is not gradient-based knowledge distillation.
 """
 from __future__ import annotations
 
@@ -72,14 +74,17 @@ class DormantLifecycleManager:
         self.num_slots = num_slots
         self.feature_dim = feature_dim
         self.rng = np.random.default_rng(seed)
+        self.torch_rng = torch.Generator(device='cpu').manual_seed(seed)
 
         # PyTorch linear modules for each dormant expert slot
-        self.modules = nn.ModuleList([
-            nn.Linear(feature_dim, feature_dim, bias=False)
-            for _ in range(num_slots)
-        ])
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            self.modules = nn.ModuleList([
+                nn.Linear(feature_dim, feature_dim, bias=False)
+                for _ in range(num_slots)
+            ])
         for mod in self.modules:
-            nn.init.orthogonal_(mod.weight, gain=0.01)
+            nn.init.orthogonal_(mod.weight, gain=0.01, generator=self.torch_rng)
 
         # Slot metadata records
         self.records: List[DormantSlotRecord] = [
@@ -92,16 +97,19 @@ class DormantLifecycleManager:
         self,
         novelty: float,
         preferred_slot: int,
-        novelty_threshold: float = 0.02
+        novelty_threshold: float = 0.02,
+        learn: bool = True,
     ) -> Tuple[bool, int, float]:
         """Observes graph novelty and advances lifecycle of recruited expert slot.
 
         Returns:
             (recruited: bool, slot_idx: int, effective_gain: float)
         """
-        self.step_counter += 1
         slot_idx = int(preferred_slot) % self.num_slots
         rec = self.records[slot_idx]
+        if not learn:
+            return False, slot_idx, float(rec.activation_gain)
+        self.step_counter += 1
         rec.age += 1
 
         recruited = bool(novelty > novelty_threshold)
@@ -142,7 +150,7 @@ class DormantLifecycleManager:
         pooled: torch.Tensor,
         slot_idx: int
     ) -> float:
-        """Measures the functional output magnitude / attribution of the slot."""
+        """Tracks output magnitude; this does not measure task contribution."""
         if slot_idx < 0 or slot_idx >= self.num_slots:
             return 0.0
         rec = self.records[slot_idx]
@@ -170,7 +178,7 @@ class DormantLifecycleManager:
 
             if rec.state == DormantState.CONSOLIDATING.value:
                 with torch.no_grad():
-                    # Knowledge distillation into native module
+                    # Heuristic EMA merge, with no outcome or retention claim.
                     native_linear.weight.mul_(1.0 - rate).add_(self.modules[slot_idx].weight * rate)
                     rec.consolidation_progress = min(1.0, rec.consolidation_progress + rate * 4.0)
 
@@ -190,7 +198,7 @@ class DormantLifecycleManager:
         """Cleans and re-initializes a retired slot back to DORMANT."""
         rec = self.records[slot_idx]
         with torch.no_grad():
-            nn.init.orthogonal_(self.modules[slot_idx].weight, gain=0.01)
+            nn.init.orthogonal_(self.modules[slot_idx].weight, gain=0.01, generator=self.torch_rng)
         rec.state = DormantState.DORMANT.value
         rec.age = 0
         rec.activation_gain = 0.0
@@ -205,6 +213,8 @@ class DormantLifecycleManager:
             'feature_dim': self.feature_dim,
             'consolidations_completed': self.consolidations_completed,
             'step_counter': self.step_counter,
+            'rng': deepcopy(self.rng.bit_generator.state),
+            'torch_rng': self.torch_rng.get_state().clone(),
             'records': [r.to_dict() for r in self.records],
             'weights': [m.weight.detach().cpu().numpy() for m in self.modules],
         }
@@ -216,6 +226,10 @@ class DormantLifecycleManager:
         self.feature_dim = int(state['feature_dim'])
         self.consolidations_completed = int(state.get('consolidations_completed', 0))
         self.step_counter = int(state.get('step_counter', 0))
+        if 'rng' in state:
+            self.rng.bit_generator.state = deepcopy(state['rng'])
+        if 'torch_rng' in state:
+            self.torch_rng.set_state(state['torch_rng'].clone())
         self.records = [DormantSlotRecord.from_dict(r) for r in state['records']]
         for i, w in enumerate(state['weights']):
             with torch.no_grad():
@@ -225,5 +239,9 @@ class DormantLifecycleManager:
         return {
             'num_slots': self.num_slots,
             'consolidations_completed': self.consolidations_completed,
+            'initialization': 'unfitted_orthogonal',
+            'contribution_metric': 'output_norm_ema',
+            'consolidation_method': 'weight_ema',
+            'outcome_contribution_verified': False,
             'slots': [r.to_dict() for r in self.records],
         }

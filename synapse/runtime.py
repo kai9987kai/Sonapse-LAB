@@ -15,12 +15,15 @@ class LabRuntime:
     def __init__(self,config,output_root=None):
         self.config=config; self.output_root=Path(output_root or ROOT/'state')
         self.agent=IntegratedAgent(config); self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
+        from .reusable_skills import ReusableSkillLibrary
+        self.skill_library=ReusableSkillLibrary(seed=config.seed)
         self.obs=self.world.observe(); self.total_steps=0; self.recent=[]; self.last={}; self.last_action=np.zeros(5,np.float32)
     def step(self,steps=1,learn=False,camera=None,action=None):
         if type(steps) is not int or not 1<=steps<=10000: raise ValueError('steps must be integer 1..10000')
         if type(learn) is not bool: raise ValueError('learn must be boolean')
         manual = None if action is None else validate_action(action)
         for _ in range(steps):
+            previous_observation=self.obs.copy()
             # Manual actions still observe the current state through the actor;
             # the actual motor command is then bound before any outcome arrives.
             out=self.agent.act(self.obs,camera=camera,learn=learn,
@@ -29,6 +32,7 @@ class LabRuntime:
             proposed = out['action'] if manual is None else manual
             act=govern_action(proposed,self.agent.homeostasis.get_max_allowed_thrust())
             self.agent.pending_transition['action']=act.copy()
+            self.agent.pending_transition['manual']=manual is not None
             self.last_action=act.copy()
             self.last.update(action=act.tolist(),manual_teleop=manual is not None,
                              action_source='manual' if manual is not None else 'actor',
@@ -45,6 +49,8 @@ class LabRuntime:
             if learn:
                 self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done,action=act)
                 self.agent.feedback(reward,done)
+                self.skill_library.record_transition(previous_observation,act,reward,self.obs,self.total_steps)
+                if (self.total_steps+1)%32==0: self.skill_library.discover_skills()
             else:
                 # Query outcomes cannot be learned accidentally by a later call.
                 self.agent.pending_transition=None
@@ -59,7 +65,16 @@ class LabRuntime:
         edge_indices=np.linspace(0,len(g.base_pre)-1,min(800,len(g.base_pre))).astype(int)
         mode=('memory' if self.config.surprise_memory else 'model') if self.config.experience_planning else 'off'
         experience={'model':self.agent.experience_model.summary(),'memory':self.agent.surprise_memory.summary(),'mode':mode,'planner':deepcopy(self.last.get('experience_planner',{}))}
-        return {'config':self.config.to_dict(),'steps':self.total_steps,'world':self.world.snapshot(),'action':self.last_action.tolist(),'telemetry':deepcopy(self.last),'recent':deepcopy(self.recent),'experience':experience,'graph':{'nodes':[{'id':int(i),'origin':int(g.origin[i]),'role':str(g.role[i]),'activity':float(r[i])} for i in indices],'edges':[[int(g.base_pre[i]),int(g.base_post[i]),float(g.base_w[i])] for i in edge_indices],'neurons':g.n,'graft_edges':len(g.graft_pre)},'status':{'bridge_training':'experimental supervised preparation' if self.agent.bridge_updates else 'untrained','readout':self.config.readout,'camera_live':bool(self.last.get('camera_consumed',False)),'experience_planning':self.config.experience_planning}}
+        result={'config':self.config.to_dict(),'steps':self.total_steps,'world':self.world.snapshot(),'action':self.last_action.tolist(),'telemetry':deepcopy(self.last),'recent':deepcopy(self.recent),'experience':experience,'graph':{'nodes':[{'id':int(i),'origin':int(g.origin[i]),'role':str(g.role[i]),'activity':float(r[i])} for i in indices],'edges':[[int(g.base_pre[i]),int(g.base_post[i]),float(g.base_w[i])] for i in edge_indices],'neurons':g.n,'graft_edges':len(g.graft_pre)},'status':{'bridge_training':'experimental supervised preparation' if self.agent.bridge_updates else 'untrained','readout':self.config.readout,'camera_live':bool(self.last.get('camera_consumed',False)),'experience_planning':self.config.experience_planning}}
+        from .compute import compute_summary
+        result['compute']={**compute_summary(),'threads':self.config.compute_threads}
+        result['training']={'graft':self.agent.neural_graft.summary() if self.agent.neural_graft is not None else {'enabled':False},'programmed_prior':deepcopy(self.agent.programmed_prior_status)}
+        result['graph']['sources']=deepcopy(self.agent.source_provenance)
+        indices_set=set(indices.tolist())
+        graft_rows=[i for i,(pre,post) in enumerate(zip(g.graft_pre,g.graft_post)) if pre in indices_set and post in indices_set and bool(self.agent.plasticity.active_mask[i])]
+        result['graph']['graft_links']=[[int(g.graft_pre[i]),int(g.graft_post[i]),float(b.graft_w[i].detach())] for i in graft_rows[:800]]
+        result['graph']['layout_scope']='schematic source/role layout; coordinates are not measured anatomy'
+        return result
     def _path(self,name):
         if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',name): raise ValueError('checkpoint name must use 1..64 letters digits underscores or hyphens')
         return self.output_root/(name+'.pt')
@@ -78,7 +93,7 @@ class LabRuntime:
         d['st']=encode(d['st']); return d
     def save(self,name):
         path=self._path(name)
-        identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action})
+        identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action,'skill_library':self.skill_library.export_state()})
         return {'name':name,'digest':identity,'steps':self.total_steps,'restore_semantics':'exact mid-episode'}
     def load(self,name):
         data=load_state(self._path(name))
@@ -96,6 +111,7 @@ class LabRuntime:
             if isinstance(v,list): return [decode(x) for x in v]
             return v
         d['st']=decode(d['st']); self.world.__dict__.clear(); self.world.__dict__.update(d)
+        if 'skill_library' in data: self.skill_library.import_state(data['skill_library'])
         self.obs=data['obs']; self.total_steps=data['steps']; self.recent=data['recent']; self.last=data['last']; self.last_action=data['last_action']
         return self.snapshot()
     def reset(self,task=None,seed=None):

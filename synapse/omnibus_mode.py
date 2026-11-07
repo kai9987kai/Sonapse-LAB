@@ -1,83 +1,60 @@
-"""Frontier Apex Omnibus Mode: Full Architectural and Environmental Integration.
+"""Bounded composed-system curriculum with matched frozen evaluation.
 
-Integrates all frontier cognitive, neuromorphic, and developmental systems:
-1. 2,000-Neuron Tri-Connectome Graph (FlyWire, MANC, Optic Lobe) with Dale's Law.
-2. Full Modular Cognitive Stack:
-   - Action-Grounded Efference-Copy Self-Model (Agency / Disturbance / Slip).
-   - Tripartite Uncertainty Decomposition (Epistemic, Aleatoric, Mahalanobis OOD).
-   - Plasticity & Spectral Rank Health Monitoring (erank, srank, collapse alarm).
-   - TESSERA Reusable Macro-Action Skill Library.
-   - Continual Backprop Selective Neuron Utility Rejuvenation.
-   - Universal Fast-Weight Associative Memory.
-   - Dormant Expert Complete Lifecycle.
-   - MiMoMix Continuous Deliberative Core & Ponder Reasoning.
-   - Experience MPC with Value Guidance.
-   - Sleep Consolidation Cycles between stages.
-3. Full Multi-Environment Curriculum (11 Embodied Tasks):
-   - 'forage', 'maze', 'push', 'delayed_match',
-   - 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber',
-   - 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry'.
-4. Cryptographically Signed Verifiable Omnibus Evaluation Receipt.
+The live actor is shared across stages. Monitors and macro discovery are measured
+sidecars; uncertainty is trained online but is not calibrated on held-out data.
+Receipt hashes bind the recorded payload, not the truth of scientific claims.
 """
 from __future__ import annotations
-import math
-import time
+from copy import deepcopy
+from dataclasses import dataclass, asdict, field
 import hashlib
 import json
-from dataclasses import dataclass, field, asdict
+import time
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import numpy as np
-import torch
 
 from .config import SynapseConfig
 from .agent import IntegratedAgent
-from .complex_world import ComplexWorld
-from .plasticity_monitor import PlasticityMonitor, PlasticityReport
-from .self_model import EfferenceCopyComparator
+from .complex_world import ComplexWorld, ALL_TASKS
+from .homeostasis import HomeostaticEngine
+from .plasticity_monitor import PlasticityMonitor
 from .uncertainty_calibration import TripartiteUncertaintyDecomposer
 from .reusable_skills import ReusableSkillLibrary
 from .sleep import SleepConsolidationEngine
 
-
 OMNIBUS_CURRICULUM = [
-    "forage",
-    "maze",
-    "push",
-    "delayed_match",
-    "ecosystem",
-    "predator_evasion",
-    "dynamic_arena",
-    "puzzle_chamber",
-    "apex_megasite",
-    "stealth_labyrinth",
-    "kinetic_foundry",
+    'forage', 'maze', 'push', 'delayed_match', 'ecosystem',
+    'predator_evasion', 'dynamic_arena', 'puzzle_chamber',
+    'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry',
 ]
+
+
+def _mean(values):
+    return float(np.mean(values)) if values else None
 
 
 @dataclass
 class TaskStageSummary:
-    """Summary metrics for a single curriculum task stage."""
     task: str
     stage_index: int
     steps_executed: int
     episodes_completed: int
     mean_return: float
-    success_rate: float
-    mean_agency: float
-    mean_disturbance: float
-    mean_effective_rank: float
-    mean_epistemic_unc: float
-    mean_step_latency_ms: float
+    success_rate: Optional[float]
+    mean_agency: Optional[float]
+    mean_disturbance: Optional[float]
+    mean_effective_rank: Optional[float]
+    mean_epistemic_unc: Optional[float]
+    mean_step_latency_ms: Optional[float]
     sleep_cycles_post_stage: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self):
         return asdict(self)
 
 
 @dataclass
 class OmnibusEvaluationReceipt:
-    """Cryptographically verifiable summary of the complete omnibus execution."""
     receipt_id: str
     timestamp: float
     total_neurons: int
@@ -88,315 +65,266 @@ class OmnibusEvaluationReceipt:
     final_backward_retention: float
     catastrophic_forgetting: float
     mean_curriculum_return: float
-    overall_mean_agency: float
-    overall_mean_effective_rank: float
+    overall_mean_agency: Optional[float]
+    overall_mean_effective_rank: Optional[float]
     discovered_skill_count: int
     total_sleep_cycles: int
     total_wallclock_seconds: float
-    cryptographic_sha256: str = ""
+    cryptographic_sha256: str = ''
+    evaluation_protocol: Dict[str, Any] = field(default_factory=dict)
+    task_score_matrix: List[List[Optional[float]]] = field(default_factory=list)
+    stage_baseline_returns: Dict[str, float] = field(default_factory=dict)
+    initial_stage_returns: Dict[str, float] = field(default_factory=dict)
+    post_eval_returns: Dict[str, float] = field(default_factory=dict)
+    configuration: Dict[str, Any] = field(default_factory=dict)
+    uncertainty_training_updates: int = 0
+    sleep_screens: List[Dict[str, Any]] = field(default_factory=list)
 
-    def compute_hash(self) -> str:
-        payload = {
-            "total_neurons": self.total_neurons,
-            "curriculum_tasks": self.curriculum_tasks,
-            "final_backward_retention": round(self.final_backward_retention, 4),
-            "mean_curriculum_return": round(self.mean_curriculum_return, 4),
-            "overall_mean_agency": round(self.overall_mean_agency, 4),
-            "stages": [
-                {"task": s["task"], "ret": round(s["mean_return"], 4), "succ": round(s["success_rate"], 3)}
-                for s in self.stages
-            ]
-        }
-        raw = json.dumps(payload, sort_keys=True).encode('utf-8')
-        return hashlib.sha256(raw).hexdigest()
+    def compute_hash(self):
+        payload = asdict(self)
+        payload.pop('cryptographic_sha256')
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
-    def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        if not self.cryptographic_sha256:
-            d["cryptographic_sha256"] = self.compute_hash()
-        return d
+    def to_dict(self):
+        result = asdict(self)
+        result['cryptographic_sha256'] = self.cryptographic_sha256 or self.compute_hash()
+        return result
 
 
 class OmnibusRunner:
-    """Executes the Frontier Apex Omnibus integration mode across all environments."""
+    """Sequential learning and isolated, equally budgeted task probes."""
 
-    def __init__(
-        self,
-        total_neurons: int = 2000,
-        seed: int = 7,
-        steps_per_task: int = 35,
-        curriculum_tasks: Optional[List[str]] = None,
-        output_dir: Optional[Path] = None,
-    ):
-        self.total_neurons = total_neurons
-        self.seed = seed
-        self.steps_per_task = steps_per_task
-        self.curriculum_tasks = list(curriculum_tasks or OMNIBUS_CURRICULUM)
+    def __init__(self, total_neurons=2000, seed=7, steps_per_task=35,
+                 curriculum_tasks=None, output_dir: Optional[Path] = None,
+                 eval_steps=30, eval_episodes=1):
+        for name, value, maximum in [('steps_per_task', steps_per_task, 1000),
+                                     ('eval_steps', eval_steps, 1000),
+                                     ('eval_episodes', eval_episodes, 20)]:
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ValueError(f'{name} must be an integer in [1,{maximum}]')
+        if curriculum_tasks is None:
+            curriculum_tasks = OMNIBUS_CURRICULUM
+        if (not isinstance(curriculum_tasks, (list, tuple)) or not curriculum_tasks
+                or any(type(t) is not str or t not in ALL_TASKS for t in curriculum_tasks)
+                or len(set(curriculum_tasks)) != len(curriculum_tasks)):
+            raise ValueError('curriculum_tasks must be a nonempty sequence of distinct supported tasks')
+        self.total_neurons, self.seed = total_neurons, seed
+        self.steps_per_task, self.eval_steps, self.eval_episodes = steps_per_task, eval_steps, eval_episodes
+        self.curriculum_tasks = list(curriculum_tasks)
         self.output_dir = output_dir
-
-        # Initialize frontier configuration
-        self.config = SynapseConfig.frontier_apex(
-            total_neurons=self.total_neurons,
-            seed=self.seed,
-            task=self.curriculum_tasks[0],
-        )
-
-        # Agent with full 2,000 neurons and all modular systems active
+        self.config = SynapseConfig.frontier_apex(total_neurons=total_neurons, seed=seed, task=self.curriculum_tasks[0])
         self.agent = IntegratedAgent(self.config)
-
-        # Environment
-        self.world = ComplexWorld(seed=self.seed)
-
-        # Specialized frontier monitors and developmental subsystems
+        self.world = ComplexWorld(seed=seed)
         self.plasticity_monitor = PlasticityMonitor(num_features=64, buffer_size=128)
-        self.skill_library = ReusableSkillLibrary(max_skills=16)
-        self.sleep_engine = SleepConsolidationEngine(seed=self.seed)
-        self.uncertainty_decomposer = TripartiteUncertaintyDecomposer(
-            state_dim=32, action_dim=5, ensemble_size=3, seed=self.seed
-        )
-
-        # Execution state
-        self.current_stage_idx: int = 0
-        self.current_task: str = self.curriculum_tasks[0]
-        self.step_in_stage: int = 0
-        self.total_steps: int = 0
-        self.is_completed: bool = False
-
-        # Current episode tracking
+        self.skill_library = ReusableSkillLibrary(max_skills=16, seed=seed)
+        self.sleep_engine = SleepConsolidationEngine(seed=seed)
+        self.uncertainty_decomposer = TripartiteUncertaintyDecomposer(state_dim=32, action_dim=5, ensemble_size=3, seed=seed)
+        self.uncertainty_training_updates = 0
+        self.uncertainty_last_loss = None
+        self._previous_transition = None
+        self.evaluation_steps_executed = 0
+        self.current_stage_idx, self.total_steps = 0, 0
+        self.current_task = self.curriculum_tasks[0]
         self.current_obs = self.world.reset(self.current_task)
-        self.ep_return: float = 0.0
-        self.ep_steps: int = 0
-        self.stage_episode_returns: List[float] = []
-        self.stage_success_flags: List[bool] = []
-        self.stage_latencies: List[float] = []
-        self.stage_agency_scores: List[float] = []
-        self.stage_disturbances: List[float] = []
-        self.stage_effective_ranks: List[float] = []
-        self.stage_epistemic_uncs: List[float] = []
-
-        # History across all stages
-        self.stage_summaries: List[TaskStageSummary] = []
-        self.initial_stage_returns: Dict[str, float] = {}
-        self.post_eval_returns: Dict[str, float] = {}
-        self.receipt: Optional[OmnibusEvaluationReceipt] = None
+        self.step_in_stage = self.ep_steps = 0
+        self.ep_return = 0.
+        self.is_completed = False
+        self.receipt = None
+        self.stage_summaries = []
+        self.initial_stage_returns, self.post_eval_returns = {}, {}
+        self.stage_baseline_returns = {}
+        self.task_score_matrix = []
         self.start_wallclock = time.time()
+        self._clear_stage_metrics()
 
-    def step(self) -> Dict[str, Any]:
-        """Executes a single step in the curriculum. Advances tasks automatically."""
+    def _clear_stage_metrics(self):
+        self.stage_episode_returns, self.stage_success_flags = [], []
+        self.stage_latencies, self.stage_agency_scores, self.stage_disturbances = [], [], []
+        self.stage_effective_ranks, self.stage_epistemic_uncs = [], []
+
+    @staticmethod
+    def _advance_physiology(agent, action, reward, info):
+        agent.homeostasis.step(applied_action=action, reward=float(reward),
+            hazard_dist=info.get('min_hazard_dist', 10.), consumed_food=float(reward) > .3,
+            in_friction_zone=info.get('in_friction_zone', False))
+
+    def _evaluation_seed(self, task, episode):
+        material = f'omnibus-eval-v2:{self.seed}:{task}:{episode}'.encode()
+        return int.from_bytes(hashlib.sha256(material).digest()[:4], 'big') % (2**31)
+
+    def evaluate_agent(self, agent, tasks):
+        """Evaluate independent clones, with fixed world seeds/horizons in every phase.
+
+        Recurrent state and synthetic physiology start identically in each episode.
+        No outcome is observed by a learner and no live state is changed.
+        """
+        candidate = deepcopy(agent)
+        frozen = candidate.export_state()
+        scores = {}
+        for task in tasks:
+            returns = []
+            for episode in range(self.eval_episodes):
+                candidate.import_state(frozen)
+                candidate.reset_episode()
+                eval_seed = self._evaluation_seed(task, episode)
+                candidate.homeostasis = HomeostaticEngine(seed=eval_seed)
+                world = ComplexWorld(seed=eval_seed)
+                obs = world.reset(task)
+                score = 0.
+                for _ in range(self.eval_steps):
+                    action = candidate.act(obs, learn=False)['action']
+                    obs, reward, done, info = world.step(action)
+                    self._advance_physiology(candidate, action, reward, info)
+                    candidate.pending_transition = None
+                    score += float(reward)
+                    self.evaluation_steps_executed += 1
+                    if done:
+                        break
+                returns.append(score)
+            scores[task] = float(np.mean(returns))
+        return scores
+
+    def step(self):
         if self.is_completed:
-            return {"status": "completed", "receipt": self.receipt.to_dict() if self.receipt else None}
-
+            return {'status': 'completed', 'receipt': self.receipt.to_dict()}
+        if self.step_in_stage == 0:
+            self.stage_baseline_returns.update(self.evaluate_agent(self.agent, [self.current_task]))
+        task_executed = self.current_task
         t0 = time.perf_counter()
-
-        # 1. Agent acts
-        act_out = self.agent.act(self.current_obs, learn=True)
-        action = act_out["action"]
-        features = act_out["features"]
-        telemetry = act_out["telemetry"]
-
-        # 2. Monitor representation plasticity
+        out = self.agent.act(self.current_obs, learn=True)
+        action, features = out['action'], out['features']
         self.plasticity_monitor.record_activity(features)
-        p_report = self.plasticity_monitor.evaluate_plasticity()
-        self.stage_effective_ranks.append(p_report.effective_rank)
+        rank = self.plasticity_monitor.evaluate_plasticity()
+        if rank.effective_rank is not None:
+            self.stage_effective_ranks.append(rank.effective_rank)
 
-        # 3. Environment transition
+        # The next genuine actor feature is the previous transition's target.
+        # No fabricated identity transition and no speculative live actor advance.
+        if self._previous_transition is not None:
+            z, old_action, old_reward = self._previous_transition
+            self.uncertainty_last_loss = self.uncertainty_decomposer.train_batch(
+                z[None], old_action[None], np.array([old_reward], np.float32), features[None, :32])
+            self.uncertainty_training_updates += 1
+        pooled = features[:32]
+        uncertainty = self.uncertainty_decomposer.evaluate_uncertainty(pooled, action)
+        self.stage_epistemic_uncs.append(float(uncertainty.epistemic))
         next_obs, reward, done, info = self.world.step(action)
-        step_latency_ms = (time.perf_counter() - t0) * 1000.0
-        self.stage_latencies.append(step_latency_ms)
-
-        # 4. Agent learns from real transition
-        diag = self.agent.observe_transition(next_obs, reward, done=done, action=action)
+        self._advance_physiology(self.agent, action, reward, info)
+        diagnostics = self.agent.observe_transition(next_obs, reward, done=done, action=action)
         self.agent.feedback(reward, done=done)
-
-        # 5. Extract self-model agency & disturbance
-        self_mod = diag.get("self_model", {})
-        agency = float(self_mod.get("self_authorship", 1.0))
-        disturbance = float(self_mod.get("external_disturbance", 0.0))
-        self.stage_agency_scores.append(agency)
-        self.stage_disturbances.append(disturbance)
-
-        # 6. Tripartite uncertainty calibration update
-        pooled_z = features[:32]
-        self.uncertainty_decomposer.ood_detector.update_support(pooled_z)
-        u_est = self.uncertainty_decomposer.evaluate_uncertainty(pooled_z, action)
-        ep_unc = float(u_est.epistemic)
-        self.stage_epistemic_uncs.append(ep_unc)
-
-        # 7. Reusable macro-action skill recording and sleep memory
-        self.skill_library.record_transition(self.current_obs, action, float(reward), next_obs, self.total_steps)
-        surp = float(abs(diag.get("prediction_error", reward)))
-        self.sleep_engine.record_experience(self.current_obs, action, float(reward), surp, self.current_task)
-        if done and reward > 0.5:
-            # High-reward trajectory: discover macro skills
-            self.skill_library.discover_skills(reward_threshold=0.5)
-
-        # Advance step accounting
+        self._previous_transition = None if done else (pooled.copy(), action.copy(), float(reward))
+        agency = diagnostics.get('self_model', {}).get('self_authorship')
+        disturbance = diagnostics.get('self_model', {}).get('external_disturbance')
+        if agency is not None:
+            self.stage_agency_scores.append(float(agency))
+            self.stage_disturbances.append(float(disturbance))
+        self.skill_library.record_transition(self.current_obs, action, reward, next_obs, self.total_steps)
+        self.sleep_engine.record_experience(self.current_obs, action, reward,
+            abs(float(diagnostics.get('prediction_error', reward))), self.current_task)
+        if done and info.get('outcome') == 'success':
+            self.skill_library.discover_skills()
+        latency = (time.perf_counter() - t0) * 1000.
+        self.stage_latencies.append(latency)
         self.ep_return += float(reward)
         self.ep_steps += 1
         self.step_in_stage += 1
         self.total_steps += 1
         self.current_obs = next_obs
-
-        # Episode boundary handling
         if done or self.ep_steps >= self.world.max_t:
             self.stage_episode_returns.append(self.ep_return)
-            is_success = bool(info.get("outcome") == "success" or self.ep_return > 3.0)
-            self.stage_success_flags.append(is_success)
+            self.stage_success_flags.append(info.get('outcome') == 'success')
             self.current_obs = self.world.reset(self.current_task)
-            self.ep_return = 0.0
-            self.ep_steps = 0
-
-        # Stage completion check
-        stage_finished = self.step_in_stage >= self.steps_per_task
-        if stage_finished:
+            self.agent.reset_episode()
+            self._previous_transition = None
+            self.ep_return, self.ep_steps = 0., 0
+        if self.step_in_stage >= self.steps_per_task:
             self._finalize_current_stage()
-
-        return {
-            "status": "running",
-            "task": self.current_task,
-            "stage_idx": self.current_stage_idx,
-            "step_in_stage": self.step_in_stage,
-            "total_steps": self.total_steps,
-            "reward": round(float(reward), 4),
-            "done": bool(done),
-            "agency": round(agency, 3),
-            "disturbance": round(disturbance, 3),
-            "effective_rank": round(p_report.effective_rank, 2),
-            "epistemic_unc": round(ep_unc, 4),
-            "step_latency_ms": round(step_latency_ms, 2),
-            "is_completed": self.is_completed,
-            "telemetry": telemetry,
-        }
+        return {'status': 'completed' if self.is_completed else 'running',
+            'task': task_executed, 'stage_idx': self.current_stage_idx,
+            'step_in_stage': self.step_in_stage, 'total_steps': self.total_steps,
+            'reward': float(reward), 'done': bool(done), 'agency': agency, 'disturbance': disturbance,
+            'effective_rank': rank.effective_rank, 'rank_status': rank.recommended_action,
+            'epistemic_unc': float(uncertainty.epistemic), 'step_latency_ms': latency,
+            'is_completed': self.is_completed, 'telemetry': out['telemetry']}
 
     def _finalize_current_stage(self):
-        """Concludes the active task stage, records summary, runs sleep consolidation, and advances."""
-        mean_ret = float(np.mean(self.stage_episode_returns)) if self.stage_episode_returns else self.ep_return
-        succ_rate = float(np.mean(self.stage_success_flags)) if self.stage_success_flags else 0.0
-
-        # Store baseline performance on this task
-        self.initial_stage_returns[self.current_task] = mean_ret
-
-        # Run sleep consolidation between curriculum stages if memories exist
+        seen_tasks = self.curriculum_tasks[:self.current_stage_idx + 1]
         if self.sleep_engine.wake_buffer:
-            eval_fn = lambda a: float(np.mean(self.stage_episode_returns)) if self.stage_episode_returns else 0.0
-            sleep_res = self.sleep_engine.run_sleep_cycle(
-                self.agent,
-                sleep_steps=5,
+            self.sleep_engine.run_sleep_cycle(self.agent, sleep_steps=5,
                 batch_size=min(8, len(self.sleep_engine.wake_buffer)),
-                eval_fn=eval_fn
-            )
-
-        summary = TaskStageSummary(
-            task=self.current_task,
-            stage_index=self.current_stage_idx,
-            steps_executed=self.step_in_stage,
-            episodes_completed=len(self.stage_episode_returns),
-            mean_return=round(mean_ret, 4),
-            success_rate=round(succ_rate, 3),
-            mean_agency=round(float(np.mean(self.stage_agency_scores)) if self.stage_agency_scores else 1.0, 3),
-            mean_disturbance=round(float(np.mean(self.stage_disturbances)) if self.stage_disturbances else 0.0, 3),
-            mean_effective_rank=round(float(np.mean(self.stage_effective_ranks)) if self.stage_effective_ranks else 32.0, 2),
-            mean_epistemic_unc=round(float(np.mean(self.stage_epistemic_uncs)) if self.stage_epistemic_uncs else 0.0, 4),
-            mean_step_latency_ms=round(float(np.mean(self.stage_latencies)) if self.stage_latencies else 5.0, 2),
-            sleep_cycles_post_stage=self.sleep_engine.sleep_cycles_completed,
-        )
-        self.stage_summaries.append(summary)
-
-        # Advance to next stage or finish
+                eval_fn=lambda candidate: float(np.mean(list(self.evaluate_agent(candidate, seen_tasks).values()))))
+        scores = self.evaluate_agent(self.agent, seen_tasks)
+        self.initial_stage_returns[self.current_task] = scores[self.current_task]
+        self.post_eval_returns = scores
+        self.task_score_matrix.append([scores.get(task) for task in self.curriculum_tasks])
+        mean_return = _mean(self.stage_episode_returns)
+        self.stage_summaries.append(TaskStageSummary(self.current_task, self.current_stage_idx,
+            self.step_in_stage, len(self.stage_episode_returns),
+            float(mean_return if mean_return is not None else self.ep_return),
+            _mean(self.stage_success_flags), _mean(self.stage_agency_scores), _mean(self.stage_disturbances),
+            _mean(self.stage_effective_ranks), _mean(self.stage_epistemic_uncs), _mean(self.stage_latencies),
+            self.sleep_engine.sleep_cycles_completed))
         self.current_stage_idx += 1
+        self._previous_transition = None
         if self.current_stage_idx < len(self.curriculum_tasks):
             self.current_task = self.curriculum_tasks[self.current_stage_idx]
-            self.step_in_stage = 0
-            self.stage_episode_returns.clear()
-            self.stage_success_flags.clear()
-            self.stage_latencies.clear()
-            self.stage_agency_scores.clear()
-            self.stage_disturbances.clear()
-            self.stage_effective_ranks.clear()
-            self.stage_epistemic_uncs.clear()
             self.current_obs = self.world.reset(self.current_task)
-            self.ep_return = 0.0
-            self.ep_steps = 0
+            self.agent.reset_episode()
+            self.step_in_stage, self.ep_steps, self.ep_return = 0, 0, 0.
+            self._clear_stage_metrics()
         else:
             self._finalize_omnibus_run()
 
     def _finalize_omnibus_run(self):
-        """Runs backward retention probe across all tasks with frozen weights and issues receipt."""
         self.is_completed = True
-
-        # Frozen evaluation probe across all curriculum tasks to measure backward retention
-        retention_scores = []
-        for task in self.curriculum_tasks:
-            obs = self.world.reset(task)
-            probe_returns = []
-            for ep in range(3):
-                ep_ret = 0.0
-                for _ in range(30):
-                    act_out = self.agent.act(obs, learn=False)
-                    obs, r, d, _ = self.world.step(act_out["action"])
-                    ep_ret += float(r)
-                    if d:
-                        obs = self.world.reset(task)
-                        break
-                probe_returns.append(ep_ret)
-            post_ret = float(np.mean(probe_returns))
-            self.post_eval_returns[task] = post_ret
-
-            init_ret = self.initial_stage_returns.get(task, post_ret)
-            if abs(init_ret) < 1e-4:
-                ratio = 1.0
-            else:
-                ratio = min(1.2, max(0.5, (post_ret + 10.0) / (init_ret + 10.0)))
-            retention_scores.append(ratio)
-
-        final_retention = float(np.mean(retention_scores))
-        catastrophic_forgetting = max(0.0, 1.0 - final_retention)
-        mean_curriculum_ret = float(np.mean([s.mean_return for s in self.stage_summaries])) if self.stage_summaries else 0.0
-        overall_agency = float(np.mean([s.mean_agency for s in self.stage_summaries])) if self.stage_summaries else 1.0
-        overall_erank = float(np.mean([s.mean_effective_rank for s in self.stage_summaries])) if self.stage_summaries else 32.0
-
-        receipt_id = f"omnibus-{int(time.time())}-{self.seed}"
+        # Signed returns require a difference metric, not a ratio with an arbitrary offset.
+        old_tasks = self.curriculum_tasks[:-1]
+        drops = [max(0., self.initial_stage_returns[t] - self.post_eval_returns[t]) /
+                 max(1., abs(self.initial_stage_returns[t])) for t in old_tasks]
+        forgetting = min(1., float(np.mean(drops))) if drops else 0.
+        protocol = {'version': 2, 'episodes_per_task': self.eval_episodes,
+            'steps_per_episode': self.eval_steps, 'seed': self.seed,
+            'world_seeds': {t: [self._evaluation_seed(t, e) for e in range(self.eval_episodes)] for t in self.curriculum_tasks},
+            'learning': False, 'isolated_clones': True, 'reset_physiology': True,
+            'evaluation_steps_executed': self.evaluation_steps_executed,
+            'retention_definition': '1 - clipped mean positive return drop / max(1, abs(acquisition return)), excluding final task',
+            'skill_evidence': 'candidate observed trajectories; automatic skill execution disabled',
+            'uncertainty': 'online adjacent-feature prediction, uncalibrated',
+            'sleep_screen': 'matched actual-world average over seen tasks, engineering tolerance 0.05'}
         self.receipt = OmnibusEvaluationReceipt(
-            receipt_id=receipt_id,
-            timestamp=time.time(),
-            total_neurons=self.total_neurons,
-            connectome_sources=list(self.config.connectome_sources),
-            source_node_counts=list(self.config.source_node_counts()),
-            curriculum_tasks=self.curriculum_tasks,
-            stages=[s.to_dict() for s in self.stage_summaries],
-            final_backward_retention=round(final_retention, 4),
-            catastrophic_forgetting=round(catastrophic_forgetting, 4),
-            mean_curriculum_return=round(mean_curriculum_ret, 4),
-            overall_mean_agency=round(overall_agency, 3),
-            overall_mean_effective_rank=round(overall_erank, 2),
-            discovered_skill_count=len(self.skill_library.skills),
-            total_sleep_cycles=self.sleep_engine.sleep_cycles_completed,
-            total_wallclock_seconds=round(time.time() - self.start_wallclock, 2),
-        )
+            receipt_id=f'omnibus-{time.time_ns()}-{self.seed}', timestamp=time.time(),
+            total_neurons=self.total_neurons, connectome_sources=list(self.config.connectome_sources),
+            source_node_counts=list(self.config.source_node_counts()), curriculum_tasks=list(self.curriculum_tasks),
+            stages=[s.to_dict() for s in self.stage_summaries], final_backward_retention=1. - forgetting,
+            catastrophic_forgetting=forgetting, mean_curriculum_return=_mean([s.mean_return for s in self.stage_summaries]),
+            overall_mean_agency=_mean([s.mean_agency for s in self.stage_summaries if s.mean_agency is not None]),
+            overall_mean_effective_rank=_mean([s.mean_effective_rank for s in self.stage_summaries if s.mean_effective_rank is not None]),
+            discovered_skill_count=len(self.skill_library.skills), total_sleep_cycles=self.sleep_engine.sleep_cycles_completed,
+            total_wallclock_seconds=time.time() - self.start_wallclock, evaluation_protocol=protocol,
+            task_score_matrix=deepcopy(self.task_score_matrix), stage_baseline_returns=deepcopy(self.stage_baseline_returns),
+            initial_stage_returns=deepcopy(self.initial_stage_returns), post_eval_returns=deepcopy(self.post_eval_returns),
+            configuration=self.config.to_dict(), uncertainty_training_updates=self.uncertainty_training_updates,
+            sleep_screens=deepcopy(self.sleep_engine.consolidation_history))
         self.receipt.cryptographic_sha256 = self.receipt.compute_hash()
 
-    def run_full_curriculum(self, steps_per_task: Optional[int] = None) -> OmnibusEvaluationReceipt:
-        """Runs the entire curriculum synchronously to completion and returns receipt."""
+    def run_full_curriculum(self, steps_per_task=None):
         if steps_per_task is not None:
+            if type(steps_per_task) is not int or not 1 <= steps_per_task <= 1000:
+                raise ValueError('steps_per_task must be an integer in [1,1000]')
             self.steps_per_task = steps_per_task
         while not self.is_completed:
             self.step()
         return self.receipt
 
-    def summary(self) -> Dict[str, Any]:
-        """Provides real-time summary status for the UI workbench and API."""
-        return {
-            "total_neurons": self.total_neurons,
-            "source_node_counts": list(self.config.source_node_counts()),
-            "current_task": self.current_task,
-            "current_stage_idx": self.current_stage_idx,
-            "total_stages": len(self.curriculum_tasks),
-            "step_in_stage": self.step_in_stage,
-            "steps_per_task": self.steps_per_task,
-            "total_steps": self.total_steps,
-            "is_completed": self.is_completed,
-            "curriculum": self.curriculum_tasks,
-            "stages_completed": [s.to_dict() for s in self.stage_summaries],
-            "discovered_skills": [s.to_dict() for s in self.skill_library.skills],
-            "receipt": self.receipt.to_dict() if self.receipt else None,
-        }
+    def summary(self):
+        return {'total_neurons': self.total_neurons, 'source_node_counts': list(self.config.source_node_counts()),
+            'current_task': self.current_task, 'current_stage_idx': self.current_stage_idx,
+            'total_stages': len(self.curriculum_tasks), 'step_in_stage': self.step_in_stage,
+            'steps_per_task': self.steps_per_task, 'total_steps': self.total_steps, 'is_completed': self.is_completed,
+            'curriculum': list(self.curriculum_tasks), 'stages_completed': [s.to_dict() for s in self.stage_summaries],
+            'discovered_skills': [s.to_dict() for s in self.skill_library.skills.values()],
+            'skill_library': self.skill_library.summary(),
+            'uncertainty': {'training_updates': self.uncertainty_training_updates,
+                'calibrated': False, 'last_loss': self.uncertainty_last_loss},
+            'evaluation_steps_executed': self.evaluation_steps_executed,
+            'receipt': self.receipt.to_dict() if self.receipt else None}

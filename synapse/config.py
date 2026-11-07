@@ -30,16 +30,25 @@ class SynapseConfig:
     planner_algorithm: str = 'experience_mpc'
     connectome_sources: Tuple[str, ...] = ('flywire', 'manc', 'optic-lobe')
     total_neurons: int | None = None
+    neural_graft: bool = False
+    active_training: bool = False
+    programmed_connectome: bool = False
+    compute_threads: int = 1
+    graft_batch_size: int = 64
+    graft_updates: int = 2
+    connectome_mode: str = 'proxy'
+    structural_learning: bool = True
 
     def __post_init__(self):
         for key in ('experience_planning', 'surprise_memory', 'experimental_cognition',
                     'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
-                    'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all'):
+                    'latent_reasoning', 'value_guided_planning', 'self_model', 'frontier_all',
+                    'neural_graft','active_training','programmed_connectome','structural_learning'):
             if type(getattr(self, key)) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         if type(self.seed) is not int or not 0 <= self.seed < 2**31:
             raise ValueError('seed must be a nonnegative 31-bit integer')
-        for key, low, high in [('nodes_per_source', 16, 10000), ('microsteps', 1, 8), ('cognition_interval', 1, 128), ('experience_horizon', 1, 5)]:
+        for key, low, high in [('nodes_per_source', 16, 10000), ('microsteps', 1, 8), ('cognition_interval', 1, 128), ('experience_horizon', 1, 5), ('compute_threads',1,32), ('graft_batch_size',8,1024), ('graft_updates',1,32)]:
             value = getattr(self, key)
             if type(value) is not int or not low <= value <= high:
                 raise ValueError(f'{key} must be an integer in [{low},{high}]')
@@ -47,6 +56,12 @@ class SynapseConfig:
             raise ValueError('unsupported graph readout')
         if self.planner_algorithm not in {'experience_mpc', 'recurrent_latent', 'hybrid'}:
             raise ValueError('unsupported planner algorithm')
+        if self.connectome_mode not in {'proxy','prefer_authentic','strict_authentic'}:
+            raise ValueError('unsupported connectome mode')
+        if self.active_training and not self.neural_graft:
+            raise ValueError('active_training requires neural_graft')
+        if self.programmed_connectome and not self.neural_graft:
+            raise ValueError('programmed_connectome requires neural_graft')
         valid_tasks = {'auto', 'forage', 'maze', 'push', 'grasp_place', 'peg_insert', 'delayed_match', 'go_nogo', 'button_sequence', 'webcam_chase', 'ecosystem', 'predator_evasion', 'dynamic_arena', 'puzzle_chamber', 'apex_megasite', 'stealth_labyrinth', 'kinetic_foundry'}
         if self.task not in valid_tasks:
             raise ValueError('unknown task')
@@ -85,6 +100,11 @@ class SynapseConfig:
             self_model=True,
             planner_algorithm='experience_mpc',
             readout='absolute',
+            neural_graft=True,
+            active_training=True,
+            programmed_connectome=True,
+            compute_threads=min(4,os.cpu_count() or 1),
+            connectome_mode='prefer_authentic',
         )
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
@@ -106,6 +126,9 @@ class SynapseConfig:
                       'frontier_all': False,
                       'planner_algorithm': 'experience_mpc',
                       'total_neurons': None,
+                      'neural_graft':False,'active_training':False,'programmed_connectome':False,
+                      'compute_threads':1,'graft_batch_size':64,'graft_updates':2,'connectome_mode':'proxy',
+                      'structural_learning':True,
                       'connectome_sources': ('flywire', 'manc', 'optic-lobe'), **saved}
         if isinstance(normalized.get('connectome_sources'), list):
             normalized['connectome_sources'] = tuple(normalized['connectome_sources'])

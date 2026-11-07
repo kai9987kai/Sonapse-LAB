@@ -1,24 +1,13 @@
-"""Biological Connectome Datasets Registry & Authentic Multi-Connectome Compiler.
+"""Dataset catalog with independent source-backed samples and explicit proxies.
 
-Grounding:
-Integrates the complete suite of 8 landmark Drosophila connectome datasets:
-1. MaleCNS v1.0 (HHMI Janelia FlyEM / Cambridge / MRC LMB / Google Research, 2026-06-08, CC-BY-4.0, 269 projects) - AUTHENTIC
-2. BANC: Brain And Nerve Cord (Harvard / Princeton / Harvard, 2026, CC-BY-4.0, 22 projects) - CALIBRATED PROXY
-3. FlyEM Optic Lobe Connectome (Janelia FlyEM with Google Connectomics, 2024, CC-BY-4.0, 5 projects) - AUTHENTIC SUBSET
-4. FANC: Female Adult Nerve Cord (Harvard Wei-Chung Allen Lee lab, 2024, unknown, 3 projects) - CALIBRATED PROXY
-5. FlyWire: FAFB v783 (Princeton Murthy & Seung labs / FlyWire consortium, 2024, CC-BY-NC-4.0, 180 projects) - AUTHENTIC SUBSET
-6. MANC: Male Adult Nerve Cord (Janelia FlyEM / Cambridge / Google Research, 2023-06, CC-BY-4.0, 17 projects) - AUTHENTIC SUBSET
-7. Larval Drosophila Brain Connectome (Cambridge Winding et al., 2023-03, CC-BY-4.0, 7 projects) - CALIBRATED PROXY
-8. Hemibrain (Janelia Research Campus FlyEM, 2020-01-22, CC-BY-4.0, 23 projects) - CALIBRATED PROXY
-
-Distinguishes authentic source-backed connectome data from calibrated proxies, providing
-neuron/synapse provenance, neurotransmitter distributions, Dale's law verification, and
-connectivity validation.
+Actual full-source availability is reported by connectome_assets. Catalog entries
+alone are not evidence that a dataset has been downloaded or executed. The shipped
+maleCNS cell-type aggregate is distinct from every neuron-level dataset.
 """
 from __future__ import annotations
 import math
 import zlib
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
@@ -208,6 +197,23 @@ CONNECTOME_CATALOG: Dict[str, ConnectomeDatasetInfo] = {
     )
 }
 
+# Catalog specimen scope is separate from the assets actually installed here.
+# Only two independent neuron-level sources have an importer. The old maleCNS
+# type-graph flags has_flywire/has_manc indicate homolog annotations, not datasets.
+CONNECTOME_CATALOG['malecns'] = replace(CONNECTOME_CATALOG['malecns'],
+    estimated_specimen_neurons=166700, estimated_specimen_synapses=124177617,
+    synapse_count=124177617,
+    biological_validation='Independent neuron-level MaleCNS v1.0 source; signed weights are modelling assumptions')
+CONNECTOME_CATALOG['flywire'] = replace(CONNECTOME_CATALOG['flywire'],
+    biological_validation='Independent full FlyWire v783 proofread neuron-pair source; runtime samples are induced subgraphs')
+for _installed in ('manc', 'optic-lobe', 'banc', 'hemibrain'):
+    CONNECTOME_CATALOG[_installed] = replace(CONNECTOME_CATALOG[_installed],
+        provenance_tier='authentic', has_authentic_data=True,
+        biological_validation='Independent neuron-level release importer; actual installed coverage is in local_source')
+CONNECTOME_CATALOG['larval'] = replace(CONNECTOME_CATALOG['larval'],
+    provenance_tier='source_backed_analysis_subset', has_authentic_data=True,
+    biological_validation='Published 2952-neuron analysis matrix only; full 3016-neuron reconstruction not installed')
+
 ALL_DATASET_IDS = list(CONNECTOME_CATALOG.keys())
 
 
@@ -228,129 +234,44 @@ def map_cell_type_to_role(cell_class: str, superclass: str) -> str:
     return 'central'
 
 
-def load_authentic_connectome(dataset_id: str, n: int = 64, seed: int = 42) -> Connectome:
-    """Extracts an authentic Drosophila biological connectome subgraph directly from source records.
+def load_authentic_connectome(dataset_id: str, n: int = 64, seed: int = 42, *, allow_proxy: bool = False) -> Connectome:
+    """Load independent neuron-level source data; absence is explicit by default.
 
-    Falls back cleanly to calibrated proxies if physical NPZ dataset is absent or for non-pinned datasets.
+    MaleCNS homolog typing fields are never substituted for FlyWire/MANC edges.
+    Setting allow_proxy explicitly permits a labelled synthetic compatibility graph.
     """
-    clean_name = dataset_id.lower().strip()
-    if clean_name not in CONNECTOME_CATALOG:
-        raise KeyError(f"Unknown connectome dataset '{dataset_id}'. Choose from: {ALL_DATASET_IDS}")
+    from .connectome_assets import load_programmed_graft
+    key = dataset_id.lower().strip()
+    if key not in CONNECTOME_CATALOG:
+        raise KeyError(f"Unknown connectome dataset {dataset_id!r}")
+    try:
+        asset = load_programmed_graft(n, seed, dataset=key)
+    except FileNotFoundError as error:
+        if not allow_proxy:
+            raise
+        proxy = make_proxy(key, n=n, seed=seed)
+        proxy.provenance.update({'tier': 'calibrated_proxy', 'representation': 'synthetic',
+                                 'source_dataset': None, 'requested_dataset': key,
+                                 'note': str(error), 'sample_is_full_connectome': False})
+        return proxy
+    signs = asset['signs'][asset['pre']]
+    provenance = dict(asset['provenance'])
+    provenance['weight_conversion'] = ('Anatomical counts and assumed transmitter signs supplied to '
+                                     'graftbrain.build; frozen base weights use signed log1p counts, '
+                                     'incoming row normalization and its configured gain (default 1.1).')
+    provenance['prior_weight_conversion'] = provenance.pop('sign_convention')
+    kind = {'malecns': 'cns', 'banc': 'cns', 'manc': 'vnc', 'optic-lobe': 'optic', 'larval': 'larva'}.get(key, 'brain')
+    names = np.array([str(name) or f'untyped:{key}:{body}' for name, body in zip(asset['cell_types'], asset['body_ids'])], dtype=object)
+    return Connectome(name=key, kind=kind,
+                      pre=asset['pre'], post=asset['post'], weight=asset['synapse_counts'].astype(np.float32),
+                      sign=signs.astype(np.float32), cell_type=names, role=asset['roles'],
+                      source_ids=asset['body_ids'], provenance=provenance)
 
-    info = CONNECTOME_CATALOG[clean_name]
-    if not info.has_authentic_data or not DATA_PATH.exists():
-        # Fall back to calibrated proxy with explicit provenance marking
-        c = make_proxy(clean_name, n=n, seed=seed)
-        c.provenance = {
-            'tier': 'calibrated_proxy',
-            'dataset_id': clean_name,
-            'source': 'calibrated_architectural_proxy',
-            'note': 'calibrated stand-in matching dataset degree/role distributions',
-            'seed': seed,
-        }
-        return c
 
-    # Load authentic physical records
-    raw = np.load(DATA_PATH, allow_pickle=True)
-    type_names = raw['type_names']
-    superclasses = raw['superclass']
-    cell_classes = raw['cell_class']
-    nt = raw['nt']
-    signs = raw['sign']
-    pre = raw['pre']
-    post = raw['post']
-    weights = raw['weight']
-
-    # Select dataset mask
-    if clean_name == 'flywire':
-        mask = np.where(raw['has_flywire'])[0]
-        kind = 'brain'
-    elif clean_name == 'manc':
-        mask = np.where(raw['has_manc'])[0]
-        kind = 'vnc'
-    elif clean_name == 'optic-lobe':
-        ol_mask = np.array(['visual' in str(cc).lower() or 'ol_' in str(sc).lower()
-                            for cc, sc in zip(cell_classes, superclasses)], dtype=bool)
-        mask = np.where(ol_mask)[0]
-        kind = 'optic'
-    else:  # malecns or whole CNS
-        mask = np.arange(len(type_names))
-        kind = 'cns'
-
-    if len(mask) == 0:
-        c = make_proxy(clean_name, n=n, seed=seed)
-        c.provenance = {'tier': 'calibrated_proxy', 'dataset_id': clean_name, 'seed': seed}
-        return c
-
-    # Biological role assignment
-    roles_all = np.array([map_cell_type_to_role(c, s) for c, s in zip(cell_classes, superclasses)], dtype=object)
-    roles_masked = roles_all[mask]
-
-    rng = np.random.default_rng(seed)
-
-    # Stratified deterministic sampling across available roles
-    target_n = min(n, len(mask))
-    chosen = []
-    standard_roles = ['sensory', 'visual', 'central', 'descending', 'ascending', 'motor']
-    for r in standard_roles:
-        r_indices = mask[np.where(roles_masked == r)[0]]
-        if len(r_indices) > 0:
-            quota = max(1, int(round((len(r_indices) / len(mask)) * target_n)))
-            quota = min(quota, len(r_indices))
-            chosen.extend(rng.choice(r_indices, size=quota, replace=False).tolist())
-
-    chosen = list(dict.fromkeys(chosen))
-    if len(chosen) > target_n:
-        chosen = chosen[:target_n]
-    elif len(chosen) < target_n:
-        remaining = np.setdiff1d(mask, chosen)
-        if len(remaining) > 0:
-            extra = rng.choice(remaining, size=min(target_n - len(chosen), len(remaining)), replace=False)
-            chosen.extend(extra.tolist())
-
-    chosen = np.array(chosen, dtype=np.int64)
-    idx_map = {orig: local for local, orig in enumerate(chosen)}
-
-    # Induced biological subgraph
-    edge_mask = np.isin(pre, chosen) & np.isin(post, chosen) & (weights >= 1.0)
-    sub_pre = np.array([idx_map[p] for p in pre[edge_mask]], dtype=np.int64)
-    sub_post = np.array([idx_map[p] for p in post[edge_mask]], dtype=np.int64)
-    sub_w = weights[edge_mask].astype(np.float32)
-    sub_sign = np.array([signs[p] for p in pre[edge_mask]], dtype=np.float32)
-
-    sub_types = np.array([str(type_names[i]) for i in chosen], dtype=object)
-    sub_roles = roles_all[chosen]
-
-    # Calculate neurotransmitter counts in sampled subcircuit
-    nt_sampled = [str(nt[i]) for i in chosen]
-    u_nt, c_nt = np.unique(nt_sampled, return_counts=True)
-    nt_distribution = dict(zip(u_nt.tolist(), (c_nt / len(chosen)).tolist()))
-
-    provenance = {
-        'tier': 'authentic',
-        'source_dataset': clean_name,
-        'source_file': 'malecns_types.npz',
-        'sampled_neurons': len(chosen),
-        'edges': len(sub_pre),
-        'total_synapses': int(sub_w.sum()) if len(sub_w) > 0 else 0,
-        'inhibitory_fraction': float((sub_sign < 0).mean()) if len(sub_sign) > 0 else 0.0,
-        'neurotransmitter_distribution': nt_distribution,
-        'seed': seed,
-        'biological_specimen': info.name,
-    }
-
-    return Connectome(
-        name=clean_name,
-        kind=kind,
-        pre=sub_pre,
-        post=sub_post,
-        weight=sub_w,
-        sign=sub_sign,
-        cell_type=sub_types,
-        role=sub_roles,
-        source_ids=chosen,
-        provenance=provenance
-    )
+def build_runtime_connectomes(config, *, strict: bool = False):
+    """Build actual source-backed runtime samples with explicit profile fallbacks."""
+    return [load_authentic_connectome(name, n=n, seed=config.seed + index * 101, allow_proxy=not strict)
+            for index, (name, n) in enumerate(zip(config.connectome_sources, config.source_node_counts()))]
 
 
 def validate_connectome_connectivity(connectome: Connectome) -> Dict[str, Any]:
@@ -396,7 +317,9 @@ def validate_connectome_connectivity(connectome: Connectome) -> Dict[str, Any]:
 
 def list_connectome_datasets() -> List[Dict[str, Any]]:
     """Returns metadata dictionaries for all 8 landmark connectome datasets with provenance annotations."""
-    return [asdict(info) for info in CONNECTOME_CATALOG.values()]
+    from .connectome_assets import get_source_inventory
+    installed = {item['id']: item for item in get_source_inventory()}
+    return [{**asdict(info), 'local_source': installed[info.id]} for info in CONNECTOME_CATALOG.values()]
 
 
 def get_dataset_info(dataset_id: str) -> ConnectomeDatasetInfo:
@@ -445,13 +368,12 @@ def build_multiconnectome_graph(
     for idx, name in enumerate(dataset_keys):
         clean_name = name.lower().strip()
         sub_seed = seed + idx * 101
-        if prefer_authentic and clean_name in CONNECTOME_CATALOG and CONNECTOME_CATALOG[clean_name].has_authentic_data:
-            c = load_authentic_connectome(clean_name, n=nodes_per_source, seed=sub_seed)
+        if prefer_authentic:
+            c = load_authentic_connectome(clean_name, n=nodes_per_source, seed=sub_seed, allow_proxy=True)
         else:
-            if clean_name not in PROXY_PROFILES:
-                raise ValueError(f"Connectome profile '{clean_name}' not available. Available: {sorted(PROXY_PROFILES.keys())}")
             c = make_proxy(clean_name, n=nodes_per_source, seed=sub_seed)
-            c.provenance['tier'] = 'calibrated_proxy'
+            c.provenance.update({'tier': 'calibrated_proxy', 'representation': 'synthetic',
+                                 'source_dataset': None, 'requested_dataset': clean_name})
         connectome_list.append(c)
 
     return build(connectome_list, seed=seed)

@@ -22,7 +22,21 @@ let graphRotY = 0.55;
 let graphDragging = false;
 let graphLastMouse = { x: 0, y: 0 };
 let hoveredNode = null;
-let filterNeuropil = null;  // null | 0 | 1 | 2
+let graphSource = 'all';
+let graphRole = 'all';
+let graphZoom = 1;
+let selectedNodeId = null;
+let graphDidDrag = false;
+let worldTrail = [];
+let trailIdentity = '';
+let lastTrailStep = null;
+let trainingStatus = {};
+let trackedJobId = null;
+let latestJobs = [];
+let trainingRequest = false;
+let omnibusLastPoll = 0;
+const sourcePalette = ['#5de0c1', '#edbc75', '#c084fc', '#80aaff', '#ec7c8d', '#85d38e', '#f2a6cf', '#62cee3'];
+const sourceIds = ['malecns', 'banc', 'optic-lobe', 'fanc', 'flywire', 'manc', 'larval', 'hemibrain'];
 let manualGripState = 0.0;
 let manualReachState = 0.0;
 
@@ -108,247 +122,125 @@ function canvas(id) {
 // -------------------------------------------------------------------------
 const nodeScreenPositions = new Map();
 
+function graphSources() {
+  return (state.config?.connectome_sources || []).map((id, origin) => {
+    const evidence = state.graph?.sources?.[origin] || {};
+    const paletteIndex = sourceIds.indexOf(id);
+    return { id, origin, evidence, color: sourcePalette[paletteIndex < 0 ? origin % sourcePalette.length : paletteIndex],
+      colorClass: `source-color-${paletteIndex < 0 ? origin % sourcePalette.length : paletteIndex}` };
+  });
+}
+
+function syncGraphControls() {
+  const sources = graphSources();
+  const sourceKey = sources.map(source => source.id).join('|');
+  if ($('graph-source').dataset.sources !== sourceKey) {
+    $('graph-source').replaceChildren(new Option('All active sources', 'all'), ...sources.map(source => new Option(source.id, String(source.origin))));
+    if (!sources.some(source => String(source.origin) === graphSource)) graphSource = 'all';
+    $('graph-source').value = graphSource;
+    $('graph-source').dataset.sources = sourceKey;
+    $('graph-legend').replaceChildren(...sources.map(source => {
+      const button = document.createElement('button');
+      button.className = source.colorClass;
+      button.textContent = `● ${source.id}`;
+      button.title = `${source.id} · ${source.evidence.representation || 'provenance unavailable'}`;
+      button.onclick = () => { graphSource = graphSource === String(source.origin) ? 'all' : String(source.origin); $('graph-source').value = graphSource; graph(); };
+      return button;
+    }));
+  }
+  const roles = [...new Set((state.graph?.nodes || []).map(node => node.role || 'central'))].sort();
+  const roleKey = roles.join('|');
+  if ($('graph-role').dataset.roles !== roleKey) {
+    $('graph-role').replaceChildren(new Option('All roles', 'all'), ...roles.map(role => new Option(role, role)));
+    if (!roles.includes(graphRole)) graphRole = 'all';
+    $('graph-role').value = graphRole;
+    $('graph-role').dataset.roles = roleKey;
+  }
+}
+
 function graph() {
   try {
     const [x, w, h] = canvas('graph');
     if (!x) return;
-
     const g = state.graph || {};
+    const sources = graphSources();
     const nodes = g.nodes || [];
     nodeScreenPositions.clear();
-
+    syncGraphControls();
     if (!nodes.length) {
-      x.fillStyle = '#8b9daf';
-      x.font = '11px Consolas, monospace';
-      x.fillText('Initializing connectome substrate…', 20, 35);
-      return;
+      x.fillStyle = '#8b9daf'; x.font = '11px Consolas, monospace';
+      x.fillText('Initializing connectome substrate…', 20, 35); return;
     }
-
-    const neuropilColors = ['#5de0c1', '#edbc75', '#c084fc'];
-    const neuropilNames = ['FlyWire Central Brain', 'MANC Nerve Cord', 'Optic Lobe'];
-
-    const cx = w * 0.5;
-    const cy = h * 0.5;
-
-    if (graphMode === '3d') {
-      // -------------------------------------------------------------
-      // 3D Anatomical Neuropil Observatory View
-      // -------------------------------------------------------------
-      if (graphAutoRotate) {
-        graphRotY += 0.008;
+    const sourceCount = Math.max(1, sources.length);
+    const nodeBudget = Number($('graph-nodes').value);
+    const edgeBudget = Number($('graph-edges').value);
+    const activityScale = Number($('graph-activity').value);
+    const matching = nodes.filter(node => (graphSource === 'all' || String(node.origin) === graphSource) && (graphRole === 'all' || node.role === graphRole));
+    // Sample across the entire filtered population without changing cluster positions.
+    const stride = matching.length / Math.min(nodeBudget, Math.max(1, matching.length));
+    const visible = matching.filter((node, index) => Math.floor(index / stride) !== Math.floor((index - 1) / stride));
+    if (selectedNodeId !== null && !visible.some(node => node.id === selectedNodeId)) {
+      const pinned = matching.find(node => node.id === selectedNodeId);
+      if (pinned) { if (visible.length >= nodeBudget) visible.pop(); visible.push(pinned); }
+    }
+    const roleOffsets = { sensory: -.25, visual: -.17, ascending: -.08, central: 0, descending: .14, motor: .25 };
+    const cosY = Math.cos(graphRotY), sinY = Math.sin(graphRotY), cosX = Math.cos(graphRotX), sinX = Math.sin(graphRotX);
+    const scale = Math.min(w * .43, h * .41) * graphZoom;
+    const projected = visible.map(node => {
+      const origin = Number(node.origin || 0);
+      const angle = sourceCount === 1 ? 0 : origin / sourceCount * Math.PI * 2 - Math.PI / 2;
+      const cluster = sourceCount === 1 ? 0 : .68;
+      const hash = (Math.imul(node.id + 1, 1664525) + 1013904223) >>> 0;
+      const theta = hash / 4294967296 * Math.PI * 2;
+      const radius = .05 + ((hash >>> 8) % 997) / 997 * .19;
+      const px = Math.cos(angle) * cluster + Math.cos(theta) * radius;
+      const py = Math.sin(angle) * cluster + Math.sin(theta) * radius;
+      const pz = (roleOffsets[node.role] || 0) + (((hash >>> 16) % 101) / 101 - .5) * .10;
+      const rx = graphMode === '3d' ? px * cosY - pz * sinY : px;
+      const rz = graphMode === '3d' ? px * sinY + pz * cosY : 0;
+      const ry = graphMode === '3d' ? py * cosX - rz * sinX : py;
+      const depth = graphMode === '3d' ? py * sinX + rz * cosX : 0;
+      const perspective = 3 / (3 + depth);
+      const point = { x: w / 2 + rx * scale * perspective, y: h / 2 + ry * scale * perspective, z: depth, node };
+      nodeScreenPositions.set(node.id, point); return point;
+    }).sort((a, b) => b.z - a.z);
+    let edgesDrawn = 0, graftsDrawn = 0;
+    const drawEdge = (edge, graft) => {
+      if (edgesDrawn >= edgeBudget) return;
+      const from = nodeScreenPositions.get(Array.isArray(edge) ? edge[0] : edge.source);
+      const to = nodeScreenPositions.get(Array.isArray(edge) ? edge[1] : edge.target);
+      if (!from || !to) return;
+      const weight = Number(Array.isArray(edge) ? edge[2] : edge.weight) || 0;
+      const active = [hoveredNode?.id, selectedNodeId].some(id => id !== null && id !== undefined && (id === from.node.id || id === to.node.id));
+      x.lineWidth = active ? 1.6 : graft ? .9 : .5;
+      x.strokeStyle = active ? '#ffffff' : graft ? 'rgba(237,188,117,.50)' : weight < 0 ? 'rgba(236,124,141,.14)' : 'rgba(128,170,255,.13)';
+      x.setLineDash(graft ? [3, 2] : []);
+      x.beginPath(); x.moveTo(from.x, from.y); x.lineTo(to.x, to.y); x.stroke();
+      edgesDrawn++; if (graft) graftsDrawn++;
+    };
+    if ($('graph-grafts').checked) (g.graft_links || []).forEach(edge => drawEdge(edge, true));
+    (g.edges || []).forEach(edge => drawEdge(edge, false)); x.setLineDash([]);
+    projected.forEach(point => {
+      const node = point.node;
+      const color = sources[node.origin]?.color || sourcePalette[0];
+      const act = Math.min(1, Math.abs(Number(node.activity) || 0) * activityScale);
+      const active = hoveredNode?.id === node.id || selectedNodeId === node.id;
+      const radius = (active ? 4.6 : 2.1) + act * 2.8;
+      if (act > .12 || active) {
+        const glow = x.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius * 2.6);
+        glow.addColorStop(0, color); glow.addColorStop(1, 'transparent');
+        x.fillStyle = glow; x.beginPath(); x.arc(point.x, point.y, radius * 2.6, 0, Math.PI * 2); x.fill();
       }
-
-      const cosY = Math.cos(graphRotY), sinY = Math.sin(graphRotY);
-      const cosX = Math.cos(graphRotX), sinX = Math.sin(graphRotX);
-      const scale3d = Math.min(w, h) * 0.36;
-
-      const projected = nodes.map(n => {
-        const origin = (n.origin || 0) % 3;
-        // Anatomical cluster base offsets matching NeuralObservatory
-        const baseOffset = [
-          [0.0, -0.45, 0.0],
-          [0.0, 0.55, 0.0],
-          [-0.75, -0.2, 0.25]
-        ][origin] || [0, 0, 0];
-
-        // Seeded spherical dispersion
-        const seedVal = (n.id * 1013904223 + 1664525) >>> 0;
-        const theta = (seedVal % 1000) / 1000 * Math.PI * 2;
-        const phi = ((seedVal >>> 10) % 1000) / 1000 * Math.PI - Math.PI / 2;
-        const rad = 0.08 + (((seedVal >>> 20) % 1000) / 1000) * 0.25;
-
-        const lx = baseOffset[0] + rad * Math.cos(phi) * Math.cos(theta);
-        const ly = baseOffset[1] + rad * Math.sin(phi);
-        const lz = baseOffset[2] + rad * Math.cos(phi) * Math.sin(theta);
-
-        // Rotate Y then X
-        const x1 = lx * cosY - lz * sinY;
-        const z1 = lx * sinY + lz * cosY;
-        const y1 = ly * cosX - z1 * sinX;
-        const z2 = ly * sinX + z1 * cosX;
-
-        const persp = 3.0 / (3.0 + z2);
-        const sx = cx + x1 * scale3d * persp;
-        const sy = cy + y1 * scale3d * persp;
-
-        nodeScreenPositions.set(n.id, { x: sx, y: sy, node: n, z: z2 });
-        return { id: n.id, sx, sy, z: z2, node: n, origin };
-      });
-
-      // Depth sorting
-      projected.sort((a, b) => b.z - a.z);
-
-      // Render edges
-      x.lineWidth = 0.5;
-      (g.edges || []).forEach(e => {
-        const p1 = nodeScreenPositions.get(e[0]);
-        const p2 = nodeScreenPositions.get(e[1]);
-        if (!p1 || !p2) return;
-        if (filterNeuropil !== null && (p1.node.origin !== filterNeuropil || p2.node.origin !== filterNeuropil)) return;
-
-        const isHovered = hoveredNode && (hoveredNode.id === e[0] || hoveredNode.id === e[1]);
-        const weight = e[2] || 0;
-
-        if (isHovered) {
-          x.lineWidth = 1.6;
-          x.strokeStyle = weight < 0 ? 'rgba(236,124,141,0.9)' : 'rgba(93,224,193,0.9)';
-        } else {
-          x.lineWidth = 0.5;
-          x.strokeStyle = weight < 0 ? 'rgba(236,124,141,0.14)' : 'rgba(93,224,193,0.12)';
-        }
-        x.beginPath();
-        x.moveTo(p1.x, p1.y);
-        x.lineTo(p2.x, p2.y);
-        x.stroke();
-      });
-
-      // Render nodes
-      projected.forEach(p => {
-        if (filterNeuropil !== null && p.origin !== filterNeuropil) return;
-        const n = p.node;
-        const act = Math.max(0, Math.min(1, Math.abs(n.activity || 0)));
-        const col = neuropilColors[p.origin];
-        const isHovered = hoveredNode && hoveredNode.id === n.id;
-        const nodeRadius = (isHovered ? 5.5 : 2.5) + act * 3.5;
-
-        // Firing glow
-        if (act > 0.15 || isHovered) {
-          const glow = x.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, nodeRadius * 2.2);
-          glow.addColorStop(0, col);
-          glow.addColorStop(1, 'transparent');
-          x.fillStyle = glow;
-          x.beginPath();
-          x.arc(p.sx, p.sy, nodeRadius * 2.2, 0, Math.PI * 2);
-          x.fill();
-        }
-
-        x.fillStyle = isHovered ? '#ffffff' : col;
-        x.beginPath();
-        x.arc(p.sx, p.sy, nodeRadius, 0, Math.PI * 2);
-        x.fill();
-      });
-
-      x.fillStyle = '#647c90';
-      x.font = '9px Consolas, monospace';
-      x.fillText('3D Anatomical Observatory · Drag to rotate connectome', 14, h - 10);
-
-    } else {
-      // -------------------------------------------------------------
-      // 2D Isotropic Neuropil Substrate View
-      // -------------------------------------------------------------
-      const clusterRadius = Math.min(w, h) * 0.22;
-      const clusterCenters = [
-        [cx, cy - clusterRadius * 0.65],                 // FlyWire top
-        [cx, cy + clusterRadius * 0.75],                 // MANC bottom
-        [cx - clusterRadius * 1.05, cy - clusterRadius * 0.05] // Optic left
-      ];
-
-      // Group nodes by origin
-      const clusters = [[], [], []];
-      nodes.forEach(n => {
-        const origin = (n.origin || 0) % 3;
-        clusters[origin].push(n);
-      });
-
-      clusters.forEach((cNodes, oIdx) => {
-        const [ccx, ccy] = clusterCenters[oIdx];
-        const count = cNodes.length;
-        cNodes.forEach((n, i) => {
-          const angle = i * 2.399963; // Golden ratio spiral
-          const dist = 12 + Math.sqrt((i + 1) / Math.max(1, count)) * clusterRadius * 0.82;
-          const nx = ccx + Math.cos(angle) * dist;
-          const ny = ccy + Math.sin(angle) * dist;
-          nodeScreenPositions.set(n.id, { x: nx, y: ny, node: n });
-        });
-      });
-
-      // Cluster boundary hulls / halos
-      clusterCenters.forEach(([ccx, ccy], oIdx) => {
-        if (filterNeuropil !== null && filterNeuropil !== oIdx) return;
-        x.strokeStyle = 'rgba(255,255,255,0.04)';
-        x.lineWidth = 1;
-        x.setLineDash([3, 4]);
-        x.beginPath();
-        x.arc(ccx, ccy, clusterRadius * 0.9, 0, Math.PI * 2);
-        x.stroke();
-        x.setLineDash([]);
-
-        x.fillStyle = 'rgba(255,255,255,0.2)';
-        x.font = '9px Consolas, monospace';
-        x.fillText(neuropilNames[oIdx], ccx - 45, ccy - clusterRadius * 0.95);
-      });
-
-      // Synaptic and graft edges
-      (g.edges || []).forEach(e => {
-        const p1 = nodeScreenPositions.get(e[0]);
-        const p2 = nodeScreenPositions.get(e[1]);
-        if (!p1 || !p2) return;
-        if (filterNeuropil !== null && (p1.node.origin !== filterNeuropil || p2.node.origin !== filterNeuropil)) return;
-
-        const isHovered = hoveredNode && (hoveredNode.id === e[0] || hoveredNode.id === e[1]);
-        const weight = e[2] || 0;
-
-        if (isHovered) {
-          x.lineWidth = 1.8;
-          x.strokeStyle = weight < 0 ? 'rgba(236,124,141,0.95)' : 'rgba(93,224,193,0.95)';
-        } else {
-          x.lineWidth = 0.55;
-          x.strokeStyle = weight < 0 ? 'rgba(236,124,141,0.16)' : 'rgba(93,224,193,0.13)';
-        }
-        x.beginPath();
-        x.moveTo(p1.x, p1.y);
-        x.lineTo(p2.x, p2.y);
-        x.stroke();
-      });
-
-      // Active neurons with firing rate glow
-      nodes.forEach(n => {
-        const p = nodeScreenPositions.get(n.id);
-        if (!p) return;
-        const origin = (n.origin || 0) % 3;
-        if (filterNeuropil !== null && origin !== filterNeuropil) return;
-
-        const act = Math.max(0, Math.min(1, Math.abs(n.activity || 0)));
-        const col = neuropilColors[origin];
-        const isHovered = hoveredNode && hoveredNode.id === n.id;
-        const nodeRadius = (isHovered ? 5.5 : 2.5) + act * 3.5;
-
-        if (act > 0.1 || isHovered) {
-          const glow = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, nodeRadius * 2.4);
-          glow.addColorStop(0, col);
-          glow.addColorStop(1, 'transparent');
-          x.fillStyle = glow;
-          x.beginPath();
-          x.arc(p.x, p.y, nodeRadius * 2.4, 0, Math.PI * 2);
-          x.fill();
-        }
-
-        x.fillStyle = isHovered ? '#ffffff' : col;
-        x.beginPath();
-        x.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
-        x.fill();
-      });
-
-      x.fillStyle = '#647c90';
-      x.font = '9px Consolas, monospace';
-      x.fillText('2D Isotropic Substrate · Hover node to inspect synaptic paths', 14, h - 10);
-    }
-
-    // Active hovered tooltip
-    if (hoveredNode) {
-      const p = nodeScreenPositions.get(hoveredNode.id);
-      if (p) {
-        x.strokeStyle = '#ffffff';
-        x.lineWidth = 1.5;
-        x.beginPath();
-        x.arc(p.x, p.y, 8, 0, Math.PI * 2);
-        x.stroke();
-      }
-    }
-
-  } catch (err) {
-    console.error('graph render error:', err);
-  }
+      x.fillStyle = active ? '#ffffff' : color;
+      x.beginPath(); x.arc(point.x, point.y, radius, 0, Math.PI * 2); x.fill();
+      if (selectedNodeId === node.id) { x.strokeStyle = color; x.lineWidth = 1.4; x.beginPath(); x.arc(point.x, point.y, radius + 4, 0, Math.PI * 2); x.stroke(); }
+    });
+    x.font = '10px Consolas, monospace'; x.fillStyle = '#8b9daf';
+    x.fillText(`${graphMode.toUpperCase()} source / role layout · schematic`, 12, 20);
+    $('graph-summary').textContent = `${visible.length.toLocaleString()} / ${matching.length.toLocaleString()} sampled neurons shown (${Number(g.neurons || nodes.length).toLocaleString()} total) · ${edgesDrawn} edges, ${graftsDrawn} executing graft links. Coordinates are illustrative, not measured anatomy.`;
+    const pinned = nodes.find(node => node.id === selectedNodeId);
+    if (pinned) $('graph-selection').textContent = `Pinned #${pinned.id} · ${sources[pinned.origin]?.id || 'unknown source'} · ${pinned.role} · activity ${Number(pinned.activity || 0).toFixed(5)} · ${sources[pinned.origin]?.evidence.representation || 'provenance unavailable'}`;
+  } catch (err) { console.error('graph render error:', err); }
 }
 
 // -------------------------------------------------------------------------
@@ -443,6 +335,16 @@ function world() {
       return;
     }
 
+    worldLegend(s);
+    if ($('world-trails').checked && worldTrail.length > 1) {
+      x.strokeStyle = 'rgba(93,224,193,.55)'; x.lineWidth = 1.8;
+      x.beginPath();
+      worldTrail.forEach((point, index) => { const p = project(point.x, point.y, .015); if (index === 0) x.moveTo(p[0], p[1]); else x.lineTo(p[0], p[1]); });
+      x.stroke();
+      const start = project(worldTrail[0].x, worldTrail[0].y, .015);
+      x.strokeStyle = '#5de0c1'; x.beginPath(); x.arc(start[0], start[1], 3, 0, Math.PI * 2); x.stroke();
+    }
+
     // -----------------------------------------------------------------------
     // Walls with 3D Height Extrusion
     // -----------------------------------------------------------------------
@@ -522,7 +424,8 @@ function world() {
       // Flow direction arrow for river / conveyor
       if (tz.vx || tz.vy) {
         const arrowLen = 18;
-        const ang = Math.atan2(tz.vy || 0, tz.vx || 0);
+        const tip = project(tz.x + (tz.vx || 0), tz.y + (tz.vy || 0), 0);
+        const ang = Math.atan2(tip[1] - p[1], tip[0] - p[0]);
         x.strokeStyle = info.stroke;
         x.lineWidth = 1.8;
         x.beginPath();
@@ -574,7 +477,11 @@ function world() {
       x.lineWidth = 1.2;
       x.beginPath();
       x.moveTo(p[0], p[1]);
-      x.arc(p[0], p[1], beamLen, ang - halfAngle, ang + halfAngle);
+      for (let part = 0; part <= 20; part++) {
+        const angle = ang - halfAngle + 2 * halfAngle * part / 20;
+        const tip = project(sent.x + Math.cos(angle) * (sent.range || 2.8), sent.y + Math.sin(angle) * (sent.range || 2.8), 0);
+        x.lineTo(tip[0], tip[1]);
+      }
       x.closePath();
       x.fill();
       x.stroke();
@@ -669,6 +576,12 @@ function world() {
         x.fill();
       }
 
+      if ($('world-goals').checked && ['food', 'target', 'goal', 'button', 'socket'].includes(o.kind)) {
+        x.strokeStyle = color; x.lineWidth = 1.5; x.setLineDash([3, 3]);
+        x.beginPath(); x.arc(p[0], p[1], rad + 5, 0, Math.PI * 2); x.stroke(); x.setLineDash([]);
+        x.fillStyle = color; x.font = '9px Consolas, monospace';
+        x.fillText(o.pressed ? 'PRESSED' : o.held ? 'HELD' : o.kind === 'food' ? 'FOOD' : 'TASK OBJECT', p[0] - rad, p[1] - rad - 9);
+      }
       x.fillStyle = '#8b9daf';
       x.font = '9px Consolas, monospace';
       x.fillText(o.kind || 'obj', p[0] + rad + 3, p[1] - 3);
@@ -1006,12 +919,121 @@ function flatten(obj, prefix = '', out = []) {
   return out;
 }
 
+// Training controls and evidence are populated from the executing runtime.
+function setTone(element, tone) {
+  if (!element) return;
+  for (const name of ['good', 'warn', 'bad', 'muted', 'ponder', 'purple']) element.classList.toggle(`tone-${name}`, name === tone);
+}
+
+function keyValues(element, rows) {
+  element.replaceChildren(...rows.map(([label, value]) => {
+    const row = document.createElement('div'); row.className = 'kv';
+    const name = document.createElement('span'), result = document.createElement('b');
+    name.textContent = label; result.textContent = value; row.append(name, result); return row;
+  }));
+}
+
+function renderTraining(status) {
+  trainingStatus = { ...trainingStatus, ...Object.fromEntries(Object.entries(status || {}).filter(([, value]) => value !== undefined)) };
+  const compute = trainingStatus.compute || {}, graft = trainingStatus.graft || {}, prior = trainingStatus.programmed_prior || {};
+  const active = !!trainingStatus.active_training;
+  $('training-badge').textContent = graft.enabled ? active ? 'ONLINE TRAINING' : 'WEIGHTS FROZEN' : 'GRAFT DISABLED';
+  setTone($('training-badge'), graft.enabled ? active ? 'good' : 'warn' : 'muted');
+  if (!$('training-active').dataset.dirty) $('training-active').checked = active;
+  if (!$('training-threads').dataset.dirty) $('training-threads').value = String(Math.min(8, compute.threads || state.config?.compute_threads || 1));
+  const logical = compute.logical_cpus || compute.logical_cpu_count;
+  [...$('training-threads').options].forEach(option => { option.disabled = !!logical && Number(option.value) > logical; });
+  $('training-compute').textContent = `${compute.threads || 1} requested CPU threads · ${compute.torch_threads || compute.intraop_threads || compute.threads || 1} PyTorch threads${logical ? ` · ${logical} logical CPUs available` : ''}. Online fitting also requires “Learn from executed steps”.`;
+  keyValues($('training-metrics'), [
+    ['Learned parameters', Number(graft.parameters || 0).toLocaleString()],
+    ['Executed replay', `${graft.replay_size || 0} / ${graft.replay_capacity || '—'}`],
+    ['Optimizer updates', graft.optimizer_updates || 0],
+    ['Actor updates', graft.actor_updates || 0],
+    ['Programmed source prior', graft.connectome?.bound ? `${graft.connectome.nodes} nodes · ${graft.connectome.edges} edges bound` : 'No source prior bound']
+  ]);
+  $('training-prior').textContent = prior.enabled ? prior.available ? `Source prior bound from ${prior.nodes || graft.connectome?.nodes || 0} source nodes. This initialization is separate from learned weights and measured task performance.` : `Requested source prior unavailable: ${prior.reason || 'inspect provenance below'}` : 'Programmed source prior disabled. Source graph provenance is reported separately from graft training.';
+  show('source-details', { active_sources: state.graph?.sources || [], programmed_prior: prior, graft_connectome: graft.connectome || {} });
+  if (!$('learn').dataset.initialized) { $('learn').checked = active; $('learn').dataset.initialized = 'true'; }
+}
+
+async function refreshTraining() { renderTraining(await api('training/status')); }
+
+async function refreshInventory() {
+  const inventory = await api('connectomes/inventory');
+  const activeIds = new Set((state.config?.connectome_sources || []));
+  $('source-inventory').replaceChildren(...(inventory.sources || []).map(source => {
+    const row = document.createElement('div'); row.className = 'source-record';
+    const label = document.createElement('b'), detail = document.createElement('span');
+    label.textContent = `${source.id}${activeIds.has(source.id) ? ' · active' : ''}`;
+    detail.textContent = `${source.availability || 'unknown'} · ${source.representation || 'unspecified'} · ${source.neuron_count == null ? 'count unavailable' : Number(source.neuron_count).toLocaleString() + ' source nodes'} · ${source.verified ? 'verified cache' : 'verification not established'}`;
+    row.append(label, detail);
+    if (source.source_scope) { const scope = document.createElement('small'); scope.textContent = source.source_scope; row.append(scope); }
+    return row;
+  }));
+}
+
+const observedTerminalJobs = new Set();
+function renderTrainingJob() {
+  const relevant = latestJobs.filter(job => ['pretrain', 'rsi'].includes(job.kind));
+  const job = latestJobs.find(item => item.id === trackedJobId) || relevant.at(-1);
+  if (!job) return;
+  trackedJobId = job.id;
+  const progress = job.progress || {};
+  const live = ['queued', 'running'].includes(job.status);
+  const applied = job.result?.applied;
+  const outcome = applied === true ? ' · weights applied to session' : applied === false ? ' · not applied' : '';
+  $('training-job-status').textContent = `${job.kind === 'rsi' ? 'Live RSI' : 'Pretrain'} · ${job.status}${progress.phase ? ' · ' + progress.phase : ''}${progress.total ? ` · ${progress.completed || 0}/${progress.total}` : ''}${outcome}`;
+  $('training-job-progress').max = progress.total || 1;
+  if (live && !progress.total) $('training-job-progress').removeAttribute('value');
+  else $('training-job-progress').value = live ? progress.completed || 0 : job.status === 'completed' ? progress.total || 1 : 0;
+  $('training-cancel').hidden = !live;
+  $('training-cancel').disabled = !!job.cancel_requested;
+  $('training-pretrain').disabled = live || trainingRequest;
+  $('rsi-live').disabled = live || trainingRequest;
+  show('training-receipt', job.error || job.result || progress);
+  if (job.kind === 'rsi') { $('rsi-status').textContent = $('training-job-status').textContent; show('rsi-receipt', job.error || job.result || progress); }
+  if (!live && !observedTerminalJobs.has(job.id)) {
+    observedTerminalJobs.add(job.id);
+    action(async () => { render(await api('state')); await refreshTraining(); });
+  }
+}
+
+function updateWorldTrail(snapshot) {
+  const world = snapshot.world || {}, agent = world.agent;
+  const identity = JSON.stringify([snapshot.config?.seed, world.task, world.episode]);
+  if (identity !== trailIdentity || Number(snapshot.steps) < Number(lastTrailStep)) { worldTrail = []; trailIdentity = identity; lastTrailStep = null; }
+  if (agent && snapshot.steps !== lastTrailStep && Number.isFinite(agent.x) && Number.isFinite(agent.y)) {
+    worldTrail.push({ x: agent.x, y: agent.y }); worldTrail = worldTrail.slice(-160); lastTrailStep = snapshot.steps;
+  }
+}
+
+function worldLegend(world) {
+  const kinds = new Set((world.objects || []).filter(object => object.visible !== false).map(object => object.kind));
+  const entries = [['agent', 'Agent / heading']];
+  if ($('world-trails').checked) entries.push(['trail', `Trajectory · ${worldTrail.length} samples`]);
+  for (const kind of kinds) entries.push([['target', 'goal', 'food', 'hazard', 'button'].includes(kind) ? kind : 'object', kind]);
+  if (world.predators?.length) entries.push(['hazard', `Predators · ${world.predators.length}`]);
+  if (world.sentinels?.length) entries.push(['sentinel', `Sentinels · ${world.sentinels.length}`]);
+  if (world.dynamic_gates?.length) entries.push(['gate', `Gates · ${world.dynamic_gates.filter(gate => gate.open).length}/${world.dynamic_gates.length} open`]);
+  if (world.sound_tripwires?.length) entries.push(['tripwire', 'Sound tripwires']);
+  for (const kind of new Set((world.terrain_zones || []).map(zone => zone.kind))) entries.push(['terrain', kind]);
+  $('world-legend').replaceChildren(...entries.map(([kind, label]) => { const item = document.createElement('span'); item.className = `world-key key-${kind}`; item.textContent = label; return item; }));
+  const targets = (world.objects || []).filter(object => object.visible !== false && ['food', 'target', 'goal', 'button', 'socket'].includes(object.kind));
+  const nearest = world.agent && targets.reduce((best, object) => {
+    const distance = Math.hypot(object.x - world.agent.x, object.y - world.agent.y);
+    return !best || distance < best.distance ? { kind: object.kind, distance } : best;
+  }, null);
+  $('world-summary').textContent = `${world.task || 'World'} · ${world.alarm_tripped ? 'ALARM TRIPPED · ' : ''}${nearest ? `Nearest visible ${nearest.kind}: ${nearest.distance.toFixed(2)} world units · ` : ''}Trail resets each episode. Goals and hazards reflect the current snapshot.`;
+}
+
 // -------------------------------------------------------------------------
 // Master Render Loop
 // -------------------------------------------------------------------------
 function render(s) {
   if (!s) return;
   state = s;
+  updateWorldTrail(s);
+  renderTraining({ compute: s.compute, graft: s.training?.graft, programmed_prior: s.training?.programmed_prior, active_training: s.config?.active_training });
   show('snapshot', s);
   const neuronInput = $('config').elements.namedItem('total_neurons');
   const sourceCount = s.config?.connectome_sources?.length || 3;
@@ -1019,7 +1041,7 @@ function render(s) {
   if (neuronInput && neuronInput.dataset.sizeKey !== sizeKey) {
     neuronInput.value = String(s.config?.total_neurons ?? s.graph?.neurons ?? 2000);
     neuronInput.min = String(16 * sourceCount);
-    neuronInput.max = String(5000 * sourceCount);
+    neuronInput.max = String(10000 * sourceCount);
     neuronInput.dataset.sizeKey = sizeKey;
   }
 
@@ -1093,7 +1115,7 @@ function render(s) {
   if ($('thrust-governor')) {
     const gov = Math.round((homeo.max_allowed_thrust ?? 1.0) * 100);
     $('thrust-governor').textContent = `Thrust Limit: ${gov}%`;
-    $('thrust-governor').style.color = gov < 50 ? '#ec7c8d' : (gov < 90 ? '#edbc75' : '#00ffb4');
+    setTone($('thrust-governor'), gov < 50 ? 'bad' : gov < 90 ? 'warn' : 'good');
   }
   if ($('vitals-hud')) {
     const vitalSpecs = [
@@ -1110,13 +1132,9 @@ function render(s) {
       label.className = 'vital-label';
       const pct = Math.max(0, Math.min(100, Math.round(v.val * 100)));
       label.innerHTML = `<span>${v.name}</span><span>${pct}%</span>`;
-      const track = document.createElement('div');
-      track.className = 'vital-track';
-      const fill = document.createElement('div');
-      fill.className = 'vital-fill';
-      fill.style.width = `${pct}%`;
-      fill.style.background = v.col;
-      track.appendChild(fill);
+      const track = document.createElement('progress');
+      track.className = `vital-track vital-${['energy', 'stamina', 'health', 'threat', 'hunger'][vitalSpecs.indexOf(v)]}`;
+      track.max = 100; track.value = pct; track.setAttribute('aria-label', v.name);
       row.append(label, track);
       return row;
     }));
@@ -1129,11 +1147,9 @@ function render(s) {
     const engaged = mimomix.system_engaged || (s.config?.experimental_cognition ? 'Awaiting action' : 'Experimental cognition disabled');
     $('mimomix-badge').textContent = engaged;
     if (engaged.includes('System 2')) {
-      $('mimomix-badge').style.background = 'rgba(255,100,200,0.25)';
-      $('mimomix-badge').style.color = '#ff64c8';
+      setTone($('mimomix-badge'), 'ponder');
     } else {
-      $('mimomix-badge').style.background = 'rgba(0,255,180,0.15)';
-      $('mimomix-badge').style.color = '#00ffb4';
+      setTone($('mimomix-badge'), 'good');
     }
   }
   if ($('cognition-hud')) {
@@ -1164,7 +1180,7 @@ function render(s) {
     const isEnabled = s.config?.dormant_lifecycle !== false;
     const activeSlots = dormantSlots.filter(sl => sl.state === 'ACTIVE' || sl.state === 'ACTIVATING').length;
     $('dormant-badge').textContent = isEnabled ? `${activeSlots} active / ${dormantSlots.length} slots` : 'Disabled';
-    $('dormant-badge').style.color = isEnabled ? '#00ffb4' : '#ec7c8d';
+    setTone($('dormant-badge'), isEnabled ? 'good' : 'bad');
   }
   if ($('dormant-hud')) {
     const slot0 = dormantSlots[0] || {};
@@ -1196,7 +1212,7 @@ function render(s) {
   if ($('plasticity-badge')) {
     const plastActive = (cbp.enabled || fwm.enabled || lat.engaged);
     $('plasticity-badge').textContent = plastActive ? 'Plasticity engaged' : 'Standard Adam';
-    $('plasticity-badge').style.color = plastActive ? '#00ffb4' : '#8892b0';
+    setTone($('plasticity-badge'), plastActive ? 'good' : 'muted');
   }
   if ($('plasticity-hud')) {
     const plastMetrics = [
@@ -1221,7 +1237,7 @@ function render(s) {
   if ($('self-model-badge')) {
     const authorActive = (selfMod.mean_self_authorship || 0) > 0.4;
     $('self-model-badge').textContent = authorActive ? 'High authorship' : 'Low / Exogenous';
-    $('self-model-badge').style.color = authorActive ? '#00ffb4' : '#ffaa00';
+    setTone($('self-model-badge'), authorActive ? 'good' : 'warn');
   }
   if ($('self-model-hud')) {
     const selfMetrics = [
@@ -1263,20 +1279,21 @@ function render(s) {
   // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
-  if ($('omnibus-hud')) {
+  if ($('omnibus-hud') && Date.now() - omnibusLastPoll > 2500) {
+    omnibusLastPoll = Date.now();
     fetch('/api/omnibus/status')
       .then(r => r.json())
       .then(omnibusStatus => {
         if ($('omnibus-badge')) {
           if (omnibusStatus.is_completed) {
             $('omnibus-badge').textContent = 'Curriculum Complete';
-            $('omnibus-badge').style.color = '#00ffb4';
+            setTone($('omnibus-badge'), 'good');
           } else if (omnibusStatus.current_stage_idx > 0 || omnibusStatus.total_steps > 0) {
             $('omnibus-badge').textContent = `Stage ${omnibusStatus.current_stage_idx + 1}/${omnibusStatus.total_stages}: ${omnibusStatus.current_task}`;
-            $('omnibus-badge').style.color = '#ffd166';
+            setTone($('omnibus-badge'), 'warn');
           } else {
             $('omnibus-badge').textContent = 'Apex Standby (2,000 N)';
-            $('omnibus-badge').style.color = '#c77dff';
+            setTone($('omnibus-badge'), 'purple');
           }
         }
         const stagesDone = (omnibusStatus.stages_completed || []).length;
@@ -1321,7 +1338,7 @@ function render(s) {
       } finally {
         btnOmnibus.disabled = false;
         btnOmnibus.textContent = '✦ Frontier Apex Omnibus';
-        poll();
+        render(await api('state')); 
       }
     });
   }
@@ -1354,7 +1371,7 @@ function updateSimSpeed() {
   tickInterval = Number($('simspeed').value) || 125;
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(() => {
-    if (running) action(() => tick(4));
+    if (running) action(() => tick(Number($('simsteps').value)));
   }, tickInterval);
 }
 
@@ -1375,6 +1392,31 @@ $('run').onclick = () => { running = true; $('runstatus').textContent = 'Running
 $('pause').onclick = () => { running = false; $('runstatus').textContent = 'Paused'; };
 $('step').onclick = () => action(() => tick(1));
 $('train').onclick = () => action(() => tick(32, true));
+for (const id of ['training-active', 'training-threads']) $(id).onchange = () => { $(id).dataset.dirty = 'true'; };
+$('training-apply').onclick = () => action(async () => {
+  const snapshot = await api('training/config', { active: $('training-active').checked, threads: Number($('training-threads').value) });
+  for (const id of ['training-active', 'training-threads']) delete $(id).dataset.dirty;
+  if (snapshot.config.active_training) $('learn').checked = true;
+  render(snapshot); await refreshTraining();
+});
+async function startTrainingJob(kind) {
+  running = false; $('runstatus').textContent = 'Paused · preparing candidate'; trainingRequest = true;
+  $('training-pretrain').disabled = true; $('rsi-live').disabled = true;
+  try {
+    if (kind === 'pretrain' && !trainingStatus.graft?.enabled) {
+      render(await api('training/config', { active: $('training-active').checked, threads: Number($('training-threads').value) }));
+    }
+    const payload = kind === 'pretrain' ? { steps: 128, updates: 32, batch_size: Number($('training-batch').value), workers: Number($('training-workers').value) } : { steps: 24, candidates: 2, seed: state.config?.seed ?? 7 };
+    const result = await api(kind === 'pretrain' ? 'training/pretrain' : 'rsi/live', payload);
+    trackedJobId = result.id || result.job?.id;
+    await jobs();
+  } finally { trainingRequest = false; $('training-pretrain').disabled = false; $('rsi-live').disabled = false; renderTrainingJob(); }
+}
+$('training-pretrain').onclick = () => action(() => startTrainingJob('pretrain'));
+$('rsi-live').onclick = () => action(() => startTrainingJob('rsi'));
+$('training-cancel').onclick = () => action(async () => { if (trackedJobId) { await api('jobs/cancel', { id: trackedJobId }); await jobs(); } });
+$('skills-refresh').onclick = () => action(async () => show('skills-result', await api('reusable_skills')));
+
 $('experience-apply').onclick = () => action(async () => {
   running = false;
   render(await api('experience/mode', {
@@ -1401,7 +1443,7 @@ $('experience-preview').onclick = () => action(async () => {
     const baseline = Number(preview.baseline[index]), proposed = Number(preview.proposed_action[index]);
     values.textContent = `${baseline.toFixed(3)} → ${proposed.toFixed(3)}`;
     const meter = document.createElement('div'); meter.className = 'plan-meter';
-    const mark = document.createElement('i'); mark.style.left = `${(proposed + 1) * 50}%`;
+    const mark = document.createElement('meter'); mark.min = -1; mark.max = 1; mark.value = proposed; mark.setAttribute('aria-label', `${name} proposed action`);
     meter.append(mark); row.append(label, meter, values); return row;
   }));
   const candidates = preview.candidates || [];
@@ -1437,7 +1479,7 @@ $('quicktask').onchange = () => action(async () => {
 $('config').onsubmit = e => {
   e.preventDefault();
   running = false;
-  const config = Object.fromEntries(new FormData(e.target));
+  const config = { ...state.config, ...Object.fromEntries(new FormData(e.target)) };
   for (const key of ['seed', 'total_neurons', 'microsteps', 'cognition_interval']) config[key] = Number(config[key]);
   config.continual_backprop = !!e.target.elements.continual_backprop?.checked;
   config.fast_weight_memory = !!e.target.elements.fast_weight_memory?.checked;
@@ -1489,11 +1531,12 @@ $('graph-autorotate').onclick = () => {
   if (graphAutoRotate) graph();
 };
 
-// Neuropil legend filters
-$('filter-flywire').onclick = () => { filterNeuropil = 0; graph(); };
-$('filter-manc').onclick = () => { filterNeuropil = 1; graph(); };
-$('filter-optic').onclick = () => { filterNeuropil = 2; graph(); };
-$('filter-reset').onclick = () => { filterNeuropil = null; graph(); };
+$('graph-source').onchange = () => { graphSource = $('graph-source').value; graph(); };
+$('graph-role').onchange = () => { graphRole = $('graph-role').value; graph(); };
+for (const id of ['graph-activity', 'graph-nodes', 'graph-edges', 'graph-grafts']) $(id).onchange = graph;
+$('graph-camera-reset').onclick = () => { graphRotX = .35; graphRotY = .55; graphZoom = 1; graph(); };
+for (const id of ['world-trails', 'world-goals']) $(id).onchange = world;
+$('world-clear-trail').onclick = () => { worldTrail = []; world(); };
 
 // -------------------------------------------------------------------------
 // Direct Teleoperation & Keyboard Controls
@@ -1525,6 +1568,8 @@ window.addEventListener('keydown', e => {
   } else if (e.key === 'd' || e.key === 'ArrowRight') {
     e.preventDefault();
     action(() => executeTeleopAction(1.0, 0.2));
+  } else if (e.key.toLowerCase() === 'e') {
+    e.preventDefault(); action(() => executeTeleopAction(0.0, 0.0, false, true));
   } else if (e.key === ' ') {
     e.preventDefault();
     action(() => executeTeleopAction(0.0, 0.0, true));
@@ -1535,57 +1580,45 @@ window.addEventListener('keydown', e => {
 // Mouse Interaction for 3D Connectome Orbit & Tooltip Inspection
 // -------------------------------------------------------------------------
 const graphCanvas = $('graph');
-graphCanvas.addEventListener('mousedown', e => {
-  graphDragging = true;
-  graphLastMouse = { x: e.clientX, y: e.clientY };
+graphCanvas.addEventListener('pointerdown', event => {
+  graphDragging = true; graphDidDrag = false;
+  graphLastMouse = { x: event.clientX, y: event.clientY };
+  graphCanvas.setPointerCapture(event.pointerId);
 });
-window.addEventListener('mouseup', () => { graphDragging = false; });
-window.addEventListener('mousemove', e => {
-  if (!graphDragging) return;
-  const dx = e.clientX - graphLastMouse.x;
-  const dy = e.clientY - graphLastMouse.y;
-  graphRotY += dx * 0.01;
-  graphRotX += dy * 0.01;
-  graphLastMouse = { x: e.clientX, y: e.clientY };
-  if (graphMode === '3d') graph();
+graphCanvas.addEventListener('pointerup', () => {
+  graphDragging = false;
+  if (!graphDidDrag && hoveredNode) { selectedNodeId = selectedNodeId === hoveredNode.id ? null : hoveredNode.id; graph(); }
 });
-
-graphCanvas.addEventListener('mousemove', e => {
-  const rect = graphCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  let closest = null;
-  let minDist = 14;
-
-  nodeScreenPositions.forEach((pos, id) => {
-    const dist = Math.hypot(pos.x - mx, pos.y - my);
-    if (dist < minDist) {
-      minDist = dist;
-      closest = pos.node;
-    }
+graphCanvas.addEventListener('pointercancel', () => { graphDragging = false; });
+graphCanvas.addEventListener('pointermove', event => {
+  const rect = graphCanvas.getBoundingClientRect(), mx = event.clientX - rect.left, my = event.clientY - rect.top;
+  if (graphDragging) {
+    const dx = event.clientX - graphLastMouse.x, dy = event.clientY - graphLastMouse.y;
+    if (Math.abs(dx) + Math.abs(dy) > 1) graphDidDrag = true;
+    if (graphMode === '3d') { graphRotY += dx * .01; graphRotX = Math.max(-1.4, Math.min(1.4, graphRotX + dy * .01)); }
+    graphLastMouse = { x: event.clientX, y: event.clientY };
+  }
+  let closest = null, distance = 14;
+  nodeScreenPositions.forEach(point => {
+    const d = Math.hypot(point.x - mx, point.y - my);
+    if (d < distance) { closest = point.node; distance = d; }
   });
-
   hoveredNode = closest;
   const tooltip = $('graph-tooltip');
-  if (closest && tooltip) {
-    const neuropils = ['FlyWire Central Brain', 'MANC Nerve Cord', 'Optic Lobe'];
-    tooltip.style.display = 'block';
-    tooltip.style.left = (mx + 12) + 'px';
-    tooltip.style.top = (my + 12) + 'px';
-    tooltip.textContent = `Neuron #${closest.id} · ${neuropils[closest.origin || 0]} · Rate: ${(closest.activity || 0).toFixed(4)} · Role: ${closest.role || 'relay'}`;
-  } else if (tooltip) {
-    tooltip.style.display = 'none';
+  tooltip.classList.toggle('visible', !!closest && !graphDragging);
+  if (closest) tooltip.textContent = `#${closest.id} · ${graphSources()[closest.origin]?.id || 'unknown'} · ${closest.role} · activity ${Number(closest.activity || 0).toFixed(4)}`;
+  graph();
+});
+graphCanvas.addEventListener('pointerleave', () => { hoveredNode = null; $('graph-tooltip').classList.remove('visible'); graph(); });
+graphCanvas.addEventListener('wheel', event => { event.preventDefault(); graphZoom = Math.max(.5, Math.min(2.5, graphZoom * (event.deltaY > 0 ? .92 : 1.08))); graph(); }, { passive: false });
+let lastOrbitTime = 0;
+function orbitFrame(time) {
+  if (graphAutoRotate && graphMode === '3d' && !graphDragging && $('overview').classList.contains('active') && time - lastOrbitTime > 40) {
+    graphRotY += .006; graph(); lastOrbitTime = time;
   }
-  graph();
-});
-
-graphCanvas.addEventListener('mouseleave', () => {
-  hoveredNode = null;
-  const tooltip = $('graph-tooltip');
-  if (tooltip) tooltip.style.display = 'none';
-  graph();
-});
+  requestAnimationFrame(orbitFrame);
+}
+requestAnimationFrame(orbitFrame);
 
 // -------------------------------------------------------------------------
 // Capabilities Explorer
@@ -1630,6 +1663,14 @@ $('makepatch').onclick = () => action(async () => {
   $('packet').value = pretty(await api('patch/make', { edits: JSON.parse($('edits').value), description: $('description').value }));
 });
 $('previewpatch').onclick = () => action(async () => show('patchresult', await api('patch/preview', { packet: JSON.parse($('packet').value) })));
+$('evaluatepatch').onclick = () => action(async () => {
+  running = false; $('runstatus').textContent = 'Paused · screening candidate';
+  $('evaluatepatch').disabled = true;
+  try {
+    const result = await api('patch/evaluate', { packet: JSON.parse($('packet').value), steps: 24, seeds: [19, 23], min_gain: 0 });
+    show('patchresult', result); receipt = null; render(await api('state')); await refreshTraining();
+  } finally { $('evaluatepatch').disabled = false; }
+});
 $('applypatch').onclick = () => action(async () => {
   const r = await api('patch/apply', { packet: JSON.parse($('packet').value) });
   receipt = r.receipt_id;
@@ -1724,6 +1765,8 @@ $('manifold').onclick = () => action(async () => {
 // -------------------------------------------------------------------------
 async function jobs() {
   const result = await api('jobs');
+  latestJobs = result.jobs || [];
+  renderTrainingJob();
   $('jobs').replaceChildren();
   if (!result.jobs.length) {
     $('jobs').textContent = 'No studies recorded.';
@@ -1734,7 +1777,7 @@ async function jobs() {
     d.className = 'job';
     const b = document.createElement('b');
     b.textContent = j.status.toUpperCase();
-    d.append(b, document.createTextNode(' · ' + j.id.slice(0, 12)));
+    d.append(b, document.createTextNode(' · ' + (j.kind || 'study') + ' · ' + j.id.slice(0, 12)));
     if (['running', 'queued'].includes(j.status)) {
       const cancel = document.createElement('button');
       cancel.textContent = j.cancel_requested ? 'Cancellation requested' : 'Cancel';
@@ -1749,6 +1792,7 @@ async function jobs() {
     d.append(p);
     d.onclick = e => {
       if (e.target.tagName === 'BUTTON') return;
+      trackedJobId = j.id; renderTrainingJob();
       show('studyresult', j.result || j);
       lineage(j.result?.lineage || []);
     };
@@ -1825,6 +1869,9 @@ action(async () => {
   renderCatalog();
   await checkpoints();
   await jobs();
+  await refreshTraining();
+  await refreshInventory();
+  show('skills-result', await api('reusable_skills'));
 });
 
 updateSimSpeed();

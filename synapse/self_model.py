@@ -20,6 +20,7 @@ This module provides:
 """
 from __future__ import annotations
 import math
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, List, Optional, Tuple
@@ -106,9 +107,9 @@ class EfferenceCopyComparator:
         self.step_counter = 0
 
         self.rng = np.random.default_rng(seed)
-        torch.manual_seed(seed)
-
-        self.model = EfferenceForwardModel(sensory_dim, action_dim, hidden_dim)
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            self.model = EfferenceForwardModel(sensory_dim, action_dim, hidden_dim)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         # Buffers for matched controls
@@ -254,12 +255,17 @@ class EfferenceCopyComparator:
         }
 
     def export_state(self) -> Dict[str, Any]:
-        return {
+        return deepcopy({
+            'schema': 2,
             'step_counter': self.step_counter,
             'control_mode': self.control_mode.value,
             'action_history': [a.tolist() for a in self.action_history],
-            'model_state': {k: v.cpu().numpy().tolist() for k, v in self.model.state_dict().items()}
-        }
+            'model_state': {k: v.detach().cpu().numpy().tolist() for k, v in self.model.state_dict().items()},
+            'optimizer': self.optimizer.state_dict(),
+            'rng': self.rng.bit_generator.state,
+            'recent_receipts': [r.to_dict() for r in self.recent_receipts],
+            'authorship_threshold': self.authorship_threshold,
+        })
 
     def import_state(self, state: Dict[str, Any]):
         self.step_counter = int(state.get('step_counter', 0))
@@ -269,3 +275,11 @@ class EfferenceCopyComparator:
             self.model.load_state_dict(state_dict)
         if 'action_history' in state:
             self.action_history = [np.asarray(a, dtype=np.float32) for a in state['action_history']]
+        if 'optimizer' in state:
+            self.optimizer.load_state_dict(deepcopy(state['optimizer']))
+        else:
+            self.optimizer.state.clear()
+        if 'rng' in state:
+            self.rng.bit_generator.state = deepcopy(state['rng'])
+        self.recent_receipts = [AuthorshipReceipt(**r) for r in state.get('recent_receipts', [])]
+        self.authorship_threshold = float(state.get('authorship_threshold', self.authorship_threshold))

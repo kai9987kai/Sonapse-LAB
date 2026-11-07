@@ -9,6 +9,11 @@ def main(argv=None):
     parser.add_argument('--output',type=Path,default=ARTIFACTS)
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--frontier-all',action='store_true',help='activate all frontier cognitive, planning, self-modeling, and neuromorphic features')
+    parser.add_argument('--compute-threads',type=int,help='CPU thread budget, bounded by available logical CPUs')
+    parser.add_argument('--neural-graft',action='store_true',help='enable the trainable bounded neural residual')
+    parser.add_argument('--active-training',action='store_true',help='fit the residual from actual live exploratory outcomes')
+    parser.add_argument('--programmed-connectome',action='store_true',help='bind the verified 128-neuron MaleCNS sparse prior')
+    parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
     size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 2000)')
@@ -70,6 +75,9 @@ def main(argv=None):
     p.add_argument('--study-nodes',type=int,default=16)
     p.add_argument('--name',help='exclusive output folder name; defaults to a timestamp')
     p=sub.add_parser('adaptation-verify'); p.add_argument('path',type=Path)
+    p=sub.add_parser('pretrain'); p.add_argument('--steps',type=int,default=256); p.add_argument('--updates',type=int,default=64); p.add_argument('--batch-size',type=int,default=128); p.add_argument('--workers',type=int,default=2); p.add_argument('--save',default='pretrained-graft')
+    p=sub.add_parser('live-rsi'); p.add_argument('--steps',type=int,default=24); p.add_argument('--candidates',type=int,default=2); p.add_argument('--save')
+    sub.add_parser('connectome-inventory')
     p=sub.add_parser('planning-study'); p.add_argument('--name',default='planning-pilot')
     p.add_argument('--seeds',type=int,nargs='+',default=[23,29,31])
     p.add_argument('--tasks',nargs='+',default=['forage','push'])
@@ -84,11 +92,35 @@ def main(argv=None):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:
             config=SynapseConfig(seed=args.seed,nodes_per_source=100 if args.nodes is None else args.nodes,total_neurons=total,task=args.task)
+        if args.command=='serve' and args.nodes is None and not getattr(args, 'frontier_all', False):
+            from dataclasses import replace
+            import os
+            config=replace(config,
+                neural_graft=True,
+                active_training=True,
+                programmed_connectome=True,
+                compute_threads=args.compute_threads if args.compute_threads is not None else min(4,os.cpu_count() or 1),
+                connectome_mode=args.connectome_mode or 'prefer_authentic')
+        elif (args.compute_threads is not None or args.neural_graft or args.active_training
+                or args.programmed_connectome or args.connectome_mode is not None or args.command=='pretrain'):
+            from dataclasses import replace
+            import os
+            enable_graft = (config.neural_graft or args.neural_graft or args.active_training
+                            or args.programmed_connectome or args.command=='pretrain')
+            config=replace(config,
+                neural_graft=enable_graft,
+                active_training=config.active_training or args.active_training,
+                programmed_connectome=config.programmed_connectome or args.programmed_connectome,
+                connectome_mode=args.connectome_mode or config.connectome_mode,
+                compute_threads=args.compute_threads if args.compute_threads is not None else min(4,os.cpu_count() or 1))
         demo_nodes=config.total_neurons or config.nodes_per_source
         if args.command=='serve':
             from .server import serve
             serve(args.host,args.port,config=config,output_root=args.output); return 0
-        if args.command=='capabilities':
+        if args.command=='connectome-inventory':
+            from .connectome_assets import get_source_inventory
+            result={'sources':get_source_inventory()}
+        elif args.command=='capabilities':
             from .capabilities import catalog,invoke
             result=invoke(args.id,json.loads(args.payload)) if args.id else catalog()
         elif args.command in ('study','verify'):
@@ -127,6 +159,14 @@ def main(argv=None):
             from .server import integer,safe_name
             runtime=LabRuntime(config,output_root=args.output)
             if args.command=='status': result=runtime.snapshot()
+            elif args.command=='pretrain':
+                from .active_training import pretrain_runtime
+                result=pretrain_runtime(runtime,steps=args.steps,updates=args.updates,batch_size=args.batch_size,workers=args.workers)
+                if args.save: result['checkpoint']=runtime.save(safe_name(args.save))
+            elif args.command=='live-rsi':
+                from .live_programming import run_live_rsi
+                result=run_live_rsi(runtime.agent,task=config.task,steps=args.steps,candidates=args.candidates,seed=args.seed)
+                if args.save: result['checkpoint']=runtime.save(safe_name(args.save))
             elif args.command in ('run','train'):
                 result=runtime.step(integer(args.steps,'steps',1,10000),learn=args.command=='train')
                 if args.save: result={'state':result,'checkpoint':runtime.save(safe_name(args.save))}
@@ -351,7 +391,7 @@ def main(argv=None):
                 result = receipt.to_dict()
                 if args.save_report:
                     args.save_report.write_text(json.dumps(result, indent=2), encoding='utf-8')
-        if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan'):
+        if args.command in ('world-model-cem','dpo-align','unified-eval','coconut-think','multistep-plan','rsi-verify'):
             result={**result,'measured':False,'evidence_kind':'illustrative',
                     'scope':'standalone synthetic inputs; no measured embodied performance; use planning-study or evidence for actual world trials'}
         print(json.dumps(result,indent=2,allow_nan=False,default=str))

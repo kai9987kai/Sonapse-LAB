@@ -73,10 +73,72 @@ class Workbench:
                 with self.job_lock: job['finished']=time.time(); self.persist(job)
         threading.Thread(target=worker,daemon=True,name=f'study-{ident[:8]}').start()
         return dict(job)
+    def start_enhancement(self,kind,data):
+        from copy import deepcopy
+        from .stateio import digest,save_state
+        steps=integer(data.get('steps',128 if kind=='pretrain' else 24),'steps',8,4096 if kind=='pretrain' else 64)
+        updates=integer(data.get('updates',32),'updates',1,512)
+        batch=integer(data.get('batch_size',128),'batch_size',8,1024)
+        candidates=integer(data.get('candidates',2),'candidates',1,4)
+        workers=integer(data.get('workers',2),'workers',1,min(4,__import__('os').cpu_count() or 1))
+        with self.lock:
+            if kind=='pretrain' and self.runtime.agent.neural_graft is None:
+                raise ValueError('enable neural graft in training controls first')
+            parent=digest(self.runtime.agent.export_state())
+            clone=deepcopy(self.runtime)
+        with self.job_lock:
+            if any(j['status'] in ('queued','running') for j in self.jobs.values()):
+                raise ValueError('a background job is already active')
+            ident=uuid.uuid4().hex; event=threading.Event(); self.cancel[ident]=event
+            job={'id':ident,'kind':kind,'status':'queued','created':time.time(),'progress':{},'result':None,'error':None}
+            self.jobs[ident]=job; self.persist(job)
+        def progress(value):
+            with self.job_lock: job['progress']=value; self.persist(job)
+        def worker():
+            try:
+                with self.job_lock: job['status']='running'; self.persist(job)
+                if kind=='pretrain':
+                    from .active_training import pretrain_runtime
+                    result=pretrain_runtime(clone,steps=steps,updates=updates,batch_size=batch,apply=False,progress=progress,cancelled=event.is_set,workers=workers)
+                    candidate=result.pop('candidate_state',None)
+                else:
+                    from .live_programming import run_live_rsi
+                    result=run_live_rsi(clone.agent,task=data.get('task'),steps=steps,candidates=candidates,
+                        seed=integer(data.get('seed',7),'seed',0,2**31-1),progress=progress,cancelled=event.is_set)
+                    candidate=clone.agent.export_state()
+                with self.lock:
+                    applied=False
+                    if not event.is_set() and candidate is not None:
+                        if digest(self.runtime.agent.export_state())==parent:
+                            if kind=='pretrain': self.runtime.agent.neural_graft.import_state(candidate)
+                            else: self.runtime.agent.import_state(candidate)
+                            applied=True
+                            save_state(self.root/'training'/f'{ident}.pt',self.runtime.agent.export_state())
+                        else: result['apply_reason']='live parent changed; candidate retained without application'
+                        save_state(self.root/'training'/f'{ident}-candidate.pt',candidate)
+                    result['applied']=applied
+                with self.job_lock:
+                    job.update(status='cancelled' if event.is_set() else 'completed',result=result)
+            except Exception as exc:
+                with self.job_lock: job.update(status='failed',error=f'{type(exc).__name__}: {exc}')
+            finally:
+                with self.job_lock: job['finished']=time.time(); self.persist(job)
+        threading.Thread(target=worker,daemon=True,name=f'{kind}-{ident[:8]}').start()
+        return deepcopy(job)
+
     def get(self,path):
         if path=='/api/jobs':
             with self.job_lock: return {'jobs':json.loads(json.dumps(list(self.jobs.values()),default=str))}
         with self.lock:
+            if path=='/api/training/status':
+                from .compute import compute_summary
+                agent=self.runtime.agent
+                return {'compute':{**compute_summary(),'threads':self.runtime.config.compute_threads},
+                        'graft':agent.neural_graft.summary() if agent.neural_graft is not None else {'enabled':False},
+                        'active_training':self.runtime.config.active_training,'programmed_prior':agent.programmed_prior_status}
+            if path=='/api/connectomes/inventory':
+                from .connectome_assets import get_source_inventory
+                return {'sources':get_source_inventory(),'active_sources':self.runtime.agent.source_provenance}
             if path=='/api/state': return self.runtime.snapshot()
             if path=='/api/capabilities':
                 from .capabilities import catalog
@@ -109,14 +171,16 @@ class Workbench:
             if path=='/api/uncertainty/status':
                 return {'status': 'active', 'tripartite_decomposer': True}
             if path=='/api/reusable_skills':
-                from .reusable_skills import ReusableSkillLibrary
-                return ReusableSkillLibrary().summary()
+                library=self.omnibus_runner.skill_library if self.omnibus_runner is not None else self.runtime.skill_library
+                return {**library.summary(),'consumer':'current runtime or retained omnibus library'}
             if path=='/api/omnibus/status':
                 if getattr(self, 'omnibus_runner', None) is not None:
                     return self.omnibus_runner.summary()
                 return {'status': 'idle', 'total_neurons': 2000}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
+        if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
+        if path=='/api/rsi/live': return self.start_enhancement('rsi',data)
         if path=='/api/studies': return self.start_study(data.get('config',{}))
         if path=='/api/jobs/cancel':
             with self.job_lock:
@@ -124,6 +188,23 @@ class Workbench:
                 if ident in self.cancel: self.cancel[ident].set(); job['cancel_requested']=True; self.persist(job)
                 return dict(job)
         with self.lock:
+            if path=='/api/training/config':
+                active=data.get('active',self.runtime.config.active_training)
+                if type(active) is not bool: raise ValueError('active must be boolean')
+                programmed=data.get('programmed_connectome',self.runtime.config.programmed_connectome)
+                if type(programmed) is not bool: raise ValueError('programmed_connectome must be boolean')
+                threads=integer(data.get('threads',self.runtime.config.compute_threads),'threads',1,__import__('os').cpu_count() or 1)
+                config=dataclasses.replace(self.runtime.config,neural_graft=True,active_training=active,programmed_connectome=programmed,compute_threads=threads)
+                from .compute import configure_torch
+                configure_torch(threads)
+                self.runtime.config=config; self.runtime.agent.config=config
+                self.runtime.agent._setup_neural_graft()
+                return self.runtime.snapshot()
+            if path=='/api/patch/evaluate':
+                from .live_programming import screen_live_patch
+                return screen_live_patch(self.runtime.agent,data.get('packet',{}),task=data.get('task'),
+                    steps=integer(data.get('steps',24),'steps',8,64),seeds=data.get('seeds',[19,23]),
+                    min_gain=float(data.get('min_gain',0.)))
             if path=='/api/experience/preview':
                 from .experience import encode_experience_state
                 from .experience_planner import ExperienceMPC

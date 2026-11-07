@@ -1,21 +1,12 @@
-"""Interactive 3D Neural Observatory: Spatial Graph Embedding & Multi-Connectome Telemetry.
+"""Schematic source/role graph layout and actual executing activity.
 
-Constructs 3D anatomical coordinate embeddings for connectome neurons grouped by
-neuropil clusters across all 8 landmark Drosophila datasets:
-- MaleCNS v1.0
-- BANC (Brain And Nerve Cord)
-- FlyEM Optic Lobe Connectome
-- FANC (Female Adult Nerve Cord)
-- FlyWire (FAFB v783)
-- MANC (Male Adult Nerve Cord)
-- Larval Drosophila Brain Connectome (Winding et al. 2023)
-- Hemibrain
-
-Exports rich 3D node-link structures, live activity heatmaps, and dataset provenance
-for browser rendering and interactive REST inspection.
+Coordinates are generated display positions, never measured anatomy. Catalog
+metadata identifies a source; executing provenance identifies the representation
+actually loaded. Base adjacency and active graft links remain distinguishable.
 """
 from __future__ import annotations
 import math
+from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
@@ -24,9 +15,9 @@ from .connectome_datasets import CONNECTOME_CATALOG, ALL_DATASET_IDS
 
 
 class NeuralObservatory:
-    """Generates 3D structural embeddings and dynamic telemetry payloads."""
+    """Generates reproducible display positions and runtime telemetry."""
 
-    # 3D anatomical centers for all 8 connectome regions
+    # Kept for API compatibility; actual display centers follow configured sources.
     NEUROPIL_OFFSETS: Dict[int, np.ndarray] = {
         0: np.array([0.0, 0.4, 0.0], dtype=np.float32),    # Region 0: Central Brain / FlyWire / MaleCNS
         1: np.array([0.0, -0.6, 0.0], dtype=np.float32),   # Region 1: MANC / VNC Cord / BANC
@@ -52,19 +43,25 @@ class NeuralObservatory:
     def __init__(self, agent: IntegratedAgent, seed: int = 42):
         self.agent = agent
         self.rng = np.random.default_rng(seed)
+        self.source_names = tuple(getattr(agent.config, 'connectome_sources', ('flywire', 'manc', 'optic-lobe')))
+        count = len(self.source_names)
+        self.source_centers = {i: np.array([.68 * math.cos(i / count * 2 * math.pi - math.pi / 2),
+                                           .68 * math.sin(i / count * 2 * math.pi - math.pi / 2), 0.], dtype=np.float32)
+                               if count > 1 else np.zeros(3, dtype=np.float32) for i in range(count)}
         self.node_positions_3d = self._compute_3d_positions()
 
     def _compute_3d_positions(self) -> np.ndarray:
-        """Assigns anatomical 3D coordinates based on neuropil origin and spatial dispersion."""
+        """Assign stable schematic coordinates grouped by source and role."""
         n = self.agent.brain.n
         pos = np.zeros((n, 3), dtype=np.float32)
 
         for i in range(n):
             origin = int(self.agent.graph.origin[i]) if i < len(self.agent.graph.origin) else 0
-            base_offset = self.NEUROPIL_OFFSETS.get(origin, np.array([0.0, 0.0, 0.0], dtype=np.float32))
-
-            # Spherical Gaussian dispersion within each neuropil cluster
-            jitter = self.rng.normal(0.0, 0.18, size=3).astype(np.float32)
+            base_offset = self.source_centers.get(origin, np.zeros(3, dtype=np.float32)).copy()
+            role = str(self.agent.graph.role[i])
+            base_offset[2] += {'sensory': -.25, 'visual': -.17, 'ascending': -.08,
+                               'central': 0., 'descending': .14, 'motor': .25}.get(role, 0.)
+            jitter = self.rng.normal(0.0, 0.10, size=3).astype(np.float32)
             pos[i] = base_offset + jitter
 
         return pos
@@ -73,7 +70,8 @@ class NeuralObservatory:
         """Returns 3D nodes and edges for 3D visualizer canvas or WebGL sidecar."""
         n = self.agent.brain.n
         nodes = []
-        source_names = getattr(self.agent.config, 'connectome_sources', ('flywire', 'manc', 'optic-lobe'))
+        source_names = self.source_names
+        provenance = getattr(self.agent, 'source_provenance', [])
 
         for i in range(n):
             origin = int(self.agent.graph.origin[i]) if i < len(self.agent.graph.origin) else 0
@@ -97,21 +95,32 @@ class NeuralObservatory:
                 'authors': meta.organisation_authors if meta else 'unknown',
                 'role': role,
                 'cell_type': cell_type,
+                'provenance': deepcopy(provenance[origin]) if origin < len(provenance) else {'representation': 'unknown'},
             })
 
-        # Graft and base edges
+        # Export bounded samples separately, with actual active graft membership.
         edges = []
+        graph = self.agent.graph
+        base_count = len(graph.base_pre)
+        for index in np.linspace(0, base_count-1, min(2000, base_count), dtype=int):
+            edges.append({'source': int(graph.base_pre[index]), 'target': int(graph.base_post[index]),
+                          'weight': round(float(graph.base_w[index]), 4), 'is_graft': False})
         g_pre = self.agent.graph.graft_pre
         g_post = self.agent.graph.graft_post
         g_w = self.agent.brain.graft_w.detach().cpu().numpy()
 
-        for pre, post, w in zip(g_pre, g_post, g_w):
-            if pre < n and post < n and abs(w) > 0.01:
+        active = self.agent.plasticity.active_mask.detach().cpu().numpy()
+        active_graft_count = int(np.count_nonzero(active))
+        graft_links = []
+        for index, (pre, post, w) in enumerate(zip(g_pre, g_post, g_w)):
+            if pre < n and post < n and active[index] and len(graft_links) < 2000:
+                link = {
+                    'source': int(pre), 'target': int(post),
+                    'weight': round(float(w), 4), 'is_graft': True,
+                }
+                graft_links.append(link)
                 edges.append({
-                    'source': int(pre),
-                    'target': int(post),
-                    'weight': round(float(w), 4),
-                    'is_graft': True,
+                    **link,
                 })
 
         neuropils_list = []
@@ -123,12 +132,18 @@ class NeuralObservatory:
                 'name': meta.name if meta else s_name,
                 'authors': meta.organisation_authors if meta else 'unknown',
                 'license': meta.license if meta else 'unknown',
-                'center': self.NEUROPIL_OFFSETS.get(i, np.array([0.0, 0.0, 0.0])).tolist(),
+                'center': self.source_centers[i].tolist(),
+                'provenance': deepcopy(provenance[i]) if i < len(provenance) else {'representation': 'unknown'},
             })
 
         return {
             'total_nodes': n,
-            'total_edges': len(edges),
+            'total_edges': base_count + active_graft_count,
+            'displayed_edges': len(edges),
+            'base_edges': base_count,
+            'active_graft_edges': active_graft_count,
+            'graft_links': graft_links,
+            'layout_scope': 'schematic source/role layout; coordinates are not measured anatomy',
             'nodes': nodes,
             'edges': edges,
             'neuropils': neuropils_list,

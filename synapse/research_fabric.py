@@ -119,11 +119,13 @@ class EvaluationReceipt:
         base_seed: int
     ) -> EvaluationReceipt:
         raw_payload = {
+            'fabric_version': FABRIC_VERSION,
             'benchmark': benchmark_name,
             'tasks': task_sequence,
             'matrix': score_matrix,
             'retention': retention,
             'forgetting': forgetting,
+            'adaptation_speed': adaptation_speed,
             'seed': base_seed
         }
         proof = hashlib.sha256(json.dumps(raw_payload, sort_keys=True).encode('utf-8')).hexdigest()
@@ -142,11 +144,13 @@ class EvaluationReceipt:
     def verify(self) -> bool:
         """Verify receipt against tamper or payload corruption."""
         raw_payload = {
+            'fabric_version': self.fabric_version,
             'benchmark': self.benchmark_name,
             'tasks': self.task_sequence,
             'matrix': self.score_matrix,
             'retention': self.final_retention_rate,
             'forgetting': self.catastrophic_forgetting,
+            'adaptation_speed': self.adaptation_speed,
             'seed': self.base_seed
         }
         computed = hashlib.sha256(json.dumps(raw_payload, sort_keys=True).encode('utf-8')).hexdigest()

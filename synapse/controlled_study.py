@@ -1,8 +1,8 @@
-"""Controlled 6-Arm Comparative Study for Continual and Developmental Adaptation.
+"""Six-arm sequential adaptation study with matched world-transition budgets.
 
 Grounding & Review Requirements:
 Directly implements the experimental design recommended in the 6 November technical review:
-Compares 6 strictly matched arms on a fixed sequential embodied curriculum:
+Compares mechanism bundles on matched seeds; optimizer/sleep compute differs.
 1. 'frozen_actor': Establish fixed baseline.
 2. 'online_rl': Measure online learning capacity.
 3. 'actor_replay': Measure memory and replay consolidation benefit.
@@ -19,6 +19,7 @@ Evaluates:
 - Real ComplexWorld environment outcomes with SHA-256 deterministic seeds.
 """
 from __future__ import annotations
+from copy import deepcopy
 import time
 import hashlib
 import json
@@ -34,6 +35,7 @@ from .continual_backprop import ContinualBackpropEngine
 from .sleep import SleepConsolidationEngine
 from .uncertainty_calibration import TripartiteUncertaintyDecomposer
 from .self_model import EfferenceCopyComparator
+from .homeostasis import HomeostaticEngine
 
 
 def deterministic_seed(base_seed: int, label: str) -> int:
@@ -51,7 +53,7 @@ class ArmResult:
     final_retention_rate: float
     catastrophic_forgetting: float
     adaptation_speed: float
-    negative_transfer: float
+    negative_transfer: Optional[float]
     mean_step_latency_ms: float
     task_matrix: List[List[float]]
     auxiliary_metrics: Dict[str, Any] = field(default_factory=dict)
@@ -85,6 +87,7 @@ class ControlledSixArmStudy:
         self.eval_episodes_per_task = eval_episodes_per_task
         self.seed = seed
         self.nodes_per_source = nodes_per_source
+        self.evaluation_steps_executed = 0
 
     def run_study(self) -> Dict[str, Any]:
         """Execute all 6 arms under identical conditions."""
@@ -103,23 +106,26 @@ class ControlledSixArmStudy:
             nodes_per_source=self.nodes_per_source,
             seed=self.seed,
             continual_backprop=(arm_name in ('continual_backprop', 'composed_system')),
-            self_model=(arm_name == 'composed_system')
+            self_model=(arm_name == 'composed_system'),
+            structural_learning=(arm_name in ('connectome_evolution', 'composed_system')),
         )
         agent = IntegratedAgent(cfg)
-        opt = torch.optim.Adam(agent._optimization_parameters(), lr=1e-3)
 
         # Auxiliary components based on arm
         sleep_engine = SleepConsolidationEngine() if arm_name in ('actor_replay', 'composed_system') else None
-        cbp_engine = ContinualBackpropEngine(num_neurons=agent.brain.n, seed=self.seed) if arm_name in ('continual_backprop', 'composed_system') else None
+        cbp_engine = agent.continual_backprop
         tripartite = TripartiteUncertaintyDecomposer(state_dim=16, action_dim=5, seed=self.seed) if arm_name == 'composed_system' else None
 
         num_tasks = len(self.task_sequence)
         task_matrix = np.zeros((num_tasks, num_tasks), dtype=np.float32)
         stage_returns = []
         step_latencies = []
+        training_seeds = {}
+        eval_work_before = self.evaluation_steps_executed
 
         for stage_idx, current_task in enumerate(self.task_sequence):
-            train_seed = deterministic_seed(self.seed, f"{arm_name}_train_{current_task}")
+            train_seed = deterministic_seed(self.seed, f"train_{current_task}")
+            training_seeds[current_task] = train_seed
             world = ComplexWorld(seed=train_seed)
             obs = world.reset(task=current_task)
             agent.reset_episode()
@@ -134,42 +140,39 @@ class ControlledSixArmStudy:
                 act = out['action']
 
                 # Step world
-                next_obs, rew, done, _ = world.step(act)
+                next_obs, rew, done, info = world.step(act)
                 stage_cum_reward += float(rew)
+                self._advance_physiology(agent, act, rew, info)
                 t_step = (time.perf_counter() - t0) * 1000.0
                 step_latencies.append(t_step)
 
                 # Arm-specific updates
                 if arm_name != 'frozen_actor':
-                    agent.feedback(float(rew))
                     agent.observe_transition(next_obs, float(rew), done=bool(done), action=act)
+                    agent.feedback(float(rew), done=bool(done))
 
                     if sleep_engine is not None:
                         sleep_engine.record_experience(obs, act, float(rew), task_id=current_task)
 
-                    if cbp_engine is not None:
-                        cbp_engine.update_utility(agent.brain.r.detach().numpy())
-                        if step % 20 == 0:
-                            cand = cbp_engine.identify_replacement_candidates()
-                            if cand:
-                                cbp_engine.replace_neurons(agent, cand, optimizer=opt)
-
-                    if arm_name in ('connectome_evolution', 'composed_system') and step % 25 == 0:
-                        # Structural remodeling
-                        agent.neurogenesis.evaluate_structural_remodeling(agent, dopamine=1.0, astrocyte_calcium=1.0, threat=0.0)
-
                     if tripartite is not None:
-                        z_curr = agent._pooled(agent.brain.r).detach().numpy()[:16]
-                        z_next = z_curr.copy()  # Approximated latent state
+                        # Explicit observed channels, not an invented latent identity target.
+                        z_curr, z_next = obs[:16].copy(), next_obs[:16].copy()
                         tripartite.train_batch(
                             z_curr[np.newaxis, :], act[np.newaxis, :], np.array([float(rew)]), z_next[np.newaxis, :]
                         )
 
-                obs = world.reset(task=current_task) if done else next_obs
+                if done:
+                    obs = world.reset(task=current_task)
+                    agent.reset_episode()
+                else:
+                    obs = next_obs
 
             # Post-stage replay consolidation
             if sleep_engine is not None:
-                sleep_engine.run_sleep_cycle(agent, sleep_steps=10)
+                seen_tasks = self.task_sequence[:stage_idx + 1]
+                sleep_engine.run_sleep_cycle(agent, sleep_steps=10,
+                    eval_fn=lambda candidate: float(np.mean([
+                        self._evaluate_agent(candidate, task, 0) for task in seen_tasks])))
 
             # Evaluate on all tasks seen so far
             for prev_idx in range(stage_idx + 1):
@@ -182,13 +185,19 @@ class ControlledSixArmStudy:
 
         retention, forgetting = self._calc_retention_and_forgetting(task_matrix)
         adaptation_speed = float(np.mean(stage_returns))
-        neg_transfer = float(min(0.0, stage_returns[-1] - stage_returns[0]))
+        # Different task returns are not a negative-transfer experiment.
+        neg_transfer = None
 
-        aux = {}
+        aux = {'training_seeds': training_seeds, 'training_transitions': self.steps_per_stage * num_tasks,
+               'evaluation_world_steps': self.evaluation_steps_executed - eval_work_before,
+               'structural_learning': cfg.structural_learning, 'negative_transfer_measured': False,
+               'uncertainty_input': 'observed_channels_0_16' if tripartite else None}
         if cbp_engine:
             aux['cbp_replacements'] = cbp_engine.total_replacements
+            aux['cbp_utility_updates'] = cbp_engine.step_count
         if sleep_engine:
             aux['sleep_consolidations'] = sleep_engine.sleep_cycles_completed
+            aux['sleep_screens'] = deepcopy(sleep_engine.consolidation_history)
 
         return ArmResult(
             arm_name=arm_name,
@@ -197,7 +206,7 @@ class ControlledSixArmStudy:
             final_retention_rate=round(float(retention), 4),
             catastrophic_forgetting=round(float(forgetting), 4),
             adaptation_speed=round(adaptation_speed, 4),
-            negative_transfer=round(neg_transfer, 4),
+            negative_transfer=neg_transfer,
             mean_step_latency_ms=round(float(np.mean(step_latencies)), 3),
             task_matrix=[[round(float(v), 4) for v in row] for row in task_matrix.tolist()],
             auxiliary_metrics=aux
@@ -205,25 +214,38 @@ class ControlledSixArmStudy:
 
     def _evaluate_agent(self, agent: IntegratedAgent, task_name: str, eval_id: int) -> float:
         """Evaluate agent in frozen evaluation mode over held-out episodes."""
-        eval_seed = deterministic_seed(self.seed, f"eval_{task_name}_{eval_id}")
-        world = ComplexWorld(seed=eval_seed)
+        # eval_id is retained for API compatibility; phases use identical episodes.
+        actor = deepcopy(agent)
+        frozen = actor.export_state()
         episode_rewards = []
 
         for ep in range(self.eval_episodes_per_task):
+            eval_seed = deterministic_seed(self.seed, f"eval_{task_name}_{ep}")
+            world = ComplexWorld(seed=eval_seed)
             obs = world.reset(task=task_name)
-            agent.reset_episode()
+            actor.import_state(frozen)
+            actor.reset_episode()
+            actor.homeostasis = HomeostaticEngine(seed=eval_seed)
             ep_rew = 0.0
             done = False
             steps = 0
             while not done and steps < 60:
-                out = agent.act(obs, learn=False)
-                next_obs, r, done, _ = world.step(out['action'])
+                out = actor.act(obs, learn=False)
+                next_obs, r, done, info = world.step(out['action'])
+                self._advance_physiology(actor, out['action'], r, info)
+                actor.pending_transition = None
                 ep_rew += float(r)
                 obs = next_obs
                 steps += 1
+                self.evaluation_steps_executed += 1
             episode_rewards.append(ep_rew)
 
         return float(np.mean(episode_rewards))
+
+    @staticmethod
+    def _advance_physiology(agent, action, reward, info):
+        agent.homeostasis.step(action, float(reward), hazard_dist=info.get('min_hazard_dist', 10.),
+            consumed_food=float(reward) > .3, in_friction_zone=info.get('in_friction_zone', False))
 
     @staticmethod
     def _calc_retention_and_forgetting(matrix: np.ndarray) -> Tuple[float, float]:
@@ -237,8 +259,9 @@ class ControlledSixArmStudy:
         for j in range(N - 1):
             peak = float(np.max(matrix[j:, j]))
             final = float(matrix[-1, j])
-            denom = max(abs(peak), 1e-4)
-            retentions.append(max(0.0, min(2.0, final / denom)))
+            acquired = float(matrix[j, j])
+            denom = max(abs(acquired), 1.)
+            retentions.append(max(0.0, 1. - max(0., acquired - final) / denom))
             forgettings.append(max(0.0, peak - final))
 
         mean_ret = float(np.mean(retentions)) if retentions else 1.0
@@ -252,6 +275,14 @@ class ControlledSixArmStudy:
             'steps_per_stage': self.steps_per_stage,
             'eval_episodes_per_task': self.eval_episodes_per_task,
             'base_seed': self.seed,
+            'evidence_kind': 'measured_world_development_study',
+            'protocol': {'matched_training_seeds': True, 'matched_query_seeds_across_stages': True,
+                'evaluation_steps_per_episode': 60, 'query_learning': False, 'query_clones': True,
+                'budget': 'equal training world transitions; optimizer and sleep work differ'},
+            'limitations': ['Mechanism bundles retain common inherited learning and dormant mechanisms.',
+                'online_rl is a legacy arm name: updates are reward-modulated Hebbian plasticity, not a new policy-gradient baseline.',
+                'adaptation_speed stores mean post-stage return; no time-to-mastery or negative-transfer control is measured.',
+                'Finite development tasks and seeds do not establish a general continual-learning advantage.'],
             'arms': {k: v.to_dict() for k, v in results.items()},
             'comparative_table': []
         }

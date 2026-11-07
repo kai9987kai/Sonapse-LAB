@@ -28,11 +28,11 @@ import numpy as np
 class PlasticityReport:
     """Quantitative report on representation rank and plasticity status."""
     step: int
-    effective_rank: float     # erank in [1, D]
-    normalized_erank: float   # erank / D in [0, 1]
-    stable_rank: float        # srank >= 1.0
-    dead_neuron_ratio: float  # fraction in [0, 1]
-    spectral_entropy: float   # Shannon entropy of normalized singular values
+    effective_rank: Optional[float]     # unavailable during warmup
+    normalized_erank: Optional[float]
+    stable_rank: Optional[float]
+    dead_neuron_ratio: Optional[float]
+    spectral_entropy: Optional[float]
     is_collapsed: bool        # True if normalized erank < collapse_threshold
     recommended_action: str   # 'HEALTHY', 'SCHEDULE_CBP_RESET', 'TRIGGER_NEUROGENESIS'
     details: Dict[str, Any] = field(default_factory=dict)
@@ -79,13 +79,14 @@ class PlasticityMonitor:
         if len(self.activity_buffer) < 10:
             return PlasticityReport(
                 step=self.step_counter,
-                effective_rank=float(self.num_features),
-                normalized_erank=1.0,
-                stable_rank=1.0,
-                dead_neuron_ratio=0.0,
-                spectral_entropy=1.0,
+                effective_rank=None,
+                normalized_erank=None,
+                stable_rank=None,
+                dead_neuron_ratio=None,
+                spectral_entropy=None,
                 is_collapsed=False,
-                recommended_action='WARMUP'
+                recommended_action='WARMUP',
+                details={'measured': False, 'samples': len(self.activity_buffer), 'minimum_samples': 10},
             )
 
         X = np.stack(self.activity_buffer, axis=0)  # [N, D]

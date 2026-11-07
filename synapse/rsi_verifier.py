@@ -1,4 +1,4 @@
-"""Verifier-Gated Bounded Recursive Self-Improvement (RSI) Engine.
+"""Illustrative verifier-gated RSI scaffold with simulated outcomes.
 
 Grounding:
 Implements the AIDE² / Darwin Gödel Machine / AlphaEvolve pattern for safe, bounded RSI:
@@ -74,6 +74,9 @@ class VerificationReceipt:
     regression_rate: float
     receipt_hash: str = ""
     timestamp: float = field(default_factory=time.time)
+    simulated: bool = True
+    measured: bool = False
+    evidence_kind: str = 'illustrative'
 
     def finalize(self) -> VerificationReceipt:
         payload = json.dumps({
@@ -86,6 +89,10 @@ class VerificationReceipt:
             'lcb_score': self.lcb_score,
             'regression_rate': self.regression_rate,
             'timestamp': self.timestamp,
+            'stage_results': self.stage_results,
+            'simulated': self.simulated,
+            'measured': self.measured,
+            'evidence_kind': self.evidence_kind,
         }, sort_keys=True)
         self.receipt_hash = hashlib.sha256(payload.encode()).hexdigest()
         return self
@@ -170,12 +177,20 @@ class BoundedRSIEngine:
         num_query_trials: int = 5,
         simulated_parent_perf: float = 1.0,
     ) -> VerificationReceipt:
-        """Executes the full immutable verification pipeline on the candidate patch."""
+        """Runs an explicitly simulated demo; no environment or unit tests execute."""
+        for name, value in [('num_support_trials', num_support_trials), ('num_query_trials', num_query_trials)]:
+            if type(value) is not int or not 1 <= value <= 1000:
+                raise ValueError(f'{name} must be an integer in [1,1000]')
         stage_results: Dict[str, Dict[str, Any]] = {}
 
         # Stage 1: Schema Check
         if not candidate.diff or not isinstance(candidate.diff, dict):
             return self._reject(candidate, VerificationStage.SCHEMA_CHECK, stage_results, "Empty or invalid diff format")
+        if candidate.parent_hash != self.current_parent_hash:
+            return self._reject(candidate, VerificationStage.SCHEMA_CHECK, stage_results, 'stale or unknown parent hash')
+        if any(isinstance(v, (bool, np.bool_)) or not isinstance(v, (int, float, np.number)) or not np.isfinite(v)
+               for v in candidate.diff.values()):
+            return self._reject(candidate, VerificationStage.SCHEMA_CHECK, stage_results, 'diff values must be finite numeric values')
         stage_results['schema_check'] = {'status': 'pass', 'keys_modified': list(candidate.diff.keys())}
 
         # Stage 2: Static Analysis / Range Bounds
@@ -347,6 +362,10 @@ class BoundedRSIEngine:
     def get_summary(self) -> Dict[str, Any]:
         return {
             'status': 'ok',
+            'simulated': True,
+            'measured': False,
+            'evidence_kind': 'illustrative',
+            'scope': 'synthetic verification scaffold; tests and support/query scores are simulated; no measured RSI gain',
             'current_parent_hash': self.current_parent_hash,
             'promoted_count': len(self.success_lineage),
             'failure_count': len(self.failure_archive),

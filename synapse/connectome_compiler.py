@@ -1,8 +1,9 @@
-"""Biological Connectome Compiler: Real Connectome Translation, Sparse Execution & Null Benchmarking.
+"""Neuron-level source compiler with explicit model signs and sparse execution.
 
-Compiles real Janelia Drosophila whole-brain/cord connectome records into
+Compiles induced samples of independent Janelia MaleCNS neuron records into
 executable PyTorch neural modules preserving cell types, directionality,
-neurotransmitter identities (Dale's law), and biological synapse counts.
+neurotransmitter predictions and biological synapse counts. Explicit custom NPZ
+inputs use the legacy cell-type aggregate schema, not a neuron-level fullgraph.
 
 Features:
 - Dense BiologicalConnectomeModule for compact circuits
@@ -227,8 +228,10 @@ class BiologicalConnectomeCompiler:
     """Compiles Drosophila whole-brain/cord biological records into executable modules."""
 
     def __init__(self, data_path: Optional[Path] = None):
+        self.use_neuron_source = data_path is None
         self.data_path = Path(data_path) if data_path else DATA_PATH
         self._raw_data: Optional[Dict[str, Any]] = None
+        self.last_provenance: Dict[str, Any] = {}
 
     def load_raw_data(self) -> Dict[str, Any]:
         if self._raw_data is None:
@@ -246,7 +249,7 @@ class BiologicalConnectomeCompiler:
     ) -> BiologicalConnectomeModule:
         """Extracts an induced biological subcircuit and compiles it into an executable dense module."""
         names, pre, post, w, signs, nt, superclasses = self._extract_subcircuit_arrays(query, max_neurons, min_weight)
-        return BiologicalConnectomeModule(
+        module = BiologicalConnectomeModule(
             node_names=names,
             pre_indices=pre,
             post_indices=post,
@@ -255,6 +258,8 @@ class BiologicalConnectomeCompiler:
             neurotransmitters=nt,
             superclasses=superclasses,
         )
+        module.provenance = dict(self.last_provenance)
+        return module
 
     def compile_sparse_subcircuit(
         self,
@@ -264,7 +269,7 @@ class BiologicalConnectomeCompiler:
     ) -> SparseBiologicalConnectomeModule:
         """Extracts an induced biological subcircuit and compiles it into an executable sparse module."""
         names, pre, post, w, signs, nt, superclasses = self._extract_subcircuit_arrays(query, max_neurons, min_weight)
-        return SparseBiologicalConnectomeModule(
+        module = SparseBiologicalConnectomeModule(
             node_names=names,
             pre_indices=pre,
             post_indices=post,
@@ -273,6 +278,8 @@ class BiologicalConnectomeCompiler:
             neurotransmitters=nt,
             superclasses=superclasses,
         )
+        module.provenance = dict(self.last_provenance)
+        return module
 
     def _extract_subcircuit_arrays(
         self,
@@ -280,7 +287,18 @@ class BiologicalConnectomeCompiler:
         max_neurons: int,
         min_weight: float
     ) -> Tuple[List[str], np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str], List[str]]:
+        if self.use_neuron_source:
+            from .connectome_assets import load_programmed_graft
+            asset = load_programmed_graft(max_neurons, query=query)
+            self.last_provenance = dict(asset['provenance'])
+            valid = asset['synapse_counts'] >= min_weight
+            names = [str(name) or f"body:{body}" for name, body in zip(asset['cell_types'], asset['body_ids'])]
+            return (names, asset['pre'][valid], asset['post'][valid], asset['synapse_counts'][valid],
+                    asset['signs'][asset['pre'][valid]], asset['neurotransmitters'].tolist(),
+                    asset['superclasses'].tolist())
         data = self.load_raw_data()
+        self.last_provenance = {'representation': 'cell_type_aggregate', 'source_file': str(self.data_path),
+                                'sample_is_full_connectome': False, 'measured_synaptic_efficacy': False}
         type_names = data['type_names']
         superclasses = data['superclass']
         cell_classes = data['cell_class']

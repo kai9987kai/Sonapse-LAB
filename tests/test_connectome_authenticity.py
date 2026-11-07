@@ -22,12 +22,11 @@ def test_connectome_dataset_tiers_and_provenance():
     assert 'manc' in authentic_ids
     assert 'optic-lobe' in authentic_ids
 
-    # Check calibrated proxies
+    # Dataset entries describe importers; local_source reports installed files.
     proxy_ids = [d['id'] for d in datasets if d['provenance_tier'] == 'calibrated_proxy']
-    assert 'banc' in proxy_ids
     assert 'fanc' in proxy_ids
-    assert 'larval' in proxy_ids
-    assert 'hemibrain' in proxy_ids
+    assert get_dataset_info('larval').provenance_tier == 'source_backed_analysis_subset'
+    assert all('local_source' in item for item in datasets)
 
     prov = get_dataset_provenance('malecns')
     assert prov['provenance_tier'] == 'authentic'

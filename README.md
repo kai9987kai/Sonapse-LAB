@@ -18,8 +18,11 @@ license: apache-2.0
 **Current evidence:** SYNAPSE is a CPU research workbench with an integrated
 executed-transition learner and many standalone experiments. Module availability
 does not establish embodied capability or biological fidelity. Planning is
-experimental and off by default. Read the [design recovery audit](docs/design-audit.md)
-for restored contracts and remaining research gaps.
+experimental and off by default. Read the [design recovery audit](docs/design-audit.md),
+[Antigravity contract audit](docs/antigravity-audit.md), [neural graft training specification](docs/training-graft.md),
+[connectome source & verification guide](docs/connectome-data.md), and
+[compute, training & connectome pilot report](docs/results/2026-11-07-compute-training-connectome.md)
+for restored contracts, verified datasets, and measured pilot outcomes.
 
 A unified, CPU-first embodied cognitive research platform combining signed recurrent neural graphs, a frozen Poseidon Tidal MoE DAgger controller, continuous online connectome neurogenesis, interoceptive homeostatic drive regulation, MiMoMix dual-process cognitive deliberation, experience-grounded prediction, and direct weight-space programming with inherited recursive self-improvement (RSI).
 
@@ -103,6 +106,9 @@ flowchart TD
 | **Landmark Connectome Catalog (8 Datasets)** | Whole-animal multi-connectome substrate | Full integration of 8 datasets: MaleCNS v1.0, BANC, FlyEM Optic Lobe, FANC, FlyWire FAFB v783, MANC, Larval Drosophila, and Hemibrain with regional neuromodulation. |
 | **Multi-Connectome Hub** | Scalable cross-region routing | Unifies brain, optic, and cord neuropils with 93 biological interface sites, high-capacity scaling (>40,000 neurons/sec on CPU), and transactional weight-space editing. |
 | **Frontier Apex Omnibus Mode** | Full architectural & environmental integration | Single unified command `python -m synapse.cli omnibus` running all 11 complex environments (`forage`, `maze`, `push`, `delayed_match`, `ecosystem`, `predator_evasion`, `dynamic_arena`, `puzzle_chamber`, `apex_megasite`, `stealth_labyrinth`, `kinetic_foundry`) across 2,000 neurons (667/667/666) with efference self-model, uncertainty calibration, plasticity rank monitoring, and cryptographic SHA-256 evaluation receipts. |
+| **Executed-Transition Neural Graft** | Bounded residual actor, TD critic & sensory predictor | Zero-initialized residual policy (`synapse/neural_graft.py`) conditioned on 155-d observations, 64-d graph/donor features, 5-d baseline actions, and an optional 128-neuron MaleCNS sparse connectome prior (`load_programmed_graft`). Supports parallel rollout pretraining (`pretrain_runtime`) and online clipped policy optimization without mutating actor identity during auxiliary pretraining. |
+| **Verified Neuron-Level Connectome Caches** | Checksum-verified local connectome ingestion | Independent source-backed caches (`synapse/connectome_assets.py`) for `malecns`, `flywire`, `manc`, `optic-lobe`, `banc`, `hemibrain`, and `larval`, keeping catalog metadata, cell-type aggregates, induced subgraphs, and synthetic proxies explicitly distinct. |
+| **Live Weight-Space Screen & Bounded RSI** | Matched cloned-world numeric patch screening | Screens numeric weight edits (`screen_live_patch`, `run_live_rsi` in `synapse/live_programming.py`) on isolated cloned worlds across query and retention seeds before atomic application. |
 
 
 ## Run Locally
@@ -177,9 +183,15 @@ python -m synapse.cli dpo-align --pairs 5
 python -m synapse.cli unified-eval --eval-task forage
 
 # Landmark Connectome Datasets & High-Capacity Scaling
+python -m synapse.cli connectome-inventory
 python -m synapse.cli connectome-datasets
 python -m synapse.cli multi-connectome --nodes-per-source 32
 python -m synapse.cli scale-neurons --targets 64 128 256 512
+
+# Neural Graft Pretraining, Active Training & Bounded Live RSI
+python -m synapse.cli --compute-threads 4 --neural-graft --programmed-connectome pretrain --steps 256 --updates 64 --batch-size 128 --workers 2 --save pretrained-graft
+python -m synapse.cli --compute-threads 4 --neural-graft --active-training --programmed-connectome --connectome-mode prefer_authentic train --steps 64 --save online-graft
+python -m synapse.cli --compute-threads 4 live-rsi --steps 24 --candidates 2 --save rsi-screened
 
 # Automated Weight-Space Programming & Closed-Loop Repair
 python -m synapse.cli --nodes 16 autoprogram --diagnostic-episodes 3 --eval-episodes 3 --save repaired_agent

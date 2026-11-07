@@ -80,6 +80,7 @@ class UniversalFastWeightMemory(nn.Module):
         gate = torch.sigmoid(self.gate_proj(x))
         return readout.squeeze(0), gate.squeeze(0)
 
+    @torch.no_grad()
     def step_and_update(
         self,
         x: torch.Tensor,
