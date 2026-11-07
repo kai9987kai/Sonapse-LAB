@@ -3500,6 +3500,21 @@ async function runTandemMaxMode() {
   }
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
+  const progressTimer = setInterval(async () => {
+    try {
+      const om = await api('omnibus/status');
+      if (om && om.total_stages && !om.is_completed) {
+        const stage = (om.current_stage_idx ?? 0) + 1;
+        const total = om.total_stages;
+        const taskName = om.current_task || 'curriculum';
+        btns.forEach(b => { b.textContent = `⚡ Tandem Max · Task ${stage}/${total} (${taskName})`; });
+        if (pill) pill.textContent = `Section 01 · Task ${stage}/${total} (${taskName})`;
+      } else {
+        btns.forEach(b => { b.textContent = '⚡ Tandem Max · Computing Sections 02–05...'; });
+        if (pill) pill.textContent = 'Executing Assays & Controlled Studies (Sec 02–05)...';
+      }
+    } catch (_) {}
+  }, 800);
   try {
     const neurons = Number($('config')?.elements?.total_neurons?.value || 8000);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
@@ -3512,6 +3527,7 @@ async function runTandemMaxMode() {
       live_steps: 8,
       omnibus_steps_per_task: 2,
       omnibus_eval_steps: 2,
+      omnibus_tasks: ['forage', 'maze', 'push', 'delayed_match', 'ecosystem', 'continental_biosphere'],
       six_arm_steps: 4,
       causal_9arm_steps: 4
     });
@@ -3580,6 +3596,7 @@ async function runTandemMaxMode() {
     $('runstatus').textContent = 'Running · Tandem Max Active (MAX Uncapped Speed)';
     updateSimSpeed();
   } finally {
+    clearInterval(progressTimer);
     if ($('btn-tandem-max')) {
       $('btn-tandem-max').disabled = false;
       $('btn-tandem-max').textContent = '⚡ Run Complete System in Tandem (Max Mode · Sections 1–5)';

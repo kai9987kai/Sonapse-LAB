@@ -223,6 +223,9 @@ class Workbench:
                 ident=safe_name(data.get('id')); job=self.jobs[ident]
                 if ident in self.cancel: self.cancel[ident].set(); job['cancel_requested']=True; self.persist(job)
                 return dict(job)
+        if path=='/api/tandem/max':
+            from .tandem_max import run_tandem_max_orchestration
+            return run_tandem_max_orchestration(self, data)
         with self.lock:
             if path=='/api/training/config':
                 active=data.get('active',self.runtime.config.active_training)
@@ -476,9 +479,6 @@ class Workbench:
                     self.runtime,
                     seed=integer(data.get('seed', 42), 'seed', 0, 2**31-1),
                 )
-            if path=='/api/tandem/max':
-                from .tandem_max import run_tandem_max_orchestration
-                return run_tandem_max_orchestration(self, data)
             if path=='/api/neural-comm/config':
                 enabled = data.get('enabled', self.runtime.config.neural_comm_enabled)
                 mode = data.get('mode', self.runtime.config.neural_comm_mode)
@@ -632,9 +632,9 @@ class Workbench:
                 }
         raise KeyError('unknown API endpoint')
 
-def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None):
+def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None,workbench=None):
     if host not in ('127.0.0.1','localhost'): raise ValueError('server must bind to IPv4 loopback')
-    app=Workbench(runtime,config,output_root); web=Path(__file__).parent/'web'
+    app=workbench or Workbench(runtime,config,output_root); web=Path(__file__).parent/'web'
     class Handler(BaseHTTPRequestHandler):
         timeout=600
         def log_message(self,*args): pass
@@ -685,7 +685,7 @@ def serve(host='127.0.0.1',port=8765,**kwargs):
     alt_port = 8876 if server.server_port == 8765 else 8765
     alt_server = None
     try:
-        alt_server = create_server(host, alt_port, runtime=server.workbench.runtime, config=kwargs.get('config'), output_root=kwargs.get('output_root'))
+        alt_server = create_server(host, alt_port, workbench=server.workbench)
         threading.Thread(target=alt_server.serve_forever, daemon=True, name=f'synapse-alt-{alt_port}').start()
         print(f'SYNAPSE workbench dual-listener: http://{host}:{alt_server.server_port}', flush=True)
     except Exception:

@@ -377,7 +377,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     data = data or {}
     t_start = time.perf_counter()
     max_cpu = min(32, max(1, os.cpu_count() or 4))
-    workers = max(1, min(4, int(data.get('workers', min(4, max(1, os.cpu_count() or 2))))))
+    workers = max(1, min(4, int(data.get('workers', 1))))
     neurons = int(data.get('total_neurons', max(8000, workbench.runtime.config.total_neuron_count())))
     neurons = max(48, min(30000, neurons))
     task = str(data.get('task', workbench.runtime.config.task or 'forage'))
@@ -385,252 +385,247 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
 
     configure_torch(max_cpu)
 
+    max_cfg = SynapseConfig.max_tandem(
+        total_neurons=neurons,
+        seed=seed,
+        task=task,
+        compute_threads=max_cpu,
+    )
+    new_runtime = LabRuntime(max_cfg, output_root=workbench.root)
     with workbench.lock:
-        # -------------------------------------------------------------------
-        # SECTION 01: Live Embodied Loop, Max Config, Parallel Pretrain,
-        #             Counterfactual Hybrid Planning & Omnibus Curriculum
-        # -------------------------------------------------------------------
-        max_cfg = SynapseConfig.max_tandem(
-            total_neurons=neurons,
-            seed=seed,
-            task=task,
-            compute_threads=max_cpu,
-        )
-        workbench.runtime = LabRuntime(max_cfg, output_root=workbench.root)
+        workbench.runtime = new_runtime
         runtime = workbench.runtime
+    pretrain_receipt = pretrain_runtime(
+        runtime,
+        steps=int(data.get('pretrain_steps', 16)),
+        updates=int(data.get('pretrain_updates', 8)),
+        batch_size=int(data.get('batch_size', 128)),
+        apply=True,
+        workers=workers,
+    )
+    runtime.step(steps=int(data.get('live_steps', 8)), learn=True)
+    plan_preview = workbench.post('/api/experience/preview', {
+        'horizon': 5,
+        'memory': True,
+        'value_guided': True,
+    })
 
-        pretrain_receipt = pretrain_runtime(
-            runtime,
-            steps=int(data.get('pretrain_steps', 16)),
-            updates=int(data.get('pretrain_updates', 8)),
-            batch_size=int(data.get('batch_size', 128)),
-            apply=True,
-            workers=workers,
-        )
-        runtime.step(steps=int(data.get('live_steps', 8)), learn=True)
-        plan_preview = workbench.post('/api/experience/preview', {
-            'horizon': 5,
-            'memory': True,
-            'value_guided': True,
-        })
+    omnibus_tasks = data.get('omnibus_tasks') or ['forage', 'maze', 'push', 'delayed_match', 'ecosystem', 'continental_biosphere']
+    omnibus_steps = int(data.get('omnibus_steps_per_task', 2))
+    eval_steps = int(data.get('omnibus_eval_steps', 2))
+    workbench.omnibus_runner = OmnibusRunner(
+        total_neurons=neurons,
+        seed=seed,
+        steps_per_task=max(2, min(100, omnibus_steps)),
+        curriculum_tasks=list(omnibus_tasks),
+        output_dir=workbench.root,
+        eval_steps=eval_steps,
+        eval_episodes=1,
+    )
+    omnibus_receipt = workbench.omnibus_runner.run_full_curriculum().to_dict()
 
-        omnibus_tasks = data.get('omnibus_tasks') or (list(OMNIBUS_CURRICULUM) + ['quantum_bifurcation', 'cybernetic_sanctuary'])
-        omnibus_steps = int(data.get('omnibus_steps_per_task', 2))
-        eval_steps = int(data.get('omnibus_eval_steps', 2))
-        workbench.omnibus_runner = OmnibusRunner(
-            total_neurons=neurons,
-            seed=seed,
-            steps_per_task=max(2, min(100, omnibus_steps)),
-            curriculum_tasks=list(omnibus_tasks),
-            output_dir=workbench.root,
-            eval_steps=eval_steps,
-            eval_episodes=1,
-        )
-        omnibus_receipt = workbench.omnibus_runner.run_full_curriculum().to_dict()
+    section_01 = {
+        'section': '01 · Live Embodied Loop & Omnibus Curriculum',
+        'max_config': max_cfg.to_dict(),
+        'compute': {
+            **compute_summary(),
+            'threads': max_cpu,
+            'parallel_workers': workers,
+        },
+        'pretrain_receipt': pretrain_receipt,
+        'plan_preview': plan_preview,
+        'omnibus_receipt': omnibus_receipt,
+        'uncertainty_status': runtime.uncertainty_status(),
+    }
 
-        section_01 = {
-            'section': '01 · Live Embodied Loop & Omnibus Curriculum',
-            'max_config': max_cfg.to_dict(),
-            'compute': {
-                **compute_summary(),
-                'threads': max_cpu,
-                'parallel_workers': workers,
-            },
-            'pretrain_receipt': pretrain_receipt,
-            'plan_preview': plan_preview,
-            'omnibus_receipt': omnibus_receipt,
-            'uncertainty_status': runtime.uncertainty_status(),
-        }
+    # -------------------------------------------------------------------
+    # SECTION 02: Capability Matrix Sweep across all Capability Families
+    # -------------------------------------------------------------------
+    cap_catalog = catalog()
+    capabilities = cap_catalog.get('capabilities', [])
+    family_samples: Dict[str, Dict[str, Any]] = {}
+    default_payloads = {
+        'reasoning.solve': {'expression': '(144 / 12) + 29 * 3'},
+        'planning.rollout': {'horizon': 5},
+        'memory.store': {'key': 'tandem_max_probe', 'value': {'neurons': neurons, 'mode': 'max_tandem'}},
+        'patch.inspect': {},
+        'vision. analyze': {},
+    }
+    for entry in capabilities:
+        fam = entry.get('family', 'general')
+        if fam not in family_samples:
+            cid = entry['id']
+            payload = default_payloads.get(cid, {'horizon': 4, 'generations': 1, 'query': 'tandem_max_probe'})
+            try:
+                inv_res = invoke(cid, payload, runtime=runtime)
+            except Exception as exc:
+                inv_res = {'status': 'error', 'error': str(exc)}
+            family_samples[fam] = {
+                'capability_id': cid,
+                'evidence_kind': entry.get('evidence_kind', 'measured'),
+                'measured': bool(entry.get('measured', True)),
+                'result': inv_res,
+            }
 
-        # -------------------------------------------------------------------
-        # SECTION 02: Capability Matrix Sweep across all Capability Families
-        # -------------------------------------------------------------------
-        cap_catalog = catalog()
-        capabilities = cap_catalog.get('capabilities', [])
-        family_samples: Dict[str, Dict[str, Any]] = {}
-        default_payloads = {
-            'reasoning.solve': {'expression': '(144 / 12) + 29 * 3'},
-            'planning.rollout': {'horizon': 5},
-            'memory.store': {'key': 'tandem_max_probe', 'value': {'neurons': neurons, 'mode': 'max_tandem'}},
-            'patch.inspect': {},
-            'vision. analyze': {},
-        }
-        for entry in capabilities:
-            fam = entry.get('family', 'general')
-            if fam not in family_samples:
-                cid = entry['id']
-                payload = default_payloads.get(cid, {'horizon': 4, 'generations': 1, 'query': 'tandem_max_probe'})
-                try:
-                    inv_res = invoke(cid, payload, runtime=runtime)
-                except Exception as exc:
-                    inv_res = {'status': 'error', 'error': str(exc)}
-                family_samples[fam] = {
-                    'capability_id': cid,
-                    'evidence_kind': entry.get('evidence_kind', 'measured'),
-                    'measured': bool(entry.get('measured', True)),
-                    'result': inv_res,
-                }
+    representative_invoke = invoke('reasoning.solve', {'expression': '(2000 / 8) + 128'}, runtime=runtime)
+    section_02 = {
+        'section': '02 · Capability Matrix Verification Sweep',
+        'total_capabilities': len(capabilities),
+        'families_verified': len(family_samples),
+        'family_sweep': family_samples,
+        'representative_invocation': representative_invoke,
+    }
 
-        representative_invoke = invoke('reasoning.solve', {'expression': '(2000 / 8) + 128'}, runtime=runtime)
-        section_02 = {
-            'section': '02 · Capability Matrix Verification Sweep',
-            'total_capabilities': len(capabilities),
-            'families_verified': len(family_samples),
-            'family_sweep': family_samples,
-            'representative_invocation': representative_invoke,
-        }
+    # -------------------------------------------------------------------
+    # SECTION 03: Weight-Space Patches, Hypernetwork, Circuit Atlas,
+    #             Closed-Loop Auto-Repair, Transplant, Flagship,
+    #             Metamorphic, Spectral & Diffusion+DPO
+    # -------------------------------------------------------------------
+    tensors_info = workbench.get('/api/tensors')
+    hyper_packet = workbench.post('/api/hyperprogram', {'target': 'motor.weight', 'return': 0.35})
+    patch_pkt = hyper_packet if (isinstance(hyper_packet, dict) and hyper_packet.get('schema')) else make_patch(
+        runtime.agent,
+        [{'tensor': 'motor.weight', 'indices': [[0, 0]], 'values': [float(runtime.agent.motor.weight[0, 0].detach()) + 0.01]}],
+        'tandem_max_probe_patch',
+    )
+    patch_preview = preview_patch(runtime.agent, patch_pkt)
+    patch_screen = screen_live_patch(runtime.agent, patch_pkt, task='forage', steps=12, seeds=[19], min_gain=0.0)
 
-        # -------------------------------------------------------------------
-        # SECTION 03: Weight-Space Patches, Hypernetwork, Circuit Atlas,
-        #             Closed-Loop Auto-Repair, Transplant, Flagship,
-        #             Metamorphic, Spectral & Diffusion+DPO
-        # -------------------------------------------------------------------
-        tensors_info = workbench.get('/api/tensors')
-        hyper_packet = workbench.post('/api/hyperprogram', {'target': 'motor.weight', 'return': 0.35})
-        patch_pkt = hyper_packet if (isinstance(hyper_packet, dict) and hyper_packet.get('schema')) else make_patch(
-            runtime.agent,
-            [{'tensor': 'motor.weight', 'indices': [[0, 0]], 'values': [float(runtime.agent.motor.weight[0, 0].detach()) + 0.01]}],
-            'tandem_max_probe_patch',
-        )
-        patch_preview = preview_patch(runtime.agent, patch_pkt)
-        patch_screen = screen_live_patch(runtime.agent, patch_pkt, task='forage', steps=12, seeds=[19], min_gain=0.0)
+    atlas_res = CausalCircuitAtlas(runtime.agent).build_full_atlas()
+    autoprogram_res = execute_closed_loop_repair(
+        runtime.agent,
+        task='forage',
+        num_diagnostic_episodes=2,
+        num_eval_episodes=2,
+        min_gain=0.0,
+        seed=seed,
+    )
+    donor = extract_donor_subcircuit(runtime.agent, source_task='forage')
+    transplant_res = run_transplantation_experiment(
+        runtime.agent,
+        donor=donor,
+        test_task='delayed_match',
+        episodes=2,
+        seed=seed,
+    )
+    flagship_res = FlagshipExperimentRunner(seed=seed).run_full_experiment(
+        training_steps=8,
+        evolution_generations=2,
+        eval_episodes=2,
+    )
+    metamorphic_res = run_metamorphic_verification_suite(runtime.agent)
+    harmonics = compute_connectome_harmonics(runtime.agent.graph, num_modes=8)
+    spectral_res = {
+        'harmonics': harmonics['eigenvalues'],
+        'projection': project_spectral_activity(runtime.agent.brain.r, harmonics),
+    }
+    diffusion_dpo_res = run_diffusion_and_dpo_assay(runtime, horizon=5, seed=seed)
+    dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
+    criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
+    frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
+    frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
 
-        atlas_res = CausalCircuitAtlas(runtime.agent).build_full_atlas()
-        autoprogram_res = execute_closed_loop_repair(
-            runtime.agent,
-            task='forage',
-            num_diagnostic_episodes=2,
-            num_eval_episodes=2,
-            min_gain=0.0,
-            seed=seed,
-        )
-        donor = extract_donor_subcircuit(runtime.agent, source_task='forage')
-        transplant_res = run_transplantation_experiment(
-            runtime.agent,
-            donor=donor,
-            test_task='delayed_match',
-            episodes=2,
-            seed=seed,
-        )
-        flagship_res = FlagshipExperimentRunner(seed=seed).run_full_experiment(
-            training_steps=8,
-            evolution_generations=2,
-            eval_episodes=2,
-        )
-        metamorphic_res = run_metamorphic_verification_suite(runtime.agent)
-        harmonics = compute_connectome_harmonics(runtime.agent.graph, num_modes=8)
-        spectral_res = {
-            'harmonics': harmonics['eigenvalues'],
-            'projection': project_spectral_activity(runtime.agent.brain.r, harmonics),
-        }
-        diffusion_dpo_res = run_diffusion_and_dpo_assay(runtime, horizon=5, seed=seed)
-        dvgem_tether_res = run_dvgem_and_tether_assay(runtime, seed=seed)
-        criticality_vsa_res = run_criticality_and_vsa_assay(runtime, seed=seed)
-        frontier_innovations_res = run_frontier_innovations_assay(runtime, seed=seed)
-        frontier_v2_res = run_frontier_v2_innovations_assay(runtime, seed=seed)
+    from .neural_comm_bench import SancfMatrixBenchmark
+    sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
+    sancf_matrix_res = sancf_bench.run_benchmark()
+    sancf_neurowave_res = sancf_bench.run_neurowave_assay()
+    sancf_section_res = {
+        'matrix_arms': len(sancf_matrix_res.arm_results),
+        'neurowave_modes': len(sancf_neurowave_res.modes),
+        'controls': len(sancf_neurowave_res.controls),
+        'disclaimer': 'Payload capacity represents digital floating-point channel transfer; oscillatory modes are abstract mathematical models.',
+    }
 
-        from .neural_comm_bench import SancfMatrixBenchmark
-        sancf_bench = SancfMatrixBenchmark(num_steps=10, seed=seed)
-        sancf_matrix_res = sancf_bench.run_benchmark()
-        sancf_neurowave_res = sancf_bench.run_neurowave_assay()
-        sancf_section_res = {
-            'matrix_arms': len(sancf_matrix_res.arm_results),
-            'neurowave_modes': len(sancf_neurowave_res.modes),
-            'controls': len(sancf_neurowave_res.controls),
-            'disclaimer': 'Payload capacity represents digital floating-point channel transfer; oscillatory modes are abstract mathematical models.',
-        }
+    from .neurowave_x2.experiment_runner import NeuroWaveExperimentRunner
+    nw_runner = NeuroWaveExperimentRunner(num_regions=8, steps=10, seed=seed)
+    nw_eval_matrix = nw_runner.run_comparison(arms=["A0", "A1", "A2", "A5", "A6", "A7", "A8", "A10"])
+    neurowave_x2_assay = {
+        'status': 'completed',
+        'evaluated_arms': len(nw_eval_matrix.results),
+        'promoted_arm': 'A7 (Joint Wave Multiplexing)',
+        'mean_efficiency_score': round(float(np.mean([r.communication_efficiency_score for r in nw_eval_matrix.results])), 2),
+        'spectral_modes': 16,
+        'development_level': 6,
+    }
 
-        from .neurowave_x2.experiment_runner import NeuroWaveExperimentRunner
-        nw_runner = NeuroWaveExperimentRunner(num_regions=8, steps=10, seed=seed)
-        nw_eval_matrix = nw_runner.run_comparison(arms=["A0", "A1", "A2", "A5", "A6", "A7", "A8", "A10"])
-        neurowave_x2_assay = {
-            'status': 'completed',
-            'evaluated_arms': len(nw_eval_matrix.results),
-            'promoted_arm': 'A7 (Joint Wave Multiplexing)',
-            'mean_efficiency_score': round(float(np.mean([r.communication_efficiency_score for r in nw_eval_matrix.results])), 2),
-            'spectral_modes': 16,
-            'development_level': 6,
-        }
+    section_03 = {
+        'section': '03 · Weight-Space Patches & Mechanistic Assays',
+        'tensors': tensors_info,
+        'hyperprogram': hyper_packet,
+        'patch_preview': patch_preview,
+        'patch_screen': patch_screen,
+        'atlas': atlas_res,
+        'autoprogram': autoprogram_res,
+        'transplant': transplant_res,
+        'flagship': flagship_res,
+        'metamorphic': metamorphic_res,
+        'spectral': spectral_res,
+        'diffusion_dpo': diffusion_dpo_res,
+        'dvgem_tether': dvgem_tether_res,
+        'criticality_vsa': criticality_vsa_res,
+        'frontier_innovations': frontier_innovations_res,
+        'frontier_v2_innovations': frontier_v2_res,
+        'sancf_comm_matrix': sancf_section_res,
+        'neurowave_x2_assay': neurowave_x2_assay,
+    }
 
-        section_03 = {
-            'section': '03 · Weight-Space Patches & Mechanistic Assays',
-            'tensors': tensors_info,
-            'hyperprogram': hyper_packet,
-            'patch_preview': patch_preview,
-            'patch_screen': patch_screen,
-            'atlas': atlas_res,
-            'autoprogram': autoprogram_res,
-            'transplant': transplant_res,
-            'flagship': flagship_res,
-            'metamorphic': metamorphic_res,
-            'spectral': spectral_res,
-            'diffusion_dpo': diffusion_dpo_res,
-            'dvgem_tether': dvgem_tether_res,
-            'criticality_vsa': criticality_vsa_res,
-            'frontier_innovations': frontier_innovations_res,
-            'frontier_v2_innovations': frontier_v2_res,
-            'sancf_comm_matrix': sancf_section_res,
-            'neurowave_x2_assay': neurowave_x2_assay,
-        }
+    # -------------------------------------------------------------------
+    # SECTION 04: Controlled Studies, Bounded RSI, Reusable Skills,
+    #             6-Arm Ablation, 9-Arm Causal Controls & Scorecard
+    # -------------------------------------------------------------------
+    rsi_res = run_live_rsi(
+        runtime.agent,
+        task='forage',
+        steps=12,
+        candidates=2,
+        seed=seed,
+    )
+    runtime.skill_library.discover_skills()
+    skills_res = workbench.get('/api/reusable_skills')
+    six_arm_res = ControlledSixArmStudy(
+        task_sequence=data.get('six_arm_tasks', ['forage', 'push', 'ecosystem']),
+        steps_per_stage=int(data.get('six_arm_steps', 8)),
+        eval_episodes_per_task=1,
+        seed=seed,
+    ).run_study()
+    causal_9arm_res = run_causal_9arm_and_scorecard(
+        runtime,
+        steps_per_arm=int(data.get('causal_9arm_steps', 10)),
+        episodes_per_arm=1,
+        seed=seed,
+    )
+    study_cfg = validate_config({
+        'seed': seed,
+        'lineages': 1,
+        'generations': 2,
+        'candidates': 2,
+        'support': 8,
+        'query': 8,
+        'nodes_per_source': 16,
+    })
+    study_receipt = run_study(workbench.root / 'studies' / 'tandem_max_study', study_cfg)
 
-        # -------------------------------------------------------------------
-        # SECTION 04: Controlled Studies, Bounded RSI, Reusable Skills,
-        #             6-Arm Ablation, 9-Arm Causal Controls & Scorecard
-        # -------------------------------------------------------------------
-        rsi_res = run_live_rsi(
-            runtime.agent,
-            task='forage',
-            steps=12,
-            candidates=2,
-            seed=seed,
-        )
-        runtime.skill_library.discover_skills()
-        skills_res = workbench.get('/api/reusable_skills')
-        six_arm_res = ControlledSixArmStudy(
-            task_sequence=data.get('six_arm_tasks', ['forage', 'push', 'ecosystem']),
-            steps_per_stage=int(data.get('six_arm_steps', 8)),
-            eval_episodes_per_task=1,
-            seed=seed,
-        ).run_study()
-        causal_9arm_res = run_causal_9arm_and_scorecard(
-            runtime,
-            steps_per_arm=int(data.get('causal_9arm_steps', 10)),
-            episodes_per_arm=1,
-            seed=seed,
-        )
-        study_cfg = validate_config({
-            'seed': seed,
-            'lineages': 1,
-            'generations': 2,
-            'candidates': 2,
-            'support': 8,
-            'query': 8,
-            'nodes_per_source': 16,
-        })
-        study_receipt = run_study(workbench.root / 'studies' / 'tandem_max_study', study_cfg)
+    section_04 = {
+        'section': '04 · Controlled Studies, RSI & 9-Arm Causal Scorecard',
+        'live_rsi': rsi_res,
+        'reusable_skills': skills_res,
+        'six_arm_study': six_arm_res,
+        'causal_9arm_and_scorecard': causal_9arm_res,
+        'study_receipt': study_receipt,
+    }
 
-        section_04 = {
-            'section': '04 · Controlled Studies, RSI & 9-Arm Causal Scorecard',
-            'live_rsi': rsi_res,
-            'reusable_skills': skills_res,
-            'six_arm_study': six_arm_res,
-            'causal_9arm_and_scorecard': causal_9arm_res,
-            'study_receipt': study_receipt,
-        }
-
-        # -------------------------------------------------------------------
-        # SECTION 05: Exact Mid-Episode Checkpoint & Cryptographic Digest
-        # -------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # SECTION 05: Exact Mid-Episode Checkpoint & Cryptographic Digest
+    # -------------------------------------------------------------------
+    with workbench.lock:
         ckpt_save = runtime.save('tandem_max_session')
         ckpt_list = workbench.get('/api/checkpoints')
-        section_05 = {
-            'section': '05 · Checkpoints & Mid-Episode Integrity',
-            'saved_checkpoint': ckpt_save,
-            'available_checkpoints': ckpt_list.get('checkpoints', []),
-        }
-
         final_state = runtime.snapshot()
-
+    section_05 = {
+        'section': '05 · Checkpoints & Mid-Episode Integrity',
+        'saved_checkpoint': ckpt_save,
+        'available_checkpoints': ckpt_list.get('checkpoints', []),
+    }
     total_wallclock_s = round(time.perf_counter() - t_start, 3)
     digest_payload = {
         'neurons': neurons,
