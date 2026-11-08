@@ -3348,6 +3348,177 @@ function crossGraftView() {
   }
 }
 
+function wpacAffectiveView() {
+  try {
+    const [x, w, h] = canvas('wpac-canvas');
+    if (!x) return;
+    const affTelem = state.telemetry?.affective_state || state.agent?.telemetry?.affective_state || {};
+    const core = affTelem.core || [0.1, 0.2, 0.0, 0.3, 0.4, 0.1];
+    const coreLabels = ['Valence', 'Arousal', 'Dominance', 'Novelty', 'Social', 'Deficit'];
+
+    const leftW = Math.min(180, w * 0.42);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Core Affective Appraisal (6D)', 10, 14);
+
+    coreLabels.forEach((label, i) => {
+      const val = Number(core[i] || 0.0);
+      const barY = 24 + i * 21;
+      x.fillStyle = '#64748b';
+      x.fillText(label, 10, barY + 9);
+      x.fillStyle = 'rgba(255,255,255,0.06)';
+      x.fillRect(75, barY + 1, leftW - 75, 10);
+      const fillW = Math.max(2, Math.min(leftW - 75, ((val + 1.0) / 2.0) * (leftW - 75)));
+      x.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
+      x.fillRect(75, barY + 1, fillW, 10);
+    });
+
+    const rightX = leftW + 20;
+    const rightW = w - rightX - 10;
+    x.fillStyle = '#8b9daf';
+    x.fillText('32 Continuous Affective Dimensions', rightX, 14);
+
+    const emotions = affTelem.emotions || {};
+    const emoEntries = Object.entries(emotions);
+    const numBars = Math.max(1, emoEntries.length || 32);
+    const bW = Math.max(2, (rightW / numBars) - 1.5);
+
+    for (let i = 0; i < numBars; i++) {
+      const val = emoEntries[i] ? Number(emoEntries[i][1]) : 0.05 + 0.1 * Math.sin(i * 0.4);
+      const bH = Math.max(3, val * (h - 40));
+      const bx = rightX + i * (bW + 1.5);
+      const by = h - 15 - bH;
+      const hue = (i * 360 / 32) % 360;
+      x.fillStyle = `hsl(${hue}, 80%, 55%)`;
+      x.fillRect(bx, by, bW, bH);
+    }
+  } catch (_) {}
+}
+
+function syntheticGlandsView() {
+  try {
+    const [x, w, h] = canvas('glands-canvas');
+    if (!x) return;
+    const glandsTelem = state.telemetry?.synthetic_glands || state.agent?.telemetry?.synthetic_glands || {};
+    const glandNames = ['DA', '5HT', 'OA', 'ACh', 'ADR', 'NA', 'CORT', 'OXT', 'OPI', 'MEL', 'ORX', 'ADO'];
+    const fullNames = ['dopamine', 'serotonin', 'octopamine', 'acetylcholine', 'adrenaline', 'noradrenaline', 'cortisol', 'oxytocin', 'endogenous_opioid', 'melatonin', 'orexin', 'adenosine'];
+
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('12-Channel Synthetic Endocrine & Neurochemical Reservoir Levels', 10, 14);
+
+    const tubeW = Math.max(6, (w - 30) / 12 - 6);
+    const tubeH = h - 45;
+    const tubeY = 25;
+
+    glandNames.forEach((name, i) => {
+      const full = fullNames[i];
+      const level = Number(glandsTelem[full] !== undefined ? glandsTelem[full] : 0.2 + 0.15 * Math.sin(i * 0.8));
+      const tx = 15 + i * (tubeW + 6);
+
+      x.fillStyle = 'rgba(255,255,255,0.06)';
+      x.fillRect(tx, tubeY, tubeW, tubeH);
+
+      const fillH = Math.max(2, Math.min(tubeH, level * tubeH));
+      const fy = tubeY + tubeH - fillH;
+      const hue = 30 + i * 25;
+      x.fillStyle = `hsl(${hue}, 85%, 55%)`;
+      x.fillRect(tx, fy, tubeW, fillH);
+
+      x.fillStyle = '#94a3b8';
+      x.fillText(name, tx - 1, h - 6);
+    });
+  } catch (_) {}
+}
+
+function neuralPulsesView() {
+  try {
+    const [x, w, h] = canvas('pulses-canvas');
+    if (!x) return;
+    const pulsesTelem = state.telemetry?.neural_pulses || state.agent?.telemetry?.neural_pulses || {};
+    const activeCount = Number(pulsesTelem.active_count || 0);
+
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`Traveling Wave Pulses (Active: ${activeCount}) & Kuramoto Phase Ring`, 10, 14);
+
+    const cx = Math.min(100, w * 0.25);
+    const cy = h / 2 + 5;
+    const radius = Math.min(45, h * 0.35);
+
+    for (let r = 0; r < 8; r++) {
+      const angle = (r * 2 * Math.PI) / 8 - Math.PI / 2;
+      const nx = cx + radius * Math.cos(angle);
+      const ny = cy + radius * Math.sin(angle);
+
+      x.beginPath();
+      x.arc(nx, ny, 5, 0, 2 * Math.PI);
+      x.fillStyle = activeCount > 0 ? '#38bdf8' : '#475569';
+      x.fill();
+
+      const nextAngle = ((r + 1) * 2 * Math.PI) / 8 - Math.PI / 2;
+      x.beginPath();
+      x.moveTo(nx, ny);
+      x.lineTo(cx + radius * Math.cos(nextAngle), cy + radius * Math.sin(nextAngle));
+      x.strokeStyle = 'rgba(56,189,248,0.25)';
+      x.stroke();
+    }
+
+    const scopeX = cx + radius + 30;
+    const scopeW = w - scopeX - 15;
+    const midY = cy;
+
+    x.strokeStyle = 'rgba(255,255,255,0.1)';
+    x.beginPath();
+    x.moveTo(scopeX, midY);
+    x.lineTo(scopeX + scopeW, midY);
+    x.stroke();
+
+    x.strokeStyle = '#38bdf8';
+    x.lineWidth = 1.5;
+    x.beginPath();
+    for (let px = 0; px < scopeW; px++) {
+      const t = (performance.now() * 0.003) + px * 0.05;
+      const dy = Math.sin(t) * 15 * (activeCount > 0 ? 1.5 : 0.4) * Math.exp(-px * 0.01);
+      const py = midY + dy;
+      if (px === 0) x.moveTo(scopeX + px, py);
+      else x.lineTo(scopeX + px, py);
+    }
+    x.stroke();
+    x.lineWidth = 1.0;
+  } catch (_) {}
+}
+
+function sleepReplayView() {
+  try {
+    const [x, w, h] = canvas('sleep-canvas');
+    if (!x) return;
+    const sleepTelem = state.telemetry?.sleep_replay || state.agent?.telemetry?.sleep_replay || {};
+    const sleepState = String(sleepTelem.state || 'awake').toUpperCase();
+    const pressure = Number(sleepTelem.sleep_pressure || 0.15);
+    const cycles = Number(sleepTelem.dream_cycles || 0);
+
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`Sleep Controller State: ${sleepState} · Dream Cycles: ${cycles}`, 10, 14);
+
+    const barX = 15, barY = 30, barW = w - 30, barH = 16;
+    x.fillStyle = 'rgba(255,255,255,0.06)';
+    x.fillRect(barX, barY, barW, barH);
+
+    const fillW = Math.max(3, Math.min(barW, pressure * barW));
+    const pColor = pressure > 0.8 ? '#ef4444' : (pressure > 0.6 ? '#f59e0b' : '#3b82f6');
+    x.fillStyle = pColor;
+    x.fillRect(barX, barY, fillW, barH);
+
+    x.fillStyle = '#fff';
+    x.fillText(`Homeostatic Sleep Pressure: ${(pressure * 100).toFixed(1)}%`, barX + 8, barY + 12);
+
+    x.fillStyle = '#64748b';
+    x.fillText(`Mode: ${sleepState === 'AWAKE' ? 'Online Active Inference' : 'Offline Synaptic Memory Consolidation'}`, barX, barY + 36);
+  } catch (_) {}
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -4155,6 +4326,71 @@ function render(s) {
     ]);
   }
 
+  const affTelem = s.agent?.telemetry?.affective_state || s.telemetry?.affective_state || {};
+  if ($('wpac-badge')) {
+    const isWpacActive = Boolean(affTelem.core);
+    $('wpac-badge').textContent = isWpacActive ? `WPAC: 256N · 32 Emotions` : 'WPAC Standby';
+    setTone($('wpac-badge'), isWpacActive ? 'good' : 'muted');
+  }
+  if ($('wpac-hud')) {
+    const core = affTelem.core || [0,0,0,0,0,0];
+    keyValues($('wpac-hud'), [
+      ['Valence', Number(core[0] || 0.0).toFixed(2)],
+      ['Arousal', Number(core[1] || 0.0).toFixed(2)],
+      ['Dominance', Number(core[2] || 0.0).toFixed(2)],
+      ['Novelty', Number(core[3] || 0.0).toFixed(2)],
+      ['Social Openness', Number(core[4] || 0.0).toFixed(2)],
+      ['Homeostatic Deficit', Number(core[5] || 0.0).toFixed(2)],
+    ]);
+  }
+
+  const glandTelem = s.agent?.telemetry?.synthetic_glands || s.telemetry?.synthetic_glands || {};
+  if ($('glands-badge')) {
+    const isGlandsActive = Boolean(Object.keys(glandTelem).length);
+    $('glands-badge').textContent = isGlandsActive ? `12 Channels Active` : 'Endocrine Standby';
+    setTone($('glands-badge'), isGlandsActive ? 'good' : 'muted');
+  }
+  if ($('glands-hud')) {
+    keyValues($('glands-hud'), [
+      ['Dopamine', Number(glandTelem.dopamine || 0.2).toFixed(3)],
+      ['Serotonin', Number(glandTelem.serotonin || 0.5).toFixed(3)],
+      ['Adrenaline', Number(glandTelem.adrenaline || 0.05).toFixed(3)],
+      ['Cortisol', Number(glandTelem.cortisol || 0.15).toFixed(3)],
+      ['Oxytocin', Number(glandTelem.oxytocin || 0.3).toFixed(3)],
+      ['Adenosine', Number(glandTelem.adenosine || 0.1).toFixed(3)],
+    ]);
+  }
+
+  const pulseTelem = s.agent?.telemetry?.neural_pulses || s.telemetry?.neural_pulses || {};
+  if ($('pulses-badge')) {
+    const pCount = Number(pulseTelem.active_count || 0);
+    $('pulses-badge').textContent = pCount > 0 ? `${pCount} Wave Pulses Active` : 'Wave Field Quiescent';
+    setTone($('pulses-badge'), pCount > 0 ? 'good' : 'muted');
+  }
+  if ($('pulses-hud')) {
+    keyValues($('pulses-hud'), [
+      ['Active Wave Pulses', String(pulseTelem.active_count || 0)],
+      ['Laplacian Regions', '8 Regions'],
+      ['Phase Reset Protocol', 'Soft Kuramoto Entrainment'],
+      ['Auxiliary Current Bound', '±0.25 local / 2.0 global'],
+    ]);
+  }
+
+  const sleepTelem = s.agent?.telemetry?.sleep_replay || s.telemetry?.sleep_replay || {};
+  if ($('sleep-badge')) {
+    const slState = String(sleepTelem.state || 'awake').toUpperCase();
+    $('sleep-badge').textContent = `State: ${slState}`;
+    setTone($('sleep-badge'), slState === 'AWAKE' ? 'good' : 'warn');
+  }
+  if ($('sleep-hud')) {
+    keyValues($('sleep-hud'), [
+      ['Brain Sleep State', String(sleepTelem.state || 'awake').toUpperCase()],
+      ['Sleep Pressure P_t', `${(Number(sleepTelem.sleep_pressure || 0.1) * 100).toFixed(1)}%`],
+      ['Completed Dream Cycles', String(sleepTelem.dream_cycles || 0)],
+      ['Synthetic Segregation', 'EvidenceKind.SYNTHETIC_SIMULATION'],
+    ]);
+  }
+
   // -----------------------------------------------------------------------
   // Frontier Apex Omnibus HUD Status
   // -----------------------------------------------------------------------
@@ -4246,6 +4482,10 @@ function render(s) {
   carrierView();
   crossGraftView();
   aetherGraftView();
+  wpacAffectiveView();
+  syntheticGlandsView();
+  neuralPulsesView();
+  sleepReplayView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -5001,6 +5241,81 @@ async function runTandemMaxMode() {
 
 if ($('btn-tandem-max')) $('btn-tandem-max').onclick = () => action(runTandemMaxMode);
 if ($('btn-tandem-max-toolbar')) $('btn-tandem-max-toolbar').onclick = () => action(runTandemMaxMode);
+
+// Conversational chat handler
+async function sendChatMessage() {
+  const inp = $('chat-input');
+  if (!inp || !inp.value.trim()) return;
+  const text = inp.value.trim();
+  inp.value = '';
+
+  const stream = $('chat-stream');
+  if (stream) {
+    const userDiv = document.createElement('div');
+    userDiv.style.color = '#38bdf8';
+    userDiv.style.marginBottom = '4px';
+    userDiv.textContent = `User: ${text}`;
+    stream.appendChild(userDiv);
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  try {
+    const res = await api('chat', { message: text });
+    if (res && res.agent_response && stream) {
+      const agentDiv = document.createElement('div');
+      agentDiv.style.color = '#10b981';
+      agentDiv.style.marginBottom = '6px';
+      agentDiv.textContent = `Agent: ${res.agent_response.content}`;
+      stream.appendChild(agentDiv);
+      stream.scrollTop = stream.scrollHeight;
+    }
+  } catch (err) {
+    if (stream) {
+      const errDiv = document.createElement('div');
+      errDiv.style.color = '#ef4444';
+      errDiv.textContent = `Error: ${err.message}`;
+      stream.appendChild(errDiv);
+    }
+  }
+}
+
+if ($('chat-send-btn')) $('chat-send-btn').onclick = () => action(sendChatMessage);
+if ($('chat-input')) {
+  $('chat-input').onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+}
+
+if ($('audio-toggle-btn')) {
+  $('audio-toggle-btn').onclick = () => action(async () => {
+    try {
+      const res = await api('audio/toggle', {});
+      if ($('audio-status-badge')) {
+        const active = Boolean(res && res.enabled);
+        $('audio-status-badge').textContent = active ? 'Mic: Active (Local PCM)' : 'Mic: Inactive (Permission Gated)';
+        setTone($('audio-status-badge'), active ? 'good' : 'muted');
+      }
+      if ($('audio-toggle-btn')) {
+        $('audio-toggle-btn').textContent = (res && res.enabled) ? 'Disable Microphone' : 'Enable Microphone';
+      }
+    } catch (_) {}
+  });
+}
+
+if ($('trigger-threat-btn')) {
+  $('trigger-threat-btn').onclick = () => action(async () => {
+    try {
+      await api('pulses/trigger', { type: 'acute_threat', amplitude: 2.0, region: 1 });
+      if ($('pulses-badge')) {
+        $('pulses-badge').textContent = 'Threat Pulse Injected!';
+        setTone($('pulses-badge'), 'warn');
+      }
+    } catch (_) {}
+  });
+}
 
 // -------------------------------------------------------------------------
 // Experiments, Jobs & Lineage

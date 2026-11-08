@@ -98,7 +98,7 @@ def main(argv=None):
     p=sub.add_parser('planning-verify'); p.add_argument('path',type=Path)
     args=parser.parse_args(argv)
     try:
-        total=args.total_neurons if args.total_neurons is not None else (6500 if args.nodes is None else None)
+        total=args.total_neurons if args.total_neurons is not None else (9000 if args.nodes is None else None)
         if getattr(args, 'frontier_all', False):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:

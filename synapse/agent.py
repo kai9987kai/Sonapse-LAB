@@ -139,6 +139,30 @@ class IntegratedAgent:
         self.metaplasticity_bcm=None
         self.transfer_entropy=None
         self.neurowave_x2=None
+        self.sensory_fabric=None
+        self.wpac=None
+        self.wpac_programmer=None
+        self.mixed_affect=None
+        self.equilibrium_regulator=None
+        self.synthetic_glands=None
+        self.receptor_bank=None
+        self.modulatory_compositor=None
+        self.pulse_field=None
+        self.wave_solver=None
+        self.phase_protocol=None
+        self.pulse_router=None
+        self.fatigue_controller=None
+        self.dream_engine=None
+        self.replay_scheduler=None
+        self.knowledge_pool=None
+        self.knowledge_graft=None
+        self.donor_hub=None
+        self.donor_bridge=None
+        self.exchange_controller=None
+        self.evo_controller=None
+        self.audio_gateway=None
+        self.auditory_encoder=None
+        self.chat_gateway=None
         self._setup_frontier_extensions()
         self.preparation_updates=0; self.bridge_updates=0; self.episodic=[]; self.tool_memory=[]
         self._camera_consumed_any=False
@@ -367,6 +391,93 @@ class IntegratedAgent:
                 from .transfer_entropy import TransferEntropyEngine
                 self.transfer_entropy = TransferEntropyEngine(buffer_size=64)
 
+            # SONAPSE-NEUROENDOCRINE / SENSE / EVO Architecture Integrations
+            if (getattr(self.config, 'neuroendocrine', False) or getattr(self.config, 'affective_core', False) or getattr(self.config, 'synthetic_glands', False)) and self.wpac is None:
+                from .neuroendocrine import (
+                    SensoryEventFabric,
+                    WeightProgrammedAffectiveCore,
+                    AffectiveWeightProgrammer,
+                    MixedAffectiveState,
+                    AffectiveEquilibriumRegulator,
+                    SyntheticGlandBank,
+                    SyntheticReceptorBank,
+                    ModulatoryCompositor,
+                )
+                self.sensory_fabric = SensoryEventFabric()
+                self.wpac = WeightProgrammedAffectiveCore(num_neurons=256, sensory_dim=64, seed=self.config.seed)
+                self.wpac_programmer = AffectiveWeightProgrammer()
+                self.wpac_programmer.program_all_motifs(self.wpac)
+                self.mixed_affect = MixedAffectiveState(hidden_dim=256, seed=self.config.seed)
+                self.equilibrium_regulator = AffectiveEquilibriumRegulator(seed=self.config.seed)
+                self.synthetic_glands = SyntheticGlandBank(wpac_dim=256, seed=self.config.seed)
+                self.receptor_bank = SyntheticReceptorBank(seed=self.config.seed)
+                self.modulatory_compositor = ModulatoryCompositor(
+                    enabled=True,
+                    receptor_bank=self.receptor_bank,
+                    seed=self.config.seed,
+                )
+                self.modules['wpac'] = self.wpac
+                self.modules['mixed_affect'] = self.mixed_affect
+                self.modules['synthetic_glands'] = self.synthetic_glands
+
+            if getattr(self.config, 'neural_pulses', False) and self.wave_solver is None:
+                from .neural_pulses import (
+                    NeuromodulatoryPulseField,
+                    GraphWaveSolver,
+                    NeuralPhaseResetProtocol,
+                    BoundedPulseRouter,
+                )
+                self.pulse_field = NeuromodulatoryPulseField(num_regions=8)
+                self.wave_solver = GraphWaveSolver(num_regions=8, seed=self.config.seed)
+                self.phase_protocol = NeuralPhaseResetProtocol(num_regions=8, seed=self.config.seed)
+                self.pulse_router = BoundedPulseRouter(num_regions=8, target_dim=64, enabled=True, seed=self.config.seed)
+                self.modules['wave_solver'] = self.wave_solver
+                self.modules['pulse_router'] = self.pulse_router
+
+            if getattr(self.config, 'sleep_replay', False) and self.fatigue_controller is None:
+                from .sleep_replay import (
+                    FatigueController,
+                    DreamReplayEngine,
+                    ReplayScheduler,
+                )
+                self.fatigue_controller = FatigueController(seed=self.config.seed)
+                self.dream_engine = DreamReplayEngine(latent_dim=64, seed=self.config.seed)
+                self.replay_scheduler = ReplayScheduler(capacity=1000, seed=self.config.seed)
+                self.modules['dream_engine'] = self.dream_engine
+
+            if getattr(self.config, 'shared_knowledge', False) and self.knowledge_pool is None:
+                from .shared_knowledge import (
+                    NeuralKnowledgePool,
+                    KnowledgeGraftAdapter,
+                )
+                self.knowledge_pool = NeuralKnowledgePool(dim=64, seed=self.config.seed)
+                self.knowledge_graft = KnowledgeGraftAdapter(knowledge_dim=64, target_dim=32, enabled=True, seed=self.config.seed)
+                self.modules['knowledge_graft'] = self.knowledge_graft
+
+            if (getattr(self.config, 'cross_connectome_graft', False) or getattr(self.config, 'aether_graft_bridge', False)) and self.donor_hub is None:
+                from .donor_grafts import PoseidonHubDonorAdapter, PretrainedGraftBridge
+                self.donor_hub = PoseidonHubDonorAdapter(donor_dim=128, obs_dim=64, seed=self.config.seed)
+                self.donor_bridge = PretrainedGraftBridge(donor_dim=128, recipient_dim=64, enabled=True, seed=self.config.seed)
+                self.modules['donor_bridge'] = self.donor_bridge
+
+            if getattr(self.config, 'cross_model_exchange', False) and self.exchange_controller is None:
+                from .neural_exchange import SpontaneousNeuralExchangeController
+                self.exchange_controller = SpontaneousNeuralExchangeController(feature_dim=64, seed=self.config.seed)
+
+            if getattr(self.config, 'evo_compat', False) and self.evo_controller is None:
+                from .evo_compat import EvolutionaryGrowthController
+                self.evo_controller = EvolutionaryGrowthController(seed=self.config.seed)
+
+            if (getattr(self.config, 'live_microphone', False) or getattr(self.config, 'live_chat', False)) and self.chat_gateway is None:
+                from .multimodal_live import (
+                    LiveAudioGateway,
+                    AuditorySpikeEncoder,
+                    ConversationalChatGateway,
+                )
+                self.audio_gateway = LiveAudioGateway(enabled=getattr(self.config, 'live_microphone', False))
+                self.auditory_encoder = AuditorySpikeEncoder(seed=self.config.seed)
+                self.chat_gateway = ConversationalChatGateway(embed_dim=64, seed=self.config.seed)
+
     def _setup_neural_graft(self):
         if not self.config.neural_graft:
             return
@@ -434,6 +545,16 @@ class IntegratedAgent:
         if getattr(self, 'overflow_mini_brain', None) is not None: self.overflow_mini_brain.reset_state()
         if getattr(self, 'selective_ssm', None) is not None: self.selective_ssm.reset_state()
         if getattr(self, 'event_backend', None) is not None: self.event_backend.reset()
+        if getattr(self, 'wpac', None) is not None: self.wpac.reset_state()
+        if getattr(self, 'mixed_affect', None) is not None: self.mixed_affect.reset_state()
+        if getattr(self, 'equilibrium_regulator', None) is not None: self.equilibrium_regulator.reset()
+        if getattr(self, 'synthetic_glands', None) is not None: self.synthetic_glands.reset()
+        if getattr(self, 'pulse_field', None) is not None: self.pulse_field.clear()
+        if getattr(self, 'wave_solver', None) is not None: self.wave_solver.reset()
+        if getattr(self, 'phase_protocol', None) is not None: self.phase_protocol.reset()
+        if getattr(self, 'pulse_router', None) is not None: self.pulse_router.reset()
+        if getattr(self, 'fatigue_controller', None) is not None: self.fatigue_controller.reset()
+        if getattr(self, 'chat_gateway', None) is not None: self.chat_gateway.clear()
         self._camera_consumed_any=False
         self.hidden=torch.zeros(1,self.tidal.config.hidden_size); self.intent=torch.zeros(6)
         self.evoked=torch.zeros(self.brain.n); self.ticks=0; self.last_compass=torch.zeros(16)
@@ -601,6 +722,19 @@ class IntegratedAgent:
                 self.neuromod.state.octopamine = oa; self.neuromod.state.acetylcholine = ach
             # Every action is gated by actual graph activity; no action from a world oracle.
             gains=self.neuromod.compute_gains() if hasattr(self, 'neuromod') else {'motor_vigor':1.0}
+            if getattr(self, 'modulatory_compositor', None) is not None and getattr(self, 'synthetic_glands', None) is not None:
+                wpac_in = pooled.repeat(2) if len(pooled) < 64 else pooled[:64]
+                wpac_h = self.wpac.step(sensory_input=wpac_in) if self.wpac is not None else None
+                if getattr(self, 'mixed_affect', None) is not None and wpac_h is not None:
+                    self.mixed_affect.step(wpac_hidden=wpac_h)
+                g_out = self.synthetic_glands.step(wpac_hidden=wpac_h)
+                comp_state, target_gains = self.modulatory_compositor.composite(
+                    legacy_state=self.neuromod.state,
+                    gland_deltas=g_out['deltas'],
+                    gland_levels=g_out['levels'],
+                )
+                if 'motor_vigor' in gains:
+                    gains['motor_vigor'] = float(gains['motor_vigor'] * target_gains.get('excitability', 1.0))
             action=torch.tanh(self.motor(features))*torch.sigmoid(pooled.mean()*4)*gains['motor_vigor']
             if getattr(self, 'overflow_mini_brain', None) is not None:
                 of_curr, of_act, _ = self.overflow_mini_brain(o, motor_feedback=action)
@@ -790,6 +924,21 @@ class IntegratedAgent:
         if getattr(self, 'grafted_diffusion', None) is not None:
             diff_proposal = self.grafted_diffusion.sample_action(features)
             self.last_telemetry['grafted_diffusion'] = {'proposal': diff_proposal.tolist()}
+        if getattr(self, 'modulatory_compositor', None) is not None:
+            self.last_telemetry['neuroendocrine'] = self.modulatory_compositor.get_telemetry()
+        if getattr(self, 'mixed_affect', None) is not None:
+            self.last_telemetry['affective_state'] = self.mixed_affect.get_state_dict()
+        if getattr(self, 'synthetic_glands', None) is not None:
+            self.last_telemetry['synthetic_glands'] = {name: self.synthetic_glands.get_level(name) for name in ['dopamine', 'serotonin', 'adrenaline', 'cortisol', 'oxytocin', 'adenosine']}
+        if getattr(self, 'pulse_field', None) is not None:
+            self.last_telemetry['neural_pulses'] = {'active_count': len(self.pulse_field.active_pulses), 'pulses': self.pulse_field.get_active_pulses()[:4]}
+        if getattr(self, 'fatigue_controller', None) is not None:
+            f_res = self.fatigue_controller.step(threat_level=thr)
+            self.last_telemetry['sleep_replay'] = {'state': f_res['state'], 'sleep_pressure': f_res['sleep_pressure'], 'dream_cycles': f_res['dream_cycles']}
+        if getattr(self, 'knowledge_pool', None) is not None:
+            self.last_telemetry['shared_knowledge'] = {'records_count': self.knowledge_pool.size()}
+        if getattr(self, 'chat_gateway', None) is not None:
+            self.last_telemetry['chat_gateway'] = {'message_count': len(self.chat_gateway.history)}
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 
@@ -1056,6 +1205,13 @@ class IntegratedAgent:
         state['thermodynamics']=self.thermodynamics.export_state() if getattr(self,'thermodynamics',None) is not None else None
         state['metaplasticity_bcm']=self.metaplasticity_bcm.export_state() if getattr(self,'metaplasticity_bcm',None) is not None else None
         state['transfer_entropy']=self.transfer_entropy.export_state() if getattr(self,'transfer_entropy',None) is not None else None
+        if getattr(self, 'wpac', None) is not None: state['wpac'] = self.wpac.state_dict()
+        if getattr(self, 'mixed_affect', None) is not None: state['mixed_affect'] = self.mixed_affect.state_dict()
+        if getattr(self, 'synthetic_glands', None) is not None: state['synthetic_glands'] = self.synthetic_glands.state_dict()
+        if getattr(self, 'wave_solver', None) is not None: state['wave_solver'] = self.wave_solver.state_dict()
+        if getattr(self, 'phase_protocol', None) is not None: state['phase_protocol'] = self.phase_protocol.state_dict()
+        if getattr(self, 'fatigue_controller', None) is not None: state['fatigue_controller'] = self.fatigue_controller.state_dict()
+        if getattr(self, 'knowledge_pool', None) is not None: state['knowledge_pool'] = self.knowledge_pool.get_summary()
         state['torch_rng']=torch.random.get_rng_state()
         state['programmed_prior_status']=deepcopy(self.programmed_prior_status)
         state['source_provenance']=deepcopy(self.source_provenance)
@@ -1207,6 +1363,18 @@ class IntegratedAgent:
             self.metaplasticity_bcm.import_state(state['metaplasticity_bcm'])
         if getattr(self,'transfer_entropy',None) is not None and state.get('transfer_entropy') is not None:
             self.transfer_entropy.import_state(state['transfer_entropy'])
+        if getattr(self, 'wpac', None) is not None and state.get('wpac') is not None:
+            self.wpac.load_state_dict(state['wpac'])
+        if getattr(self, 'mixed_affect', None) is not None and state.get('mixed_affect') is not None:
+            self.mixed_affect.load_state_dict(state['mixed_affect'])
+        if getattr(self, 'synthetic_glands', None) is not None and state.get('synthetic_glands') is not None:
+            self.synthetic_glands.load_state_dict(state['synthetic_glands'])
+        if getattr(self, 'wave_solver', None) is not None and state.get('wave_solver') is not None:
+            self.wave_solver.load_state_dict(state['wave_solver'])
+        if getattr(self, 'phase_protocol', None) is not None and state.get('phase_protocol') is not None:
+            self.phase_protocol.load_state_dict(state['phase_protocol'])
+        if getattr(self, 'fatigue_controller', None) is not None and state.get('fatigue_controller') is not None:
+            self.fatigue_controller.load_state_dict(state['fatigue_controller'])
         if 'torch_rng' in state:
             torch.random.set_rng_state(state['torch_rng'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))

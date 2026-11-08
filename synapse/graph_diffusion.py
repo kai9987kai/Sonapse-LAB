@@ -34,7 +34,7 @@ class ChebyshevGraphDiffusion(nn.Module):
 
     def __init__(
         self,
-        num_nodes: int = 6500,
+        num_nodes: int = 9000,
         pre: Optional[torch.Tensor] = None,
         post: Optional[torch.Tensor] = None,
         weights: Optional[torch.Tensor] = None,

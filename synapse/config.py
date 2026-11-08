@@ -102,6 +102,19 @@ class SynapseConfig:
     neurowave_x2_development_level: int = 0
     neurowave_x2_dendritic: bool = False
 
+    # SONAPSE-NEUROENDOCRINE / SENSE / EVO compatibility flags (default OFF for zero-gain identity)
+    neuroendocrine: bool = False
+    synthetic_glands: bool = False
+    affective_core: bool = False
+    neural_pulses: bool = False
+    sleep_replay: bool = False
+    shared_knowledge: bool = False
+    live_microphone: bool = False
+    live_chat: bool = False
+    virtual_ecology_v2: bool = False
+    cross_model_exchange: bool = False
+    evo_compat: bool = False
+
     def __post_init__(self):
         bool_keys = (
             'experience_planning', 'surprise_memory', 'experimental_cognition',
@@ -114,7 +127,8 @@ class SynapseConfig:
             'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
             'meta_plasticity', 'causal_world_model', 'relational_memory',
             'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
-            'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic', 'cross_connectome_graft', 'aether_graft_bridge', 'graft_bus_enabled', 'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold', 'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto', 'archimedes_buoyancy', 'memory_carrier_nexus'
+            'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic', 'cross_connectome_graft', 'aether_graft_bridge', 'graft_bus_enabled', 'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold', 'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto', 'archimedes_buoyancy', 'memory_carrier_nexus',
+            'neuroendocrine', 'synthetic_glands', 'affective_core', 'neural_pulses', 'sleep_replay', 'shared_knowledge', 'live_microphone', 'live_chat', 'virtual_ecology_v2', 'cross_model_exchange', 'evo_compat'
         )
         for key in bool_keys:
             if type(getattr(self, key)) is not bool:
@@ -199,7 +213,7 @@ class SynapseConfig:
         return int(sum(self.source_node_counts()))
 
     @classmethod
-    def frontier_apex(cls, total_neurons: int = 6500, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
+    def frontier_apex(cls, total_neurons: int = 9000, seed: int = 7, task: str = 'forage', **kwargs) -> 'SynapseConfig':
         """Omnibus configuration activating all frontier cognitive, neuromorphic, and SANCF communication features."""
         cfg_dict = dict(
             seed=seed,
@@ -262,8 +276,8 @@ class SynapseConfig:
         return cls(**cfg_dict)
 
     @classmethod
-    def max_tandem(cls, total_neurons: int = 8000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
-        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, NeuroWave-X2, and full CPU compute."""
+    def max_tandem(cls, total_neurons: int = 9000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, NeuroWave-X2, neuroendocrine, and full compute."""
         cfg_dict = dict(
             seed=seed,
             total_neurons=total_neurons,
@@ -342,6 +356,17 @@ class SynapseConfig:
             graft_updates=4,
             connectome_mode='prefer_authentic',
             structural_learning=True,
+            neuroendocrine=True,
+            synthetic_glands=True,
+            affective_core=True,
+            neural_pulses=True,
+            sleep_replay=True,
+            shared_knowledge=True,
+            live_microphone=False,
+            live_chat=True,
+            virtual_ecology_v2=True,
+            cross_model_exchange=True,
+            evo_compat=True,
         )
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
@@ -377,6 +402,10 @@ class SynapseConfig:
             'overflow_mini_brain': False, 'grafted_diffusion': False, 'selective_state_space': False,
             'multitimescale_learning': False, 'meta_plasticity': False, 'causal_world_model': False,
             'relational_memory': False, 'verifier_rsi': False, 'event_driven_backend': False, 'graph_diffusion': False, 'active_inference_planner': False, 'thermodynamics': False, 'metaplasticity_bcm': False, 'transfer_entropy': False,
+            'neuroendocrine': False, 'synthetic_glands': False, 'affective_core': False,
+            'neural_pulses': False, 'sleep_replay': False, 'shared_knowledge': False,
+            'live_microphone': False, 'live_chat': False, 'virtual_ecology_v2': False,
+            'cross_model_exchange': False, 'evo_compat': False,
             'connectome_sources': ('flywire', 'manc', 'optic-lobe'),
             **saved
         }

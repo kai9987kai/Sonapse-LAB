@@ -246,6 +246,73 @@ class Workbench:
             if path=='/api/benchmark-suite/catalog':
                 from .benchmark_suite import BenchmarkRegistry
                 return {'benchmarks': BenchmarkRegistry().list_benchmarks()}
+            if path=='/api/neuroendocrine':
+                agent = self.runtime.agent
+                aff_state = agent.mixed_affect.get_state_dict() if getattr(agent, 'mixed_affect', None) is not None else {}
+                glands = agent.synthetic_glands.step()['gland_dict'] if getattr(agent, 'synthetic_glands', None) is not None else {}
+                receptors = agent.receptor_bank.get_affinity_summary() if getattr(agent, 'receptor_bank', None) is not None else {}
+                return {
+                    'status': 'active' if getattr(agent, 'wpac', None) is not None else 'inactive',
+                    'affective_state': aff_state,
+                    'synthetic_glands': glands,
+                    'receptors': receptors,
+                }
+            if path=='/api/pulses':
+                agent = self.runtime.agent
+                pulses = agent.pulse_field.get_active_pulses() if getattr(agent, 'pulse_field', None) is not None else []
+                disp = agent.wave_solver.x_curr.tolist() if getattr(agent, 'wave_solver', None) is not None else []
+                coh = float(agent.phase_protocol.coherence_history[-1].item()) if (getattr(agent, 'phase_protocol', None) is not None and len(agent.phase_protocol.coherence_history) > 0) else 0.0
+                return {
+                    'status': 'active' if getattr(agent, 'pulse_field', None) is not None else 'inactive',
+                    'active_pulses': pulses,
+                    'wave_displacement': disp,
+                    'kuramoto_coherence': coh,
+                }
+            if path=='/api/sleep_replay':
+                agent = self.runtime.agent
+                fc = getattr(agent, 'fatigue_controller', None)
+                de = getattr(agent, 'dream_engine', None)
+                return {
+                    'status': 'active' if fc is not None else 'inactive',
+                    'sleep_state': fc.current_state.value if fc is not None else 'awake',
+                    'sleep_pressure': float(fc.sleep_pressure.item()) if fc is not None else 0.0,
+                    'recent_dreams': de.get_dream_history() if de is not None else [],
+                }
+            if path=='/api/knowledge':
+                agent = self.runtime.agent
+                pool = getattr(agent, 'knowledge_pool', None)
+                return {
+                    'status': 'active' if pool is not None else 'inactive',
+                    'records': pool.get_summary() if pool is not None else [],
+                    'total_records': pool.size() if pool is not None else 0,
+                }
+            if path=='/api/chat':
+                agent = self.runtime.agent
+                cg = getattr(agent, 'chat_gateway', None)
+                return {
+                    'status': 'active' if cg is not None else 'inactive',
+                    'history': cg.get_history() if cg is not None else [],
+                }
+            if path=='/api/audio':
+                agent = self.runtime.agent
+                ag = getattr(agent, 'audio_gateway', None)
+                return {
+                    'status': 'active' if ag is not None else 'inactive',
+                    'enabled': ag.enabled if ag is not None else False,
+                    'last_features': ag.last_features.to_dict() if (ag is not None and ag.last_features is not None) else None,
+                }
+            if path=='/api/ecology':
+                world = getattr(self.runtime, 'world', None)
+                if world is not None and hasattr(world, 'shelters'):
+                    return {
+                        'status': 'active',
+                        'temperature_c': getattr(world, 'temperature_c', 21.0),
+                        'metabolic_energy': getattr(world, 'metabolic_energy', 100.0),
+                        'in_shelter': getattr(world, 'in_shelter', False),
+                        'scents': getattr(world, 'last_scent_plumes', {}),
+                        'conspecifics': getattr(world, 'conspecifics', []),
+                    }
+                return {'status': 'standard_world', 'shelters': []}
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -686,6 +753,46 @@ class Workbench:
                     'status': 'completed',
                     'migration_report': dataclasses.asdict(mig_res),
                 }
+            if path=='/api/chat':
+                agent = self.runtime.agent
+                if getattr(agent, 'chat_gateway', None) is None:
+                    from .multimodal_live import ConversationalChatGateway
+                    agent.chat_gateway = ConversationalChatGateway(embed_dim=64, seed=agent.config.seed)
+                msg_text = str(data.get('message', 'Hello'))
+                user_msg, _ = agent.chat_gateway.receive_user_message(msg_text)
+                aff_dict = agent.mixed_affect.get_state_dict().get('emotions', {}) if getattr(agent, 'mixed_affect', None) is not None else {}
+                agent_msg = agent.chat_gateway.synthesize_agent_response(current_affect=aff_dict)
+                return {'user_message': user_msg.to_dict(), 'agent_response': agent_msg.to_dict()}
+            if path=='/api/audio/toggle':
+                agent = self.runtime.agent
+                if getattr(agent, 'audio_gateway', None) is None:
+                    from .multimodal_live import LiveAudioGateway
+                    agent.audio_gateway = LiveAudioGateway(enabled=False)
+                new_state = bool(data.get('enabled', not agent.audio_gateway.enabled))
+                agent.audio_gateway.set_enabled(new_state)
+                return {'enabled': agent.audio_gateway.enabled}
+            if path=='/api/pulses/trigger':
+                agent = self.runtime.agent
+                if getattr(agent, 'pulse_field', None) is not None:
+                    from .neural_pulses import PulseEventType
+                    p_type_str = data.get('type', 'acute_threat')
+                    p_type = PulseEventType(p_type_str) if p_type_str in [e.value for e in PulseEventType] else PulseEventType.ACUTE_THREAT
+                    amp = float(data.get('amplitude', 1.0))
+                    reg = int(data.get('region', 0))
+                    pulse = agent.pulse_field.trigger_pulse(p_type, source_region=reg, amplitude=amp)
+                    if getattr(agent, 'wave_solver', None) is not None:
+                        agent.wave_solver.inject_pulse(reg, amp)
+                    return {'status': 'triggered', 'pulse': pulse.to_dict()}
+                return {'status': 'pulse_field_not_initialized'}
+            if path=='/api/sleep/state':
+                agent = self.runtime.agent
+                if getattr(agent, 'fatigue_controller', None) is not None:
+                    from .sleep_replay import SleepState
+                    st_str = data.get('state', 'awake')
+                    if st_str in [s.value for s in SleepState]:
+                        agent.fatigue_controller.force_state(SleepState(st_str))
+                    return {'status': 'updated', 'current_state': agent.fatigue_controller.current_state.value}
+                return {'status': 'fatigue_controller_not_initialized'}
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None,workbench=None):

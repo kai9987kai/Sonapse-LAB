@@ -159,7 +159,7 @@
           <label>Source<select id="graph-source"><option value="all">All active sources</option></select></label>
           <label>Role<select id="graph-role"><option value="all">All roles</option></select></label>
           <label>Activity scale<select id="graph-activity"><option value="1">1×</option><option value="3">3×</option><option value="10">10×</option><option value="0.3">0.3×</option></select></label>
-          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option>4000</option><option>6000</option><option>6500</option><option selected>8000</option></select></label>
+          <label>Node budget<select id="graph-nodes"><option>250</option><option>500</option><option>1000</option><option>2000</option><option>4000</option><option>6000</option><option>6500</option><option>8000</option><option selected>9000</option></select></label>
           <label>Edge budget<select id="graph-edges"><option>0</option><option>200</option><option>500</option><option selected>1600</option><option>3200</option></select></label>
           <label class="toggle-label"><input id="graph-grafts" type="checkbox" checked> Executing graft links</label>
           <label class="toggle-label"><input id="graph-streamlines" type="checkbox" checked> 3D Causal Streamlines</label>
@@ -645,6 +645,82 @@
       </article>
     </div>
 
+    <!-- SONAPSE-NEUROENDOCRINE / SENSE / EVO EXPANDED OBSERVATORY -->
+    <div class="visual-grid spaced-grid">
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Weight-Programmed Affective Connectome (WPAC)</h2>
+            <span class="tag">32-EMOTION SPECTRUM &bull; 6-DIM CORE &bull; ALLOMORPHIC EQUILIBRIUM</span>
+          </div>
+          <span id="wpac-badge" class="tag metric-tag">WPAC Active</span>
+        </div>
+        <canvas id="wpac-canvas" height="160" class="live-sub-canvas"></canvas>
+        <div id="wpac-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>12-Channel Synthetic Gland Bank</h2>
+            <span class="tag">DA &bull; 5HT &bull; OA &bull; ACh &bull; ADR &bull; NA &bull; CORT &bull; OXT &bull; OPI &bull; MEL &bull; ORX &bull; ADO</span>
+          </div>
+          <span id="glands-badge" class="tag metric-tag">Endocrine Active</span>
+        </div>
+        <canvas id="glands-canvas" height="160" class="live-sub-canvas"></canvas>
+        <div id="glands-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Propagating Traveling Waves &amp; Phase Reset</h2>
+            <span class="tag">DAMPED GRAPH WAVE &bull; KURAMOTO COHERENCE &bull; BOUNDED CURRENT ROUTING</span>
+          </div>
+          <span id="pulses-badge" class="tag metric-tag">Waves Active</span>
+        </div>
+        <canvas id="pulses-canvas" height="160" class="live-sub-canvas"></canvas>
+        <div id="pulses-hud" class="keyvalues cognition-values"></div>
+      </article>
+      <article>
+        <div class="panel-head">
+          <div>
+            <h2>Sleep Replay &amp; Generative Dreams</h2>
+            <span class="tag">PROCESS S &bull; OFFLINE CONSOLIDATION &bull; COUNTERFACTUAL SIMULATION</span>
+          </div>
+          <span id="sleep-badge" class="tag metric-tag">Sleep Engine Ready</span>
+        </div>
+        <canvas id="sleep-canvas" height="160" class="live-sub-canvas"></canvas>
+        <div id="sleep-hud" class="keyvalues cognition-values"></div>
+      </article>
+    </div>
+
+    <!-- CONVERSATIONAL INTERACTION & MULTIMODAL INGRESS -->
+    <div class="visual-grid spaced-grid">
+      <article style="grid-column: 1 / -1;">
+        <div class="panel-head">
+          <div>
+            <h2>Conversational Agent Interface &amp; Live Multimodal Audio</h2>
+            <span class="tag">AFFECT-INFORMED SYNTHESIS &bull; COCHLEAR SPIKES &bull; SCIENTIFIC HONESTY</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="audio-toggle-btn" class="omnibus-button" style="padding: 4px 10px;">Enable Microphone</button>
+            <span id="audio-status-badge" class="tag metric-tag">Mic: Inactive (Permission Gated)</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; margin-top: 8px;">
+          <div id="chat-stream" style="flex: 2; height: 160px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; font-family: monospace; font-size: 13px;">
+            <div style="color: var(--muted); font-style: italic;">Chat session active. Messages reflect agent internal affective state and simulated neural tone.</div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <input type="text" id="chat-input" placeholder="Type prompt to connectome..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="chat-send-btn" class="omnibus-button" style="flex: 1;">Send</button>
+              <button type="button" id="trigger-threat-btn" class="omnibus-button" style="background: rgba(220,53,69,0.3); border-color: rgba(220,53,69,0.5);">Trigger Threat Pulse</button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
     <!-- CONFIGURATION -->
     <article>
       <div class="panel-head">
@@ -685,7 +761,7 @@
           </select>
         </label>
         <label>Seed<input name="seed" type="number" value="7" min="0"></label>
-        <label>Total neurons<input name="total_neurons" type="number" value="8000" min="48" max="30000"></label>
+        <label>Total neurons<input name="total_neurons" type="number" value="9000" min="48" max="30000"></label>
         <label>Microsteps<input name="microsteps" type="number" value="2" min="1" max="8"></label>
         <label>Cognition interval<input name="cognition_interval" type="number" value="8" min="1" max="128"></label>
         <label>Readout
@@ -744,6 +820,16 @@
         <label><input name="relational_memory" type="checkbox"> Relational HRR Memory</label>
         <label><input name="verifier_rsi" type="checkbox"> Verifier-Gated RSI Engine</label>
         <label><input name="event_driven_backend" type="checkbox"> Event-Driven Sparse Backend</label>
+        <label><input name="neuroendocrine" type="checkbox" checked> Neuroendocrine &amp; Affective Core (WPAC)</label>
+        <label><input name="synthetic_glands" type="checkbox" checked> 12-Channel Synthetic Gland Bank</label>
+        <label><input name="neural_pulses" type="checkbox" checked> Propagating Traveling Waves &amp; Phase Reset</label>
+        <label><input name="sleep_replay" type="checkbox" checked> Sleep Replay &amp; Generative Dreams</label>
+        <label><input name="shared_knowledge" type="checkbox" checked> Shared Structured Knowledge Pool</label>
+        <label><input name="live_chat" type="checkbox" checked> Conversational Agent Gateway</label>
+        <label><input name="virtual_ecology_v2" type="checkbox" checked> Virtual Ecology V2 (Scent &amp; Shelters)</label>
+        <label><input name="cross_model_exchange" type="checkbox" checked> Cross-Model Synaptic Exchange</label>
+        <label><input name="evo_compat" type="checkbox" checked> SONAPSE-EVO Structural Plasticity</label>
+        <label><input name="live_microphone" type="checkbox"> Real-Time Live Microphone Ingress</label>
         <button>Reset session</button>
       </form>
     </article>
