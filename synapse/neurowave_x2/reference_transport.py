@@ -112,12 +112,12 @@ class ReferenceTransport:
         self.queue.append((delivery_step, packet))
         return True
 
-    def receive(self, current_step: int, receiver_id: int) -> List[NeuralPacket]:
+    def receive(self, current_step: int, receiver_id: Optional[int] = None) -> List[NeuralPacket]:
         """Collect all packets ready for delivery to receiver_id at current_step."""
         ready: List[NeuralPacket] = []
         remaining: List[Tuple[int, NeuralPacket]] = []
         for step, pkt in self.queue:
-            if step <= current_step and pkt.receiver_region == receiver_id:
+            if step <= current_step and (receiver_id is None or pkt.receiver_region == receiver_id):
                 ready.append(pkt)
                 self.delivered_packets.append(pkt)
             else:

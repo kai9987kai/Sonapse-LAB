@@ -54,6 +54,11 @@ class SynapseConfig:
     archimedes_buoyancy: bool = False
     memory_carrier_nexus: bool = False
     cross_connectome_graft: bool = False
+    aether_graft_bridge: bool = False
+    aether_bridge_gamma: float = 0.0
+    aether_bridge_modes: int = 16
+    aether_bridge_control: str = 'none'
+    graft_bus_enabled: bool = False
 
     # SANCF (Sonapse Adaptive Neural Communication Fabric) & Advanced Research Features
     neural_comm_enabled: bool = False
@@ -109,7 +114,7 @@ class SynapseConfig:
             'grafted_diffusion', 'selective_state_space', 'multitimescale_learning',
             'meta_plasticity', 'causal_world_model', 'relational_memory',
             'verifier_rsi', 'event_driven_backend', 'graph_diffusion', 'active_inference_planner', 'thermodynamics', 'metaplasticity_bcm', 'transfer_entropy',
-            'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic'
+            'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic', 'cross_connectome_graft', 'aether_graft_bridge', 'graft_bus_enabled', 'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold', 'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto', 'archimedes_buoyancy', 'memory_carrier_nexus'
         )
         for key in bool_keys:
             if type(getattr(self, key)) is not bool:
@@ -132,6 +137,7 @@ class SynapseConfig:
             ('neural_comm_max_messages', 1, 64),
             ('neural_comm_max_bits', 1, 4096),
             ('neural_comm_latency_steps', 0, 16),
+            ('aether_bridge_modes', 1, 64),
         ]
         for key, low, high in int_ranges:
             value = getattr(self, key)
@@ -146,6 +152,10 @@ class SynapseConfig:
             raise ValueError('neurowave_x2_gamma must be in [0.0, 5.0]')
         if not 1 <= self.neurowave_x2_dimension <= 512:
             raise ValueError('neurowave_x2_dimension must be in [1, 512]')
+        if not 0.0 <= self.aether_bridge_gamma <= 5.0:
+            raise ValueError('aether_bridge_gamma must be in [0.0, 5.0]')
+        if self.aether_bridge_control not in {'none', 'scrambled', 'shuffled_modes', 'phase_inverted', 'zero_donor'}:
+            raise ValueError('unsupported aether_bridge_control mode')
 
         if self.readout not in {'absolute', 'evoked', 'persistent_evoked'}:
             raise ValueError('unsupported graph readout')
@@ -313,6 +323,20 @@ class SynapseConfig:
             neurowave_x2_development=True,
             neurowave_x2_development_level=6,
             neurowave_x2_dendritic=True,
+            cross_connectome_graft=True,
+            aether_graft_bridge=True,
+            aether_bridge_gamma=0.25,
+            aether_bridge_modes=16,
+            aether_bridge_control='none',
+            graft_bus_enabled=True,
+            apical_amplification=True,
+            spectral_reservoir=True,
+            hyperbolic_manifold=True,
+            spiking_neuromorphic=True,
+            glymphatic_clearance=True,
+            quantum_kuramoto=True,
+            archimedes_buoyancy=True,
+            memory_carrier_nexus=True,
             compute_threads=min(32, max(1, os.cpu_count() or 4)),
             graft_batch_size=256,
             graft_updates=4,
@@ -344,7 +368,7 @@ class SynapseConfig:
             'compute_threads': 1, 'graft_batch_size': 64, 'graft_updates': 2, 'connectome_mode': 'proxy',
             'structural_learning': True,
             'dendritic_ltc': False, 'oscillatory_coherence': False, 'verifiable_dpo': False,
-            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False, 'apical_amplification': False, 'spectral_reservoir': False, 'hyperbolic_manifold': False, 'spiking_neuromorphic': False, 'glymphatic_clearance': False, 'quantum_kuramoto': False, 'archimedes_buoyancy': False, 'memory_carrier_nexus': False, 'cross_connectome_graft': False,
+            'dvgem_memory': False, 'tether_coordinator': False, 'criticality_homeostat': False, 'holographic_vsa': False, 'apical_amplification': False, 'spectral_reservoir': False, 'hyperbolic_manifold': False, 'spiking_neuromorphic': False, 'glymphatic_clearance': False, 'quantum_kuramoto': False, 'archimedes_buoyancy': False, 'memory_carrier_nexus': False, 'cross_connectome_graft': False, 'aether_graft_bridge': False, 'aether_bridge_gamma': 0.0, 'aether_bridge_modes': 16, 'aether_bridge_control': 'none', 'graft_bus_enabled': False,
             'neural_comm_enabled': False, 'neural_comm_mode': 'continuous', 'neural_comm_dim': 16,
             'neural_comm_precision_bits': 4, 'neural_comm_every': 1, 'neural_comm_max_messages': 4,
             'neural_comm_max_bits': 128, 'neural_comm_max_aux_current': 0.5,

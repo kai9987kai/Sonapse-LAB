@@ -169,6 +169,8 @@ class QuantumKuramotoEngine(nn.Module):
             'theta': self.theta.detach().cpu().numpy().tolist(),
             'omega': self.omega.detach().cpu().numpy().tolist(),
             'coupling_k': float(self.coupling_k),
+            'order_history': list(self.order_history),
+            'telemetry': self.telemetry.to_dict(),
         }
 
     def import_state(self, state: Dict[str, Any]):
@@ -179,3 +181,10 @@ class QuantumKuramotoEngine(nn.Module):
             self.omega = torch.tensor(state['omega'], dtype=torch.float32)
         if 'coupling_k' in state:
             self.coupling_k = float(state['coupling_k'])
+        if 'order_history' in state:
+            self.order_history = [float(x) for x in state['order_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(KuramotoTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = KuramotoTelemetry(**filtered)

@@ -205,6 +205,9 @@ class SpikingNeuromorphicEngine(nn.Module):
             'refractory_timer': self.refractory_timer.detach().cpu().numpy().tolist(),
             'delays': self.delays.detach().cpu().numpy().tolist(),
             'ring_ptr': self.ring_ptr,
+            'delay_ring_buffer': self.delay_ring_buffer.detach().cpu().numpy().tolist(),
+            'spike_history': [s.detach().cpu().numpy().tolist() for s in self.spike_history],
+            'telemetry': self.telemetry.to_dict(),
         }
 
     def import_state(self, state: Dict[str, Any]):
@@ -219,3 +222,12 @@ class SpikingNeuromorphicEngine(nn.Module):
             self.delays = torch.tensor(state['delays'], dtype=torch.long)
         if 'ring_ptr' in state:
             self.ring_ptr = int(state['ring_ptr'])
+        if 'delay_ring_buffer' in state:
+            self.delay_ring_buffer = torch.tensor(state['delay_ring_buffer'], dtype=torch.float32)
+        if 'spike_history' in state:
+            self.spike_history = [torch.tensor(s, dtype=torch.float32) for s in state['spike_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(SpikingTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = SpikingTelemetry(**filtered)

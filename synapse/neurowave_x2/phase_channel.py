@@ -105,6 +105,21 @@ class PhaseCoherenceAdapter(nn.Module):
         """Returns alignment gains across all configured frequency bands."""
         return {b: self.compute_coherence_gain(src_region, dst_region, band=b) for b in self.bands}
 
+    def export_state(self) -> Dict[str, Any]:
+        """Serializes regional phase buffer states."""
+        return {b: getattr(self, f"phase_{b}").detach().cpu().numpy().tolist() for b in self.bands}
+
+    def import_state(self, state: Dict[str, Any]) -> None:
+        """Restores regional phase buffer states."""
+        if not state:
+            return
+        for b, vals in state.items():
+            if hasattr(self, f"phase_{b}"):
+                buf = getattr(self, f"phase_{b}")
+                t = torch.tensor(vals, dtype=torch.float32, device=buf.device)
+                n = min(buf.numel(), t.numel())
+                buf[:n].copy_(t[:n])
+
 
 class WaveChannel(nn.Module):
     """NeuroWave-X2 Combined Phase + Spectral Multiplexing Wave Channel.
@@ -145,3 +160,17 @@ class WaveChannel(nn.Module):
         c_tuple = tuple(float(c.item()) for c in coeffs)
         p_tuple = (float(src_phase),)
         return c_tuple, p_tuple
+
+    def export_state(self) -> Dict[str, Any]:
+        return {
+            "phase_adapter": self.phase_adapter.export_state(),
+            "mode_encoder": {k: v.cpu() for k, v in self.mode_encoder.state_dict().items()},
+        }
+
+    def import_state(self, state: Dict[str, Any]) -> None:
+        if not state:
+            return
+        if "phase_adapter" in state:
+            self.phase_adapter.import_state(state["phase_adapter"])
+        if "mode_encoder" in state:
+            self.mode_encoder.load_state_dict(state["mode_encoder"])

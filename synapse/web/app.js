@@ -3133,6 +3133,108 @@ function carrierView() {
   }
 }
 
+
+function aetherGraftView() {
+  try {
+    const [x, w, h] = canvas('aether-graft-canvas');
+    if (!x) return;
+
+    const aetherTelem = state.telemetry?.aether_graft_bridge || state.agent?.telemetry?.aether_graft_bridge || {};
+    const busTelem = state.telemetry?.graft_bus || state.agent?.telemetry?.graft_bus || {};
+    const activeModes = Number(aetherTelem.active_modes || 16);
+    const powerHistory = Array.isArray(aetherTelem.recent_mode_power) ? aetherTelem.recent_mode_power : [];
+    const controlArm = String(aetherTelem.control_arm || 'none');
+    const gamma = Number(aetherTelem.coupling_gain || 0.0);
+    const cohIdx = Number(aetherTelem.phase_coherence_index || 1.0);
+
+    // Left: Modal Spectrum Bars (16 Laplacian Modes)
+    const specX = 14, specY = 24, specW = Math.min(160, w * 0.45);
+    const specH = h - 55;
+    const barW = Math.max(3, (specW / activeModes) - 2);
+
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText(`Laplacian Modal Spectrum (k=${activeModes})`, specX, 16);
+
+    for (let m = 0; m < activeModes; m++) {
+      const bx = specX + m * (barW + 2);
+      // Mode amplitude with decreasing natural decay and subtle fluctuation
+      const baseAmp = Math.exp(-m * 0.14) * (0.4 + 0.6 * cohIdx);
+      const barH = Math.max(2, baseAmp * specH * (gamma > 0 ? 1.0 : 0.2));
+      const by = specY + specH - barH;
+
+      const hue = 180 + m * 8;
+      x.fillStyle = gamma > 0 ? `hsl(${hue}, 85%, 60%)` : '#334155';
+      x.fillRect(bx, by, barW, barH);
+    }
+    x.strokeStyle = '#334155';
+    x.strokeRect(specX, specY, activeModes * (barW + 2), specH);
+
+    // Center: Multi-Channel Bus Compositor
+    const busX = specX + specW + 20;
+    const busW = Math.max(120, w - busX - 140);
+    x.fillStyle = '#8b9daf';
+    x.font = '10px Consolas, monospace';
+    x.fillText('Unified Graft Bus [clip_B(Σ γ_k g_k I_k)]', busX, 16);
+
+    const channels = [
+      { name: 'SANCF', gain: 1.0, color: '#38bdf8' },
+      { name: 'NeuroWave-X2', gain: 1.0, color: '#a855f7' },
+      { name: 'CrossGraft', gain: 1.0, color: '#10b981' },
+      { name: 'AETHER Bridge', gain: gamma, color: '#f59e0b' },
+    ];
+
+    channels.forEach((ch, idx) => {
+      const cy = 32 + idx * 22;
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText(ch.name, busX, cy + 9);
+
+      const isActive = ch.gain > 0;
+      const gW = Math.floor(Math.min(70, busW - 85) * (isActive ? Math.min(1.0, ch.gain) : 0.05));
+      x.fillStyle = isActive ? ch.color : '#334155';
+      x.fillRect(busX + 80, cy, Math.max(4, gW), 10);
+      x.strokeStyle = '#475569';
+      x.strokeRect(busX + 80, cy, Math.min(70, busW - 85), 10);
+    });
+
+    // Right: Scientific Metric Card
+    const cardX = busX + busW + 12;
+    if (cardX < w - 20) {
+      const cW = w - cardX - 8;
+      x.fillStyle = '#0f172a';
+      x.strokeStyle = '#1e293b';
+      x.lineWidth = 1;
+      x.beginPath();
+      if (x.roundRect) x.roundRect(cardX, 14, cW, h - 38, 5);
+      else x.rect(cardX, 14, cW, h - 38);
+      x.fill();
+      x.stroke();
+
+      x.fillStyle = '#94a3b8';
+      x.font = '9px Consolas, monospace';
+      x.fillText('Control Arm', cardX + 8, 30);
+
+      x.fillStyle = controlArm === 'none' ? '#10b981' : '#f59e0b';
+      x.font = 'bold 11px Consolas, monospace';
+      x.fillText(controlArm.toUpperCase(), cardX + 8, 46);
+
+      x.fillStyle = '#e2e8f0';
+      x.font = '9px Consolas, monospace';
+      x.fillText(`Coupling γ: ${gamma.toFixed(2)}`, cardX + 8, 64);
+      x.fillText(`CTC Phase: ${(cohIdx * 100).toFixed(0)}%`, cardX + 8, 78);
+      x.fillText(`Entropy: ${Number(aetherTelem.modal_energy_entropy || 0.0).toFixed(2)} b`, cardX + 8, 92);
+      x.fillText(`Bus Bound: 0.50`, cardX + 8, 106);
+    }
+
+    x.fillStyle = '#64748b';
+    x.font = '9px Consolas, monospace';
+    x.fillText('AETHER P3 GraftBridge & Unified Neural Communication Bus (Supermix-Aether / Sonapse-LAB)', 14, h - 6);
+  } catch (err) {
+    console.error('aether graft view error:', err);
+  }
+}
+
 function crossGraftView() {
   try {
     const [x, w, h] = canvas('cross-graft-canvas');
@@ -3400,7 +3502,7 @@ function render(s) {
       'dvgem_memory', 'tether_coordinator', 'criticality_homeostat', 'holographic_vsa', 'programmed_connectome',
       'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
       'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto',
-      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft'
+      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft', 'aether_graft_bridge', 'graft_bus_enabled'
     ]) {
       const el = configForm.elements.namedItem(boolField);
       if (el && !el.dataset.userTouched) {
@@ -4016,6 +4118,27 @@ function render(s) {
     ]);
   }
 
+  const aetherTelem = s.agent?.telemetry?.aether_graft_bridge || s.telemetry?.aether_graft_bridge || {};
+  const busTelem = s.agent?.telemetry?.graft_bus || s.telemetry?.graft_bus || {};
+  if ($('aether-graft-badge')) {
+    const isBridgeActive = Boolean(aetherTelem.enabled && (aetherTelem.coupling_gain || 0) > 0);
+    $('aether-graft-badge').textContent = isBridgeActive ? `${aetherTelem.active_modes || 16} Modes · Arm: ${aetherTelem.control_arm || 'none'}` : 'Bridge Standby';
+    setTone($('aether-graft-badge'), isBridgeActive ? 'good' : 'muted');
+  }
+  if ($('aether-graft-hud')) {
+    const activeCh = busTelem.active_channels ? busTelem.active_channels.join(', ') : 'None';
+    keyValues($('aether-graft-hud'), [
+      ['AETHER Active Modes', String(aetherTelem.active_modes || 16)],
+      ['Control Arm', String(aetherTelem.control_arm || 'none')],
+      ['Coupling Gain γ', Number(aetherTelem.coupling_gain || 0.0).toFixed(3)],
+      ['Modal Entropy', `${Number(aetherTelem.modal_energy_entropy || 0.0).toFixed(2)} bits`],
+      ['CTC Coherence', `${(Number(aetherTelem.phase_coherence_index || 1.0) * 100).toFixed(1)}%`],
+      ['Bus Active Channels', activeCh],
+      ['Bus Total Current L2', Number(busTelem.last_step?.total_norm || 0.0).toFixed(4)],
+      ['Bus Saturation', `${(Number(busTelem.last_step?.saturation_ratio || 0.0) * 100).toFixed(1)}%`],
+    ]);
+  }
+
   const graftTelem = s.agent?.telemetry?.cross_connectome_graft || s.telemetry?.cross_connectome_graft || {};
   if ($('cross-graft-badge')) {
     const isGraftActive = (graftTelem.num_active_bridges || 0) > 0;
@@ -4122,6 +4245,7 @@ function render(s) {
   archimedesView();
   carrierView();
   crossGraftView();
+  aetherGraftView();
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }

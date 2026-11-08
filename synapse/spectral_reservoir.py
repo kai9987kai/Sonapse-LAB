@@ -258,6 +258,9 @@ class SpectralReservoirEngine(nn.Module):
             'state': self.state.cpu().numpy().tolist(),
             'tap_buffer': self.tap_buffer.cpu().numpy().tolist(),
             'w_out': self.w_out.cpu().numpy().tolist(),
+            'p_mat': self.p_mat.cpu().numpy().tolist(),
+            'input_history': list(self._input_history),
+            'state_history': list(self._state_history),
             'telemetry': self.telemetry.to_dict(),
         }
 
@@ -271,3 +274,14 @@ class SpectralReservoirEngine(nn.Module):
             self.tap_buffer.copy_(torch.tensor(state['tap_buffer'], dtype=torch.float32))
         if 'w_out' in state:
             self.w_out.copy_(torch.tensor(state['w_out'], dtype=torch.float32))
+        if 'p_mat' in state:
+            self.p_mat.copy_(torch.tensor(state['p_mat'], dtype=torch.float32))
+        if 'input_history' in state:
+            self._input_history = [float(x) for x in state['input_history']]
+        if 'state_history' in state:
+            self._state_history = [float(x) for x in state['state_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(ReservoirTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = ReservoirTelemetry(**filtered)

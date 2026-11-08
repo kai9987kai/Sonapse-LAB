@@ -269,7 +269,34 @@ class HyperbolicManifoldEngine:
         """Import state dictionary from checkpoint."""
         if not state:
             return
-        if 'telemetry' in state:
-            t = state['telemetry']
-            self.telemetry.mean_hyperbolic_radius = float(t.get('mean_hyperbolic_radius', 0.5))
-            self.telemetry.mean_geodesic_distance = float(t.get('mean_geodesic_distance', 2.4))
+        if 'nodes' in state:
+            self.nodes = {
+                int(n['id']): HyperbolicNode(
+                    id=int(n['id']),
+                    name=str(n['name']),
+                    origin_id=int(n['origin_id']),
+                    x=float(n['x']),
+                    y=float(n['y']),
+                    radius=float(n['radius']),
+                    angle=float(n['angle']),
+                    role=str(n['role']),
+                    hierarchical_depth=int(n['hierarchical_depth']),
+                )
+                for n in state['nodes']
+            }
+        if 'geodesics' in state:
+            self.geodesics = [
+                GeodesicLink(
+                    src_id=int(g['src_id']),
+                    dst_id=int(g['dst_id']),
+                    hyperbolic_dist=float(g['hyperbolic_dist']),
+                    arc_points=[[float(p[0]), float(p[1])] for p in g['arc_points']],
+                    intensity=float(g.get('intensity', 1.0)),
+                )
+                for g in state['geodesics']
+            ]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(HyperbolicTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = HyperbolicTelemetry(**filtered)

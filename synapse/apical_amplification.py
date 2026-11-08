@@ -233,6 +233,8 @@ class ApicalAmplificationEngine(nn.Module):
             'v_somatic': self.v_somatic.detach().cpu().numpy().tolist(),
             'v_apical': self.v_apical.detach().cpu().numpy().tolist(),
             'ca_timer': self.ca_timer.detach().cpu().numpy().tolist(),
+            'soma_history': list(self._soma_history),
+            'apical_history': list(self._apical_history),
             'telemetry': self.telemetry.to_dict(),
         }
 
@@ -246,3 +248,12 @@ class ApicalAmplificationEngine(nn.Module):
             self.v_apical.copy_(torch.tensor(state['v_apical'], dtype=torch.float32))
         if 'ca_timer' in state:
             self.ca_timer.copy_(torch.tensor(state['ca_timer'], dtype=torch.int32))
+        if 'soma_history' in state:
+            self._soma_history = [float(x) for x in state['soma_history']]
+        if 'apical_history' in state:
+            self._apical_history = [float(x) for x in state['apical_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(ApicalTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = ApicalTelemetry(**filtered)

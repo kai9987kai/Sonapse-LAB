@@ -106,18 +106,38 @@ class PyTorchTransport(nn.Module):
         self.queue.append((delivery_step, packet))
         return True
 
-    def receive(self, current_step: int, receiver_id: int) -> List[NeuralPacket]:
-        """Collect all packets ready for delivery to receiver_id at current_step."""
+    def receive(self, current_step: int, receiver_id: Optional[int] = None) -> List[NeuralPacket]:
+        """Collect all packets ready for delivery at current_step."""
         ready: List[NeuralPacket] = []
         remaining: List[Tuple[int, NeuralPacket]] = []
         for step, pkt in self.queue:
-            if step <= current_step and pkt.receiver_region == receiver_id:
+            if step <= current_step and (receiver_id is None or pkt.receiver_region == receiver_id):
                 ready.append(pkt)
                 self.delivered_packets.append(pkt)
             else:
                 remaining.append((step, pkt))
         self.queue = remaining
         return ready
+
+    def export_state(self) -> Dict[str, Any]:
+        return {
+            "queue": [(step, pkt.to_dict()) for step, pkt in self.queue],
+            "dropped_count": self.dropped_count,
+            "transmitted_count": self.transmitted_count,
+            "rng": self._rng.get_state(),
+        }
+
+    def import_state(self, state: Dict[str, Any]) -> None:
+        if not state:
+            return
+        if "queue" in state:
+            self.queue = [(step, NeuralPacket.from_dict(d)) for step, d in state["queue"]]
+        if "dropped_count" in state:
+            self.dropped_count = int(state["dropped_count"])
+        if "transmitted_count" in state:
+            self.transmitted_count = int(state["transmitted_count"])
+        if "rng" in state:
+            self._rng.set_state(state["rng"])
 
     def decode_and_inject(
         self,

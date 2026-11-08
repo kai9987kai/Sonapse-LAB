@@ -97,3 +97,37 @@ class NeuroWaveTelemetryAggregator:
             "history_wire_bits": self.wire_bits_history[-20:],
             "history_residual_norm": [round(x, 4) for x in self.residual_magnitude_history[-20:]],
         }
+
+    def export_state(self) -> Dict[str, Any]:
+        return {
+            'step_counter': self.step_counter,
+            'wire_bits_history': list(self.wire_bits_history),
+            'flops_history': list(self.flops_history),
+            'protocol_history': list(self.protocol_history),
+            'residual_magnitude_history': list(self.residual_magnitude_history),
+            'latest_active_routes': list(self.latest_active_routes),
+            'latest_spectral_energies': list(self.latest_spectral_energies),
+            'latest_phase_alignments': dict(self.latest_phase_alignments),
+            'latest_protocol_probs': dict(self.latest_protocol_probs),
+            'dropped_packets_total': self.dropped_packets_total,
+            'transmitted_packets_total': self.transmitted_packets_total,
+            'topology_version': self.topology_version,
+            'basis_version': self.basis_version,
+        }
+
+    def import_state(self, state: Dict[str, Any]) -> None:
+        if not state:
+            return
+        self.step_counter = int(state.get('step_counter', 0))
+        self.wire_bits_history = list(state.get('wire_bits_history', []))
+        self.flops_history = list(state.get('flops_history', []))
+        self.protocol_history = list(state.get('protocol_history', []))
+        self.residual_magnitude_history = list(state.get('residual_magnitude_history', []))
+        self.latest_active_routes = list(state.get('latest_active_routes', []))
+        self.latest_spectral_energies = list(state.get('latest_spectral_energies', []))
+        self.latest_phase_alignments = dict(state.get('latest_phase_alignments', {}))
+        self.latest_protocol_probs = dict(state.get('latest_protocol_probs', {}))
+        self.dropped_packets_total = int(state.get('dropped_packets_total', 0))
+        self.transmitted_packets_total = int(state.get('transmitted_packets_total', 0))
+        self.topology_version = int(state.get('topology_version', 1))
+        self.basis_version = int(state.get('basis_version', 1))

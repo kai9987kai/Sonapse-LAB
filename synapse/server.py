@@ -200,6 +200,12 @@ class Workbench:
             if path=='/api/cross_graft/status':
                 engine = getattr(self.runtime.agent, 'cross_graft_engine', None)
                 return engine.telemetry.to_dict() if engine is not None else {'enabled': False}
+            if path=='/api/aether_bridge/status':
+                bridge = getattr(self.runtime.agent, 'aether_bridge', None)
+                return bridge.telemetry.to_dict() if bridge is not None else {'enabled': False}
+            if path=='/api/graft_bus/status':
+                bus = getattr(self.runtime.agent, 'graft_bus', None)
+                return bus.get_telemetry_dict() if bus is not None else {'enabled': False}
             if path=='/api/tandem/status':
                 return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
@@ -233,7 +239,7 @@ class Workbench:
                 return {'active': False, 'task': getattr(self.runtime.config, 'task', '')}
             if path=='/api/supermix/status':
                 return {
-                    'adapters': ['Poseidon', 'Expanse', 'NeuroGraft', 'Tether', 'Faultline', 'GhostInTheMachine'],
+                    'adapters': ['Poseidon', 'Expanse', 'NeuroGraft', 'Tether', 'Faultline', 'GhostInTheMachine', 'Supermix-Aether'],
                     'status': 'integrated',
                     'safety_boundary': 'in-memory strict compliance; zero unconstrained host access',
                 }

@@ -186,6 +186,8 @@ class ArchimedesBuoyancyEngine(nn.Module):
             'depth_z': float(self.depth_z),
             'velocity_z': float(self.velocity_z),
             'vorticity': float(self.vorticity),
+            'buoyancy_history': list(self.buoyancy_history),
+            'telemetry': self.telemetry.to_dict(),
         }
 
     def import_state(self, state: Dict[str, Any]):
@@ -196,3 +198,10 @@ class ArchimedesBuoyancyEngine(nn.Module):
             self.velocity_z = float(state['velocity_z'])
         if 'vorticity' in state:
             self.vorticity = float(state['vorticity'])
+        if 'buoyancy_history' in state:
+            self.buoyancy_history = [float(x) for x in state['buoyancy_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(ArchimedesTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = ArchimedesTelemetry(**filtered)

@@ -121,6 +121,9 @@ class IntegratedAgent:
         self.memory_carrier_nexus=None
         self.cross_graft_engine=None
         self.comm_fabric=None
+        self.graft_bus=None
+        self.sancf_fabric=None
+        self.aether_bridge=None
         self.overflow_mini_brain=None
         self.grafted_diffusion=None
         self.selective_ssm=None
@@ -207,11 +210,33 @@ class IntegratedAgent:
                 from .memory_carrier import MemoryCarrierNexus
                 self.memory_carrier_nexus = MemoryCarrierNexus(dimension=min(64, self.brain.n), seed=self.config.seed)
                 self.modules['memory_carrier_nexus'] = self.memory_carrier_nexus
+            from .graft_bus import (
+                NeuralGraftCommunicationBus,
+                SANCFBusChannel,
+                NeuroWaveX2BusChannel,
+                CrossGraftBusChannel,
+                AetherBridgeBusChannel,
+            )
+            if getattr(self, 'graft_bus', None) is None:
+                self.graft_bus = NeuralGraftCommunicationBus(
+                    max_aux_current=getattr(self.config, 'neural_comm_max_aux_current', 0.5),
+                    context_dim=min(64, self.brain.n),
+                    seed=self.config.seed,
+                )
+                self.modules['graft_bus'] = self.graft_bus
+
             if getattr(self.config, 'cross_connectome_graft', False) and getattr(self, 'cross_graft_engine', None) is None:
                 from .cross_graft import CrossConnectomeGraft
-                self.cross_graft_engine = CrossConnectomeGraft(node_dim=min(64, self.brain.n), seed=self.config.seed)
+                self.cross_graft_engine = CrossConnectomeGraft(
+                    node_dim=min(64, self.brain.n),
+                    gamma=0.2,
+                    seed=self.config.seed,
+                    target_dim=self.brain.n,
+                )
                 self.modules['cross_graft_engine'] = self.cross_graft_engine
-            if getattr(self.config, 'neural_comm_enabled', False) and self.comm_fabric is None:
+                self.graft_bus.register_channel("cross_graft", CrossGraftBusChannel(self.cross_graft_engine), gain=1.0)
+
+            if getattr(self.config, 'neural_comm_enabled', False) and getattr(self, 'sancf_fabric', None) is None:
                 from .neural_comm import NeuralCommFabric
                 from .neural_comm_channels import CommChannelSpec
                 comm_spec = CommChannelSpec(
@@ -222,7 +247,7 @@ class IntegratedAgent:
                     max_latency_steps=getattr(self.config, 'neural_comm_latency_steps', 0),
                     seed=self.config.seed,
                 )
-                self.comm_fabric = NeuralCommFabric(
+                self.sancf_fabric = NeuralCommFabric(
                     self.graph,
                     spec=comm_spec,
                     enabled=True,
@@ -230,6 +255,8 @@ class IntegratedAgent:
                     topology_strategy=getattr(self.config, 'neural_comm_topology', 'hybrid_causal'),
                     seed=self.config.seed,
                 )
+                self.graft_bus.register_channel("sancf", SANCFBusChannel(self.sancf_fabric), gain=1.0)
+
             if getattr(self.config, 'neurowave_x2_enabled', False) and self.neurowave_x2 is None:
                 from .neurowave_x2 import NeuroWaveX2Config, NeuroWaveX2Fabric
                 nw_cfg = NeuroWaveX2Config(
@@ -253,8 +280,32 @@ class IntegratedAgent:
                     total_neurons=self.brain.n,
                     seed=self.config.seed,
                 )
-                if self.comm_fabric is None:
-                    self.comm_fabric = self.neurowave_x2
+                self.graft_bus.register_channel("neurowave_x2", NeuroWaveX2BusChannel(self.neurowave_x2), gain=1.0)
+
+            if getattr(self.config, 'aether_graft_bridge', False) and getattr(self, 'aether_bridge', None) is None:
+                from .aether_graft_bridge import AetherGraftBridge, GraftBridgeSpec
+                ab_spec = GraftBridgeSpec(
+                    enabled=True,
+                    coupling_gain=float(getattr(self.config, 'aether_bridge_gamma', 0.0)),
+                    num_modes=int(getattr(self.config, 'aether_bridge_modes', 16)),
+                    negative_control=str(getattr(self.config, 'aether_bridge_control', 'none')),
+                    seed=self.config.seed,
+                )
+                self.aether_bridge = AetherGraftBridge(
+                    spec=ab_spec,
+                    donor_dim=min(64, self.brain.n),
+                    recipient_dim=self.brain.n,
+                )
+                self.modules['aether_bridge'] = self.aether_bridge
+                self.graft_bus.register_channel("aether_bridge", AetherBridgeBusChannel(self.aether_bridge), gain=1.0)
+
+            # Route unified communication fabric
+            if self.graft_bus.enabled:
+                self.comm_fabric = self.graft_bus
+            elif getattr(self, 'sancf_fabric', None) is not None:
+                self.comm_fabric = self.sancf_fabric
+            elif getattr(self, 'neurowave_x2', None) is not None:
+                self.comm_fabric = self.neurowave_x2
             if getattr(self.config, 'overflow_mini_brain', False) and self.overflow_mini_brain is None:
                 from .grafted_sections import OverflowMiniBrain
                 self.overflow_mini_brain = OverflowMiniBrain(num_neurons=256, sensory_dim=155, motor_dim=5)
@@ -439,6 +490,9 @@ class IntegratedAgent:
             gates=self.plasticity.gates(o); effective=self.plasticity.effective_weights(self.brain.graft_w,gates)
             if hasattr(self,'astrocytes'):
                 effective=self.astrocytes.modulate_graft_weights(effective,torch.as_tensor(self.graph.graft_pre,dtype=torch.long),self.brain.n)
+            if getattr(self, 'graft_bus', None) is not None:
+                pre_ctx = torch.cat([o[:min(32, len(o))], self.hidden[0, :16], self.intent])
+                self.graft_bus.set_context(pre_ctx)
             previous=self.brain.r.clone()
             baseline=self.brain(torch.zeros_like(current),effective,adapt=False,advance=False) if self.config.readout!='absolute' else None
             r=self.brain(
@@ -694,11 +748,16 @@ class IntegratedAgent:
             _, _ = self.memory_carrier_nexus.retrieve(k_vec, carrier_idx=self.ticks % 16)
             self.last_telemetry['memory_carrier_nexus'] = self.memory_carrier_nexus.telemetry.to_dict()
         if getattr(self, 'cross_graft_engine', None) is not None:
-            _, graft_telem = self.cross_graft_engine(r[:min(64, self.brain.n)], context=torch.tensor(self.last_features[:min(64, len(self.last_features))], dtype=torch.float32))
-            self.last_telemetry['cross_connectome_graft'] = graft_telem.to_dict()
+            self.last_telemetry['cross_connectome_graft'] = self.cross_graft_engine.telemetry.to_dict()
+        if getattr(self, 'aether_bridge', None) is not None:
+            self.last_telemetry['aether_graft_bridge'] = self.aether_bridge.telemetry.to_dict()
+        if getattr(self, 'graft_bus', None) is not None:
+            self.last_telemetry['graft_bus'] = self.graft_bus.get_telemetry_dict()
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
-        if getattr(self, 'comm_fabric', None) is not None:
+        if getattr(self, 'sancf_fabric', None) is not None:
+            self.last_telemetry['sancf'] = self.sancf_fabric.get_telemetry_dict()
+        elif getattr(self, 'comm_fabric', None) is not None and hasattr(self.comm_fabric, 'get_telemetry_dict'):
             self.last_telemetry['sancf'] = self.comm_fabric.get_telemetry_dict()
         if getattr(self, 'neurowave_x2', None) is not None:
             self.last_telemetry['neurowave_x2'] = self.neurowave_x2.get_telemetry_dict()
@@ -982,6 +1041,8 @@ class IntegratedAgent:
         if getattr(self, 'archimedes_engine', None) is not None: state['archimedes_engine'] = self.archimedes_engine.export_state()
         if getattr(self, 'memory_carrier_nexus', None) is not None: state['memory_carrier_nexus'] = self.memory_carrier_nexus.export_state()
         if getattr(self, 'cross_graft_engine', None) is not None: state['cross_graft_engine'] = self.cross_graft_engine.export_state()
+        if getattr(self, 'aether_bridge', None) is not None: state['aether_bridge'] = self.aether_bridge.export_state()
+        if getattr(self, 'graft_bus', None) is not None: state['graft_bus'] = self.graft_bus.export_state()
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
         state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
@@ -1116,6 +1177,10 @@ class IntegratedAgent:
             self.memory_carrier_nexus.import_state(state['memory_carrier_nexus'])
         if getattr(self, 'cross_graft_engine', None) is not None and state.get('cross_graft_engine') is not None:
             self.cross_graft_engine.import_state(state['cross_graft_engine'])
+        if getattr(self, 'aether_bridge', None) is not None and state.get('aether_bridge') is not None:
+            self.aether_bridge.import_state(state['aether_bridge'])
+        if getattr(self, 'graft_bus', None) is not None and state.get('graft_bus') is not None:
+            self.graft_bus.import_state(state['graft_bus'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:

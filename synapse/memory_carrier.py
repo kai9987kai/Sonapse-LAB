@@ -168,6 +168,8 @@ class MemoryCarrierNexus(nn.Module):
         return {
             'memory_accumulator': self.memory_accumulator.detach().cpu().numpy().tolist(),
             'stored_count': self.stored_count,
+            'fidelity_history': list(self.fidelity_history),
+            'telemetry': self.telemetry.to_dict(),
         }
 
     def import_state(self, state: Dict[str, Any]):
@@ -176,3 +178,10 @@ class MemoryCarrierNexus(nn.Module):
             self.memory_accumulator = torch.tensor(state['memory_accumulator'], dtype=torch.float32)
         if 'stored_count' in state:
             self.stored_count = int(state['stored_count'])
+        if 'fidelity_history' in state:
+            self.fidelity_history = [float(x) for x in state['fidelity_history']]
+        if 'telemetry' in state and isinstance(state['telemetry'], dict):
+            import dataclasses
+            valid = {f.name for f in dataclasses.fields(CarrierTelemetry) if f.init}
+            filtered = {k: v for k, v in state['telemetry'].items() if k in valid}
+            self.telemetry = CarrierTelemetry(**filtered)

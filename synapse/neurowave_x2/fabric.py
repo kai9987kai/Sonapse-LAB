@@ -270,13 +270,10 @@ class NeuroWaveX2Fabric(nn.Module):
 
         # 3. Apply Causal Ablation Intervention (if active)
         if advance:
-            packets_to_deliver = self.transport.receive(current_step=self.step_count, receiver_id=1)
-            # Combine all ready packets across destination regions
-            all_ready = list(self.transport.queue)
+            ready_pkts = self.transport.receive(current_step=self.step_count, receiver_id=None)
         else:
-            all_ready = [(self.step_count, p) for p in generated_packets]
+            ready_pkts = list(generated_packets)
 
-        ready_pkts = [p for step, p in all_ready if step <= self.step_count]
         filtered_pkts = self.ablation_ctrl.apply_ablation_to_packets(ready_pkts)
 
         # 4. Decode packets into destination neural targets
@@ -361,6 +358,17 @@ class NeuroWaveX2Fabric(nn.Module):
             "basis_version": self.hybrid_basis.basis_version,
             "step_count": self.step_count,
             "sequence_counter": self.sequence_counter,
+            "telemetry": self.telemetry.export_state() if hasattr(self, "telemetry") else {},
+            "budget": {
+                "accumulated_wire_bits": self.budget_ctrl.accumulated_wire_bits,
+                "accumulated_flops": self.budget_ctrl.accumulated_flops,
+                "budget_exceeded_count": self.budget_ctrl.budget_exceeded_count,
+            } if hasattr(self, "budget_ctrl") else {},
+            "profiler": {
+                "latency_history": list(self.profiler.latency_history),
+            } if hasattr(self, "profiler") else {},
+            "wave_channel": self.wave_channel.export_state() if hasattr(self, "wave_channel") else {},
+            "transport": self.transport.export_state() if hasattr(self, "transport") else {},
             "model_state": {k: v.cpu() for k, v in self.state_dict().items()},
         }
 
@@ -378,6 +386,22 @@ class NeuroWaveX2Fabric(nn.Module):
         if "step_count" in state:
             self.step_count = int(state["step_count"])
             self.sequence_counter = int(state.get("sequence_counter", 0))
+        if "telemetry" in state and hasattr(self, "telemetry"):
+            self.telemetry.import_state(state["telemetry"])
+        if "budget" in state and hasattr(self, "budget_ctrl"):
+            b = state["budget"]
+            self.budget_ctrl.accumulated_wire_bits = int(b.get("accumulated_wire_bits", 0))
+            self.budget_ctrl.accumulated_flops = float(b.get("accumulated_flops", 0.0))
+            self.budget_ctrl.budget_exceeded_count = int(b.get("budget_exceeded_count", 0))
+        if "profiler" in state and hasattr(self, "profiler"):
+            self.profiler.latency_history = list(state["profiler"].get("latency_history", []))
+        if "wave_channel" in state and hasattr(self, "wave_channel"):
+            self.wave_channel.import_state(state["wave_channel"])
+        if "transport" in state and hasattr(self, "transport"):
+            self.transport.import_state(state["transport"])
+        if "basis_version" in state:
+            self.hybrid_basis.basis_version = int(state["basis_version"])
+            self.spectral_mgr.basis_version = int(state["basis_version"])
         if "model_state" in state:
             self.load_state_dict(state["model_state"], strict=False)
 

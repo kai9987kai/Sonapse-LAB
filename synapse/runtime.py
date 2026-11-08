@@ -223,7 +223,8 @@ class LabRuntime:
         # Explicit object references preserve mutations through st and objects.
         def encode(v):
             if isinstance(v,dict):
-                if 'id' in v and 'kind' in v: return {'__object_ref__':v['id']}
+                for i,obj in enumerate(getattr(self.world,'objects',[])):
+                    if v is obj: return {'__object_ref__':i}
                 return {k:encode(x) for k,x in v.items()}
             if isinstance(v,(list,tuple)): return [encode(x) for x in v]
             return v
@@ -245,7 +246,10 @@ class LabRuntime:
             d['history']={k:deque(v,maxlen=50) for k,v in d['history'].items()}
             def decode(v):
                 if isinstance(v,dict):
-                    if set(v)=={'__object_ref__'}: return d['objects'][v['__object_ref__']]
+                    if set(v)=={'__object_ref__'}:
+                        ref_idx = v['__object_ref__']
+                        objs = d.get('objects', [])
+                        return objs[ref_idx] if 0 <= ref_idx < len(objs) else v
                     return {k:decode(x) for k,x in v.items()}
                 if isinstance(v,list): return [decode(x) for x in v]
                 return v
