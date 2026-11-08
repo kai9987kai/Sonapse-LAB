@@ -371,6 +371,14 @@ class SynapseConfig:
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
 
+    @classmethod
+    def scale_12000(cls, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+        return cls.max_tandem(total_neurons=12082, seed=seed, task=task, **kwargs)
+
+    @classmethod
+    def frontier_12k(cls, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
+        return cls.scale_12000(seed=seed, task=task, **kwargs)
+
     def to_dict(self):
         d = asdict(self)
         d['connectome_sources'] = list(self.connectome_sources)

@@ -35,6 +35,14 @@ class Workbench:
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
         from .sim_worker import SimulationWorker
         self.sim_worker=SimulationWorker(self.runtime, self.lock)
+        from .virtual_ecology import VirtualEcologyBiome
+        from .evo_compat.circuit_evolution import CausalCircuitEvolutionEngine
+        from .sleep_replay.consolidation_engine import MemoryConsolidationAndSHYEngine
+        from .multi_connectome_fusion import MultiConnectomeFusionEngine
+        self.virtual_biome = VirtualEcologyBiome(biome_half=10.0, seed=self.runtime.config.seed)
+        self.evo_engine = CausalCircuitEvolutionEngine(seed=self.runtime.config.seed)
+        self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=self.runtime.config.seed)
+        self.fusion_engine = MultiConnectomeFusionEngine(seed=self.runtime.config.seed)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -316,17 +324,14 @@ class Workbench:
                     'last_features': ag.last_features.to_dict() if (ag is not None and ag.last_features is not None) else None,
                 }
             if path=='/api/ecology':
-                world = getattr(self.runtime, 'world', None)
-                if world is not None and hasattr(world, 'shelters'):
-                    return {
-                        'status': 'active',
-                        'temperature_c': getattr(world, 'temperature_c', 21.0),
-                        'metabolic_energy': getattr(world, 'metabolic_energy', 100.0),
-                        'in_shelter': getattr(world, 'in_shelter', False),
-                        'scents': getattr(world, 'last_scent_plumes', {}),
-                        'conspecifics': getattr(world, 'conspecifics', []),
-                    }
-                return {'status': 'standard_world', 'shelters': []}
+                snap = self.virtual_biome.step(None).to_dict()
+                return {'status': 'active', **snap}
+            if path=='/api/evo/candidates':
+                return self.evo_engine.get_evolution_summary()
+            if path=='/api/connectomes/fusion':
+                return self.fusion_engine.get_summary()
+            if path=='/api/sleep/consolidation/status':
+                return self.consolidation_engine.get_summary()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -807,6 +812,30 @@ class Workbench:
                         agent.fatigue_controller.force_state(SleepState(st_str))
                     return {'status': 'updated', 'current_state': agent.fatigue_controller.current_state.value}
                 return {'status': 'fatigue_controller_not_initialized'}
+            if path=='/api/ecology/step':
+                steps = max(1, min(64, int(data.get('steps', 1))))
+                stim = data.get('stimulus')
+                snap = None
+                for _ in range(steps):
+                    snap = self.virtual_biome.step(stim)
+                return {'status': 'completed', 'steps': steps, **snap.to_dict()}
+            if path=='/api/evo/transact':
+                trials = max(1, min(10, int(data.get('trials', 3))))
+                def eval_fn(cand):
+                    base = 0.08
+                    if cand.mutation_type == 'motif_duplication':
+                        return base + 0.04 * (cand.delta_nodes / 8.0)
+                    return base + 0.02
+                return self.evo_engine.run_sandbox_evolution_cycle(eval_fn, trials=trials)
+            if path=='/api/sleep/dream_cycle':
+                import torch
+                agent = self.runtime.agent
+                weights = agent.brain.graft_w if (hasattr(agent, 'brain') and agent.brain.graft_w is not None) else torch.randn(32, 32) * 0.1
+                scaled_w, receipt = self.consolidation_engine.run_full_consolidation_cycle(weights)
+                if hasattr(agent, 'brain') and agent.brain.graft_w is not None:
+                    with torch.no_grad():
+                        agent.brain.graft_w.copy_(scaled_w)
+                return {'status': 'completed', **receipt.to_dict()}
         raise KeyError('unknown API endpoint')
 
 def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_root=None,workbench=None):

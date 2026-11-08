@@ -43,7 +43,7 @@ let manualGripState = 0.0;
 let manualReachState = 0.0;
 
 // API transport with exponential backoff retry
-async function api(path, data, retries = 2) {
+async function api(path, data, retries = 3) {
   let lastErr = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -58,7 +58,8 @@ async function api(path, data, retries = 2) {
     } catch (err) {
       lastErr = err;
       if (attempt < retries) {
-        await new Promise(res => setTimeout(res, 150 * (attempt + 1)));
+        const delay = Math.min(800, 120 * Math.pow(1.6, attempt)) + Math.random() * 40;
+        await new Promise(res => setTimeout(res, delay));
       }
     }
   }
@@ -3519,6 +3520,128 @@ function sleepReplayView() {
   } catch (_) {}
 }
 
+let ecologyStateCache = null;
+let lastEcologyPoll = 0;
+
+async function fetchEcologyState() {
+  if (Date.now() - lastEcologyPoll > 500) {
+    lastEcologyPoll = Date.now();
+    try {
+      const res = await api('ecology');
+      if (res && res.status === 'active') {
+        ecologyStateCache = res;
+      }
+    } catch (_) {}
+  }
+}
+
+function ecologyBiomeView() {
+  try {
+    const [x, w, h] = canvas('ecology-canvas');
+    if (!x) return;
+    fetchEcologyState();
+    const eco = ecologyStateCache;
+    if (!eco) {
+      x.fillStyle = '#64748b';
+      x.fillText('Virtual Ecology Biome Initializing...', 16, 24);
+      return;
+    }
+
+    // Clear background grid
+    x.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    x.lineWidth = 1;
+    const gridStep = w / 10;
+    for (let gx = 0; gx < w; gx += gridStep) {
+      x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, h); x.stroke();
+    }
+    for (let gy = 0; gy < h; gy += gridStep) {
+      x.beginPath(); x.moveTo(0, gy); x.lineTo(w, gy); x.stroke();
+    }
+
+    const half = eco.biome_half || 10.0;
+    const toScreenX = (bx) => ((bx + half) / (2 * half)) * w;
+    const toScreenY = (by) => ((by + half) / (2 * half)) * h;
+
+    // Draw resources
+    (eco.resources || []).forEach(r => {
+      const sx = toScreenX(r.x);
+      const sy = toScreenY(r.y);
+      const rad = Math.max(3, (r.amount || 0.5) * 8);
+      if (r.kind === 'flora_bloom') {
+        x.fillStyle = 'rgba(16, 185, 129, 0.35)';
+        x.beginPath(); x.arc(sx, sy, rad, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = '#10b981';
+        x.lineWidth = 1.2;
+        x.stroke();
+      } else if (r.kind === 'mineral_cache') {
+        x.fillStyle = 'rgba(6, 182, 212, 0.35)';
+        x.beginPath();
+        x.rect(sx - rad * 0.7, sy - rad * 0.7, rad * 1.4, rad * 1.4);
+        x.fill();
+        x.strokeStyle = '#06b6d4';
+        x.lineWidth = 1.2;
+        x.stroke();
+      } else if (r.kind === 'thermal_vent') {
+        x.strokeStyle = 'rgba(249, 115, 22, 0.4)';
+        x.lineWidth = 1.8;
+        x.beginPath(); x.arc(sx, sy, rad * 1.4, 0, Math.PI * 2); x.stroke();
+      }
+    });
+
+    // Draw active traveling wave pulses
+    (eco.active_pulses || []).forEach(p => {
+      const sx = toScreenX(p.x);
+      const sy = toScreenY(p.y);
+      const sr = ((p.radius || 1) / (2 * half)) * w;
+      x.strokeStyle = p.color || 'rgba(234, 179, 8, 0.45)';
+      x.lineWidth = 1.5;
+      x.setLineDash([4, 4]);
+      x.beginPath(); x.arc(sx, sy, Math.max(2, sr), 0, Math.PI * 2); x.stroke();
+      x.setLineDash([]);
+    });
+
+    // Draw agents
+    (eco.agents || []).forEach(ag => {
+      const ax = toScreenX(ag.x);
+      const ay = toScreenY(ag.y);
+      const colors = {
+        forager: '#10b981',
+        sentinel: '#f59e0b',
+        artisan: '#06b6d4',
+        predator: '#ef4444'
+      };
+      const baseCol = colors[ag.niche] || '#8b5cf6';
+
+      // Energy halo
+      const haloR = Math.max(6, (ag.energy / 100) * 11);
+      x.strokeStyle = baseCol;
+      x.lineWidth = 1.2;
+      x.beginPath(); x.arc(ax, ay, haloR, 0, Math.PI * 2); x.stroke();
+
+      // Body
+      x.fillStyle = baseCol;
+      x.beginPath(); x.arc(ax, ay, 4.2, 0, Math.PI * 2); x.fill();
+
+      // Heading indicator
+      const hx = ax + Math.cos(ag.heading) * 10;
+      const hy = ay + Math.sin(ag.heading) * 10;
+      x.strokeStyle = '#fff';
+      x.lineWidth = 1.2;
+      x.beginPath(); x.moveTo(ax, ay); x.lineTo(hx, hy); x.stroke();
+
+      // Niche label
+      x.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      x.font = '9px monospace';
+      x.fillText(ag.niche.slice(0, 3).toUpperCase(), ax + 8, ay + 3);
+    });
+
+    // Header info
+    x.fillStyle = '#94a3b8';
+    x.font = '11px sans-serif';
+    x.fillText(`SONAPSE-EVO Biome · Population: ${eco.population_count} · Swarm Coherence: ${eco.swarm_coherence} · Energy: ${eco.biomass_energy}`, 10, 16);
+  } catch (_) {}
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -4486,6 +4609,21 @@ function render(s) {
   syntheticGlandsView();
   neuralPulsesView();
   sleepReplayView();
+  ecologyBiomeView();
+
+  if ($('ecology-badge')) {
+    const isEco = Boolean(ecologyStateCache && ecologyStateCache.population_count > 0);
+    $('ecology-badge').textContent = isEco ? `${ecologyStateCache.population_count} Agents Active` : 'Biome Standby';
+    setTone($('ecology-badge'), isEco ? 'good' : 'muted');
+  }
+  if ($('ecology-hud') && ecologyStateCache) {
+    keyValues($('ecology-hud'), [
+      ['Population Count', String(ecologyStateCache.population_count || 0)],
+      ['Swarm Coherence', String(ecologyStateCache.swarm_coherence || 1.0)],
+      ['Biomass Energy', String(ecologyStateCache.biomass_energy || 0.0)],
+      ['Ambient Temp', `${ecologyStateCache.temperature_c || 21.5} °C`],
+    ]);
+  }
 
   $('connection').textContent = '● CONNECTED / LOOPBACK';
 }
@@ -5314,6 +5452,48 @@ if ($('trigger-threat-btn')) {
         setTone($('pulses-badge'), 'warn');
       }
     } catch (_) {}
+  });
+}
+
+if ($('ecology-seed-btn')) {
+  $('ecology-seed-btn').onclick = () => action(async () => {
+    try {
+      await api('ecology/step', { steps: 1, stimulus: { type: 'seed_resources' } });
+      await fetchEcologyState();
+      render(state);
+    } catch (_) {}
+  });
+}
+
+if ($('ecology-predator-btn')) {
+  $('ecology-predator-btn').onclick = () => action(async () => {
+    try {
+      await api('ecology/step', { steps: 1, stimulus: { type: 'trigger_predator_wave' } });
+      await fetchEcologyState();
+      render(state);
+    } catch (_) {}
+  });
+}
+
+if ($('ecology-sleep-btn')) {
+  $('ecology-sleep-btn').onclick = () => action(async () => {
+    try {
+      await api('sleep/dream_cycle', {});
+      await api('ecology/step', { steps: 1, stimulus: { type: 'induce_sleep_cycle' } });
+      await fetchEcologyState();
+      render(state);
+    } catch (_) {}
+  });
+}
+
+if ($('ecology-transact-btn')) {
+  $('ecology-transact-btn').onclick = () => action(async () => {
+    try {
+      const res = await api('evo/transact', { trials: 3 });
+      alert(`Evolutionary Neuroplasticity: Promoted ${res.promoted_candidates}/${res.evaluated_candidates} candidates.`);
+    } catch (e) {
+      alert(`Evo transaction: ${e.message}`);
+    }
   });
 }
 

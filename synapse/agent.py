@@ -440,9 +440,11 @@ class IntegratedAgent:
                     DreamReplayEngine,
                     ReplayScheduler,
                 )
+                from .sleep_replay.consolidation_engine import MemoryConsolidationAndSHYEngine
                 self.fatigue_controller = FatigueController(seed=self.config.seed)
                 self.dream_engine = DreamReplayEngine(latent_dim=64, seed=self.config.seed)
                 self.replay_scheduler = ReplayScheduler(capacity=1000, seed=self.config.seed)
+                self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=self.config.seed)
                 self.modules['dream_engine'] = self.dream_engine
 
             if getattr(self.config, 'shared_knowledge', False) and self.knowledge_pool is None:
@@ -466,7 +468,9 @@ class IntegratedAgent:
 
             if getattr(self.config, 'evo_compat', False) and self.evo_controller is None:
                 from .evo_compat import EvolutionaryGrowthController
+                from .evo_compat.circuit_evolution import CausalCircuitEvolutionEngine
                 self.evo_controller = EvolutionaryGrowthController(seed=self.config.seed)
+                self.circuit_evo = CausalCircuitEvolutionEngine(seed=self.config.seed)
 
             if (getattr(self.config, 'live_microphone', False) or getattr(self.config, 'live_chat', False)) and self.chat_gateway is None:
                 from .multimodal_live import (
