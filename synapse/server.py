@@ -44,8 +44,22 @@ class Workbench:
                     job.update(status='interrupted',error='Server restarted before this job completed'); self.persist(job)
             except (ValueError,KeyError,OSError): pass
     def persist(self,job):
-        path=self.root/'jobs'/f"{job['id']}.json"; tmp=path.with_suffix('.tmp')
-        tmp.write_text(json.dumps(job,allow_nan=False,default=str),encoding='utf-8'); tmp.replace(path)
+        path=self.root/'jobs'/f"{job['id']}.json"; tmp=path.with_suffix(f".tmp.{uuid.uuid4().hex[:8]}")
+        content=json.dumps(job,allow_nan=False,default=str)
+        try:
+            tmp.write_text(content,encoding='utf-8')
+            for attempt in range(5):
+                try:
+                    tmp.replace(path)
+                    return
+                except (PermissionError, OSError):
+                    time.sleep(0.05 * (attempt + 1))
+            path.write_text(content, encoding='utf-8')
+            try: tmp.unlink(missing_ok=True)
+            except OSError: pass
+        except Exception:
+            try: path.write_text(content, encoding='utf-8')
+            except Exception: pass
     def start_study(self,config):
         if not isinstance(config,dict): raise ValueError('config must be an object')
         from .experiments import validate_config
@@ -807,7 +821,7 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 self.send_response(status); self.send_header('Content-Type',content); self.send_header('Content-Length',str(len(raw)))
                 self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Cache-Control','no-store')
                 self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'")
-                self.end_headers(); self.wfile.write(raw)
+                self.end_headers(); self.wfile.write(raw); self.wfile.flush()
             except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                 pass
         def local(self):
