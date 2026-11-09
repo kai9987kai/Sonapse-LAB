@@ -124,6 +124,14 @@ class LabRuntime:
             with torch.no_grad():
                 unc_est=self.uncertainty_decomposer.evaluate_uncertainty(pooled,act)
             self.obs,reward,done,info=self.world.step(act)
+            # Optional passive observers (e.g. the sleep-replay episode recorder).
+            # Absent/empty by default, so legacy stepping is unchanged. Taps
+            # may only observe; any failure is isolated from the control loop.
+            for _tap in (getattr(self, 'transition_taps', None) or ()):
+                try:
+                    _tap(previous_observation, act, float(reward), self.obs, bool(done))
+                except Exception:
+                    pass
             if hasattr(self.agent, 'homeostasis'):
                 self.agent.homeostasis.step(
                     applied_action=act,

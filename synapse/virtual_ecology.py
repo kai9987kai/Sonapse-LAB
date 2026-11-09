@@ -49,8 +49,15 @@ class EcologyAgentState:
     sleep_state: str = "awake"
     connectome_rates: Optional[List[float]] = None
     alive: bool = True
+    genome: Optional[Dict[str, float]] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        d = self._legacy_dict()
+        if self.genome is not None:
+            d["genome"] = {k: round(float(v), 4) for k, v in self.genome.items()}
+        return d
+
+    def _legacy_dict(self) -> Dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "niche": self.niche,
@@ -135,7 +142,18 @@ class VirtualEcologyBiome:
         num_artisans: int = 2,
         num_predators: int = 1,
         seed: int = 42,
+        evolution_enabled: bool = False,
+        mutation_sigma: float = 0.08,
+        max_population: int = 18,
     ):
+        self.evolution_enabled = bool(evolution_enabled)
+        self.mutation_sigma = float(mutation_sigma)
+        self.max_population = int(max_population)
+        # Separate stream so enabling evolution never shifts the legacy RNG sequence.
+        self.evo_rng = np.random.default_rng(int(seed) + 7919)
+        self.births = 0
+        self.deaths = 0
+        self.evolution_history: List[Dict[str, Any]] = []
         self.biome_half = float(biome_half)
         self.rng = np.random.default_rng(seed)
         self.step_count = 0
@@ -149,6 +167,81 @@ class VirtualEcologyBiome:
         # Connectome weights for micro-brain simulation across agents
         self._init_resources()
         self._init_agents(num_foragers, num_sentinels, num_artisans, num_predators)
+        if self.evolution_enabled:
+            self.enable_evolution()
+
+    # ------------------------------------------------------------------
+    # Heritable genome (opt-in). Traits trade performance against energy:
+    #   speed  -> locomotion multiplier, cost ~ speed^2
+    #   sense  -> perception-radius multiplier, cost ~ (0.75 + 0.25*sense)
+    # With evolution disabled every factor below is exactly 1.0.
+    # ------------------------------------------------------------------
+    GENE_BOUNDS = {"speed": (0.5, 1.8), "sense": (0.5, 2.0)}
+
+    def _random_genome(self) -> Dict[str, float]:
+        return {k: float(np.clip(1.0 + self.evo_rng.normal(0.0, 0.15), lo, hi))
+                for k, (lo, hi) in self.GENE_BOUNDS.items()}
+
+    def _mutate(self, parent: Dict[str, float]) -> Dict[str, float]:
+        return {k: float(np.clip(parent.get(k, 1.0) + self.evo_rng.normal(0.0, self.mutation_sigma), lo, hi))
+                for k, (lo, hi) in self.GENE_BOUNDS.items()}
+
+    def _gene(self, ag: EcologyAgentState, key: str) -> float:
+        if not self.evolution_enabled or ag.genome is None:
+            return 1.0
+        return float(ag.genome.get(key, 1.0))
+
+    def _metabolic_factor(self, ag: EcologyAgentState) -> float:
+        if not self.evolution_enabled or ag.genome is None:
+            return 1.0
+        return self._gene(ag, "speed") ** 2 * (0.75 + 0.25 * self._gene(ag, "sense"))
+
+    def enable_evolution(self) -> int:
+        """Turns on heritable variation; assigns genomes to agents lacking one."""
+        self.evolution_enabled = True
+        assigned = 0
+        for ag in self.agents:
+            if ag.genome is None:
+                ag.genome = self._random_genome()
+                assigned += 1
+        return assigned
+
+    def evolution_stats(self) -> Dict[str, Any]:
+        """Per-niche trait statistics over the living population (measured, not modelled)."""
+        niches: Dict[str, Any] = {}
+        for niche in ("forager", "sentinel", "artisan", "predator"):
+            members = [a for a in self.agents if a.alive and a.niche == niche and a.genome is not None]
+            if not members:
+                niches[niche] = {"count": 0}
+                continue
+            entry: Dict[str, Any] = {"count": len(members),
+                                     "max_generation": max(a.generation for a in members),
+                                     "mean_energy": round(float(np.mean([a.energy for a in members])), 3)}
+            for k in self.GENE_BOUNDS:
+                vals = np.array([a.genome[k] for a in members])
+                entry[f"{k}_mean"] = round(float(vals.mean()), 4)
+                entry[f"{k}_std"] = round(float(vals.std()), 4)
+            niches[niche] = entry
+        return {
+            "evolution_enabled": self.evolution_enabled,
+            "step_count": self.step_count,
+            "population": len(self.agents),
+            "births": self.births,
+            "deaths": self.deaths,
+            "max_generation": max((a.generation for a in self.agents), default=0),
+            "niches": niches,
+            "history": self.evolution_history[-200:],
+            "evidence_kind": EvidenceKind.SYNTHETIC_SIMULATION.value,
+        }
+
+    def _record_evolution_point(self) -> None:
+        point: Dict[str, Any] = {"step": self.step_count, "population": len(self.agents)}
+        genomes = [a.genome for a in self.agents if a.alive and a.genome is not None]
+        for k in self.GENE_BOUNDS:
+            point[f"{k}_mean"] = round(float(np.mean([g[k] for g in genomes])), 4) if genomes else None
+        self.evolution_history.append(point)
+        if len(self.evolution_history) > 1000:
+            self.evolution_history = self.evolution_history[-1000:]
 
     def _init_resources(self):
         """Initializes distributed food flora, mineral caches, and thermal vents."""
@@ -313,7 +406,7 @@ class VirtualEcologyBiome:
 
             ag.age_steps += 1
             # Metabolic basal cost
-            ag.energy = max(0.0, ag.energy - 0.04)
+            ag.energy = max(0.0, ag.energy - 0.04 * self._metabolic_factor(ag))
 
             # Sleep homeostat accumulation
             if ag.sleep_state == "awake":
@@ -354,7 +447,7 @@ class VirtualEcologyBiome:
                 # Predator evasion if predator nearby
                 for p in predators:
                     p_dist = math.hypot(p.x - ag.x, p.y - ag.y)
-                    if p_dist < 4.0:
+                    if p_dist < 4.0 * self._gene(ag, "sense"):
                         # Flee away from predator
                         flee_th = math.atan2(ag.y - p.y, ag.x - p.x)
                         ag.heading = flee_th
@@ -372,10 +465,23 @@ class VirtualEcologyBiome:
                 ag.heading += 0.08
                 ag.vx = orbit_speed * math.cos(ag.heading)
                 ag.vy = orbit_speed * math.sin(ag.heading)
+                if self.evolution_enabled and ag.energy < 55.0:
+                    vents = [r for r in self.resources if r.kind == "thermal_vent" and r.amount > 0.2]
+                    if vents:
+                        v = min(vents, key=lambda r: math.hypot(r.x - ag.x, r.y - ag.y))
+                        dx, dy = v.x - ag.x, v.y - ag.y
+                        if math.hypot(dx, dy) < 0.6:
+                            take = min(v.amount, 0.2)
+                            v.amount -= take
+                            ag.energy = min(100.0, ag.energy + take * 35.0)
+                        else:
+                            ag.heading = math.atan2(dy, dx)
+                            ag.vx = orbit_speed * math.cos(ag.heading)
+                            ag.vy = orbit_speed * math.sin(ag.heading)
 
                 for p in predators:
                     p_dist = math.hypot(p.x - ag.x, p.y - ag.y)
-                    if p_dist < 5.0 and self.step_count % 16 == 0:
+                    if p_dist < 5.0 * self._gene(ag, "sense") and self.step_count % 16 == 0:
                         # Broadcast alarm pulse!
                         self.active_pulses.append({
                             "pulse_id": f"alarm_{ag.agent_id}_{self.step_count}",
@@ -399,6 +505,12 @@ class VirtualEcologyBiome:
                     ag.heading = math.atan2(dy, dx)
                     ag.vx = 0.7 * math.cos(ag.heading)
                     ag.vy = 0.7 * math.sin(ag.heading)
+                    if self.evolution_enabled and math.hypot(dx, dy) < 0.6 and nearest.amount > 0.1:
+                        take = min(nearest.amount, 0.15)
+                        nearest.amount -= take
+                        ag.energy = min(100.0, ag.energy + take * 40.0)
+                        ag.vx *= 0.2
+                        ag.vy *= 0.2
 
             elif ag.niche == "predator":
                 # Stalk nearest prey
@@ -422,8 +534,9 @@ class VirtualEcologyBiome:
                         ag.vy = speed * math.sin(ag.heading)
 
             # Continuous motion update with biome bounds
-            ag.x += ag.vx * dt
-            ag.y += ag.vy * dt
+            spd = self._gene(ag, "speed")
+            ag.x += ag.vx * dt * spd
+            ag.y += ag.vy * dt * spd
 
             # Soft boundary bouncing
             margin = self.biome_half - 0.8
@@ -445,7 +558,8 @@ class VirtualEcologyBiome:
         # Reproduction check: high energy foragers divide
         new_offspring = []
         for ag in self.agents:
-            if ag.alive and ag.energy > 92.0 and len(self.agents) < 18:
+            cap = self.max_population if self.evolution_enabled else 18
+            if ag.alive and ag.energy > 92.0 and len(self.agents) + len(new_offspring) < cap:
                 ag.energy -= 45.0
                 offspring = EcologyAgentState(
                     agent_id=f"{ag.agent_id}_child_{self.step_count}",
@@ -460,13 +574,26 @@ class VirtualEcologyBiome:
                     valence=ag.valence,
                     arousal=ag.arousal,
                 )
+                if self.evolution_enabled and ag.genome is not None:
+                    offspring.genome = self._mutate(ag.genome)
                 new_offspring.append(offspring)
         self.agents.extend(new_offspring)
+        self.births += len(new_offspring)
 
         # Clean dead agents
         living_agents = [a for a in self.agents if a.alive]
+        self.deaths += len(self.agents) - len(living_agents)
         self.agents = living_agents
+        if self.evolution_enabled and self.step_count % 25 == 0:
+            self._record_evolution_point()
 
+        return self._build_snapshot()
+
+    def snapshot(self) -> Dict[str, Any]:
+        """Current state without advancing the simulation (safe for polling)."""
+        return self._build_snapshot().to_dict()
+
+    def _build_snapshot(self) -> VisualEcologySnapshot:
         # Compute swarm coherence (Kuramoto-like phase alignment across headings)
         if len(self.agents) > 1:
             mean_sin = np.mean([math.sin(a.heading) for a in self.agents])

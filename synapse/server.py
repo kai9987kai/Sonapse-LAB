@@ -37,12 +37,23 @@ class Workbench:
         self.sim_worker=SimulationWorker(self.runtime, self.lock)
         from .virtual_ecology import VirtualEcologyBiome
         from .evo_compat.circuit_evolution import CausalCircuitEvolutionEngine
-        from .sleep_replay.consolidation_engine import MemoryConsolidationAndSHYEngine
+        from .evo_compat.sandbox_evaluator import RateCircuitSandbox
+        from .sleep_replay.consolidation_engine import MemoryConsolidationAndSHYEngine, LiveEpisodeRecorder
         from .multi_connectome_fusion import MultiConnectomeFusionEngine
-        self.virtual_biome = VirtualEcologyBiome(biome_half=10.0, seed=self.runtime.config.seed)
-        self.evo_engine = CausalCircuitEvolutionEngine(seed=self.runtime.config.seed)
-        self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=self.runtime.config.seed)
-        self.fusion_engine = MultiConnectomeFusionEngine(seed=self.runtime.config.seed)
+        seed = getattr(getattr(self.runtime, 'config', None), 'seed', 42)
+        self.virtual_biome = VirtualEcologyBiome(biome_half=10.0, seed=seed)
+        self.evo_engine = CausalCircuitEvolutionEngine(seed=seed)
+        self.evo_sandbox = RateCircuitSandbox(seed=seed)
+        self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=seed)
+        self.episode_recorder = LiveEpisodeRecorder(self.consolidation_engine)
+        if getattr(self.runtime, 'transition_taps', None) is None:
+            try:
+                self.runtime.transition_taps = []
+            except Exception:
+                pass
+        if hasattr(self.runtime, 'transition_taps') and isinstance(self.runtime.transition_taps, list):
+            self.runtime.transition_taps.append(self.episode_recorder)
+        self.fusion_engine = MultiConnectomeFusionEngine(seed=seed)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -326,6 +337,8 @@ class Workbench:
             if path=='/api/ecology':
                 snap = self.virtual_biome.step(None).to_dict()
                 return {'status': 'active', **snap}
+            if path=='/api/ecology/stats':
+                return self.virtual_biome.evolution_stats()
             if path=='/api/evo/candidates':
                 return self.evo_engine.get_evolution_summary()
             if path=='/api/connectomes/fusion':
@@ -483,6 +496,9 @@ class Workbench:
                     self.runtime=LabRuntime(SynapseConfig(**cfg),output_root=self.root)
                     if hasattr(self, 'sim_worker') and self.sim_worker is not None:
                         self.sim_worker.runtime = self.runtime
+                    if getattr(self.runtime, 'transition_taps', None) is None:
+                        self.runtime.transition_taps = []
+                    self.runtime.transition_taps.append(self.episode_recorder)
                     self.receipts.clear()
                     return self.runtime.snapshot()
                 return self.runtime.reset(task=data.get('task'),seed=data.get('seed'))
@@ -784,12 +800,48 @@ class Workbench:
                 return {'user_message': user_msg.to_dict(), 'agent_response': agent_msg.to_dict()}
             if path=='/api/audio/toggle':
                 agent = self.runtime.agent
+                seed = getattr(getattr(self.runtime, 'config', None), 'seed', 42)
                 if getattr(agent, 'audio_gateway', None) is None:
-                    from .multimodal_live import LiveAudioGateway
+                    from .multimodal_live import LiveAudioGateway, AuditorySpikeEncoder
                     agent.audio_gateway = LiveAudioGateway(enabled=False)
+                    agent.auditory_encoder = AuditorySpikeEncoder(seed=seed)
                 new_state = bool(data.get('enabled', not agent.audio_gateway.enabled))
                 agent.audio_gateway.set_enabled(new_state)
                 return {'enabled': agent.audio_gateway.enabled}
+            if path=='/api/audio/push':
+                import numpy as np
+                import torch
+                agent = self.runtime.agent
+                seed = getattr(getattr(self.runtime, 'config', None), 'seed', 42)
+                if getattr(agent, 'audio_gateway', None) is None:
+                    from .multimodal_live import LiveAudioGateway, AuditorySpikeEncoder
+                    agent.audio_gateway = LiveAudioGateway(enabled=True)
+                    agent.auditory_encoder = AuditorySpikeEncoder(seed=seed)
+                samples = data.get('samples', [])
+                if samples:
+                    agent.audio_gateway.ingest_samples(np.array(samples, dtype=np.float32))
+                features = agent.audio_gateway.process_latest_frame()
+                spikes, rates = None, None
+                if getattr(agent, 'auditory_encoder', None) is not None and features is not None:
+                    spikes, rates = agent.auditory_encoder.encode(features)
+                    if hasattr(self, 'fusion_engine') and self.fusion_engine is not None and spikes is not None:
+                        aud_tensor = torch.from_numpy(agent.auditory_encoder.to_feature_vector()).float()
+                        self.fusion_engine.step(sensory_input=aud_tensor)
+                return {
+                    'status': 'ingested',
+                    'features': features.to_dict() if features else None,
+                    'spikes_active': int(np.sum(spikes)) if spikes is not None else 0,
+                    'mean_rate_hz': float(np.mean(rates)) if rates is not None else 0.0,
+                }
+            if path=='/api/ecology/evolution':
+                action = data.get('action', 'enable')
+                if action == 'enable':
+                    assigned = self.virtual_biome.enable_evolution()
+                    return {'status': 'enabled', 'assigned_genomes': assigned, 'stats': self.virtual_biome.evolution_stats()}
+                elif action == 'disable':
+                    self.virtual_biome.evolution_enabled = False
+                    return {'status': 'disabled', 'stats': self.virtual_biome.evolution_stats()}
+                return {'status': 'unknown_action', 'action': action}
             if path=='/api/pulses/trigger':
                 agent = self.runtime.agent
                 if getattr(agent, 'pulse_field', None) is not None:
@@ -821,12 +873,19 @@ class Workbench:
                 return {'status': 'completed', 'steps': steps, **snap.to_dict()}
             if path=='/api/evo/transact':
                 trials = max(1, min(10, int(data.get('trials', 3))))
-                def eval_fn(cand):
-                    base = 0.08
-                    if cand.mutation_type == 'motif_duplication':
-                        return base + 0.04 * (cand.delta_nodes / 8.0)
-                    return base + 0.02
-                return self.evo_engine.run_sandbox_evolution_cycle(eval_fn, trials=trials)
+                mode = data.get('mode', 'measured')
+                if mode == 'synthetic':
+                    def eval_fn(cand):
+                        base = 0.08
+                        if cand.mutation_type == 'motif_duplication':
+                            return base + 0.04 * (cand.delta_nodes / 8.0)
+                        return base + 0.02
+                    return self.evo_engine.run_sandbox_evolution_cycle(eval_fn, trials=trials)
+                num_seeds = max(2, min(16, int(data.get('num_seeds', 6))))
+                req_lcb = bool(data.get('require_positive_lcb', True))
+                return self.evo_engine.run_measured_evolution_cycle(
+                    self.evo_sandbox, trials=trials, num_seeds=num_seeds, require_positive_lcb=req_lcb
+                )
             if path=='/api/sleep/dream_cycle':
                 import torch
                 agent = self.runtime.agent

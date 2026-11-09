@@ -943,6 +943,16 @@ class IntegratedAgent:
             self.last_telemetry['shared_knowledge'] = {'records_count': self.knowledge_pool.size()}
         if getattr(self, 'chat_gateway', None) is not None:
             self.last_telemetry['chat_gateway'] = {'message_count': len(self.chat_gateway.history)}
+        if getattr(self, 'audio_gateway', None) is not None and self.audio_gateway.enabled:
+            af = self.audio_gateway.process_latest_frame()
+            if af is not None:
+                self.last_telemetry['audio_gateway'] = af.to_dict()
+                if getattr(self, 'auditory_encoder', None) is not None:
+                    spikes, rates = self.auditory_encoder.encode(af)
+                    self.last_telemetry['auditory_spikes'] = {
+                        'active_spikes': int(np.sum(spikes)),
+                        'mean_rate_hz': round(float(np.mean(rates)), 1),
+                    }
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 

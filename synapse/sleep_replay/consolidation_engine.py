@@ -2,9 +2,11 @@
 
 Implements biological sleep-dependent memory consolidation mechanisms:
 1. Tononi & Cirelli's Synaptic Homeostasis Hypothesis (SHY):
-   - Proportional global downscaling during Slow-Wave Sleep (SWS):
-     W_ij <- W_ij * (1 - gamma_shy * |W_ij| / (max(|W|) + eps))
-   - Restores metabolic balance, eliminates saturation, and protects high-signal memory traces.
+   - Multiplicative global downscaling during Slow-Wave Sleep (SWS), as implemented:
+     s_ij = |W_ij| / (max(|W|) + eps)
+     W_ij <- W_ij * clip(1 - gamma_shy * (1 - 0.5 * s_ij), 0.70, 1.0)
+   - Every synapse shrinks; weak synapses shrink by up to gamma, the strongest by gamma/2,
+     so relative signal-to-noise of strong traces increases while sign is preserved.
 2. 10x Accelerated Sharp-Wave Ripple (SWR) Replay:
    - Replays stored high-surprise episodic transitions at 10x temporal compression through connectome recurrent loops.
 3. Counterfactual Dream Synthesis:
@@ -91,6 +93,9 @@ class MemoryConsolidationAndSHYEngine:
         self.episode_buffer: List[ReplayEpisode] = []
         self.consolidation_history: List[ConsolidationReceipt] = []
         self._receipt_counter = 0
+        # Empirical reward model fitted from replayed transitions (None until fitted).
+        self.reward_model: Optional[Dict[str, Any]] = None
+        self.ridge_lambda = 1.0
 
     def record_episode(
         self,
@@ -120,7 +125,7 @@ class MemoryConsolidationAndSHYEngine:
         weights: torch.Tensor,
         scaling_rate: Optional[float] = None,
     ) -> Tuple[torch.Tensor, float, float]:
-        """Applies Tononi & Cirelli SHY downscaling: W_ij <- W_ij * (1 - gamma * |W_ij| / max(|W|))."""
+        """Applies SHY-style downscaling: W_ij <- W_ij * clip(1 - gamma*(1 - 0.5*|W_ij|/max|W|), 0.70, 1.0)."""
         gamma = float(scaling_rate if scaling_rate is not None else self.gamma_shy)
         pre_norm = float(torch.norm(weights).item())
 
@@ -179,26 +184,33 @@ class MemoryConsolidationAndSHYEngine:
         pivot_obs = ep.observations[best_idx]
         baseline_act = ep.actions[best_idx]
 
+        if world_model_fn is None and self.reward_model is None:
+            self.fit_empirical_reward_model()
+
         for d in range(num_dreams):
             # Stochastic action perturbation
             noise = self.rng.normal(0.0, 0.35, size=baseline_act.shape).astype(np.float32)
             alt_act = np.clip(baseline_act + noise, -1.0, 1.0)
 
-            # Simulated counterfactual outcome
-            obs_noise = self.rng.normal(0.0, 0.05, size=pivot_obs.shape).astype(np.float32)
+            # Counterfactual outcome. Rewards are only reported when a model
+            # actually predicts them; otherwise they are None (never invented).
+            pred_rew: Optional[float] = None
             if world_model_fn is not None:
                 try:
-                    pred_obs, pred_rew = world_model_fn(pivot_obs, alt_act)
+                    _pred_obs, wm_rew = world_model_fn(pivot_obs, alt_act)
+                    pred_rew, source = float(wm_rew), "world_model"
                 except Exception:
-                    pred_obs, pred_rew = pivot_obs + obs_noise, 0.25
+                    source = "world_model_error"
             else:
-                pred_obs, pred_rew = pivot_obs + obs_noise, float(self.rng.uniform(0.1, 0.6))
+                pred_rew = self.predict_empirical_reward(pivot_obs, alt_act)
+                source = "empirical_ridge" if pred_rew is not None else "unavailable"
 
             dreams.append({
                 "dream_id": f"dream_{int(time.time()*1000)}_{d+1}",
                 "pivot_step": best_idx,
                 "perturbed_action": alt_act.tolist(),
-                "simulated_reward": float(pred_rew),
+                "simulated_reward": pred_rew,
+                "reward_source": source,
                 "novelty": float(np.linalg.norm(noise)),
             })
 
@@ -257,4 +269,124 @@ class MemoryConsolidationAndSHYEngine:
             "gamma_shy": self.gamma_shy,
             "swr_compression": self.swr_compression,
             "last_receipt": self.consolidation_history[-1].to_dict() if self.consolidation_history else None,
+            "reward_model": None if self.reward_model is None else {
+                k: v for k, v in self.reward_model.items() if k != "weights"
+            },
+        }
+
+    # ------------------------------------------------------------------
+    # Empirical reward model (ridge regression on recorded transitions)
+    # ------------------------------------------------------------------
+    def _transition_matrix(self) -> Optional[Tuple[np.ndarray, np.ndarray, int, int]]:
+        """Stacks buffered (obs, act) -> reward pairs that share the latest episode's shapes."""
+        if not self.episode_buffer or not self.episode_buffer[-1].observations:
+            return None
+        ref = self.episode_buffer[-1]
+        d_o, d_a = ref.observations[0].size, ref.actions[0].size
+        rows, ys = [], []
+        for ep in self.episode_buffer:
+            for o, a, r in zip(ep.observations, ep.actions, ep.rewards):
+                if o.size == d_o and a.size == d_a:
+                    rows.append(np.concatenate([o.ravel(), a.ravel(), [1.0]]))
+                    ys.append(r)
+        if not rows:
+            return None
+        return np.asarray(rows, dtype=np.float64), np.asarray(ys, dtype=np.float64), d_o, d_a
+
+    def fit_empirical_reward_model(self, min_transitions: int = 8) -> Optional[Dict[str, Any]]:
+        """Fits r ~ [obs, act, 1] by ridge regression and reports a held-out R^2.
+
+        Returns None (and leaves the model unset) when there is too little data.
+        The held-out score uses the chronologically last 25% of transitions so
+        callers can judge whether dream rewards are worth anything.
+        """
+        data = self._transition_matrix()
+        if data is None or len(data[1]) < min_transitions:
+            self.reward_model = None
+            return None
+        X, y, d_o, d_a = data
+        n = len(y)
+        n_tr = max(min_transitions // 2, int(round(n * 0.75)))
+        lam = self.ridge_lambda
+
+        def solve(Xs, ys):
+            return np.linalg.solve(Xs.T @ Xs + lam * np.eye(Xs.shape[1]), Xs.T @ ys)
+
+        holdout_r2: Optional[float] = None
+        if n - n_tr >= 2:
+            w_tr = solve(X[:n_tr], y[:n_tr])
+            y_te = y[n_tr:]
+            ss_res = float(np.sum((y_te - X[n_tr:] @ w_tr) ** 2))
+            ss_tot = float(np.sum((y_te - y_te.mean()) ** 2))
+            holdout_r2 = None if ss_tot <= 1e-12 else 1.0 - ss_res / ss_tot
+        w = solve(X, y)  # final model uses all data
+        self.reward_model = {
+            "weights": w,
+            "obs_dim": int(d_o),
+            "act_dim": int(d_a),
+            "n_transitions": int(n),
+            "holdout_r2": None if holdout_r2 is None else round(holdout_r2, 4),
+            "ridge_lambda": lam,
+            "evidence_kind": EvidenceKind.EXPLORATORY_RESULT.value,
+        }
+        return self.reward_model
+
+    def predict_empirical_reward(self, obs: np.ndarray, act: np.ndarray) -> Optional[float]:
+        """Predicts reward with the fitted ridge model, or None if unavailable/incompatible."""
+        m = self.reward_model
+        if m is None:
+            return None
+        o, a = np.asarray(obs).ravel(), np.asarray(act).ravel()
+        if o.size != m["obs_dim"] or a.size != m["act_dim"]:
+            return None
+        return float(np.concatenate([o, a, [1.0]]) @ m["weights"])
+
+
+class LiveEpisodeRecorder:
+    """Passive runtime tap that turns live transitions into replay episodes.
+
+    Signature matches ``LabRuntime.transition_taps``:
+    ``tap(prev_obs, action, reward, next_obs, done)``. Surprise is the absolute
+    reward prediction error against an exponential moving average of reward
+    (a simple, transparent salience proxy, not a learned model).
+    """
+
+    def __init__(self, engine: MemoryConsolidationAndSHYEngine, max_len: int = 64, ema_rate: float = 0.05):
+        self.engine = engine
+        self.max_len = int(max_len)
+        self.ema_rate = float(ema_rate)
+        self._ema: Optional[float] = None
+        self._obs: List[np.ndarray] = []
+        self._act: List[np.ndarray] = []
+        self._rew: List[float] = []
+        self._surp: List[float] = []
+        self.transitions_seen = 0
+        self.episodes_flushed = 0
+
+    def __call__(self, prev_obs, action, reward, next_obs, done) -> None:
+        r = float(reward)
+        baseline = r if self._ema is None else self._ema
+        self._surp.append(abs(r - baseline))
+        self._ema = r if self._ema is None else (1 - self.ema_rate) * self._ema + self.ema_rate * r
+        self._obs.append(np.asarray(prev_obs, dtype=np.float32).copy())
+        self._act.append(np.asarray(action, dtype=np.float32).copy())
+        self._rew.append(r)
+        self.transitions_seen += 1
+        if done or len(self._obs) >= self.max_len:
+            self.flush()
+
+    def flush(self) -> Optional[str]:
+        if not self._obs:
+            return None
+        ep_id = self.engine.record_episode(self._obs, self._act, self._rew, self._surp)
+        self._obs, self._act, self._rew, self._surp = [], [], [], []
+        self.episodes_flushed += 1
+        return ep_id
+
+    def status(self) -> Dict[str, Any]:
+        return {
+            "transitions_seen": self.transitions_seen,
+            "episodes_flushed": self.episodes_flushed,
+            "pending_transitions": len(self._obs),
+            "surprise_proxy": "abs(reward - EMA(reward))",
         }

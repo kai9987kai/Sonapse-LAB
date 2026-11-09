@@ -143,8 +143,16 @@ class CausalCircuitEvolutionEngine:
         proposal: CircuitMutationProposal,
         measured_delta_reward: float,
         measured_uncertainty: Optional[float] = None,
+        require_positive_lcb: bool = False,
+        evidence_kind: EvidenceKind = EvidenceKind.CONFIRMATORY_RESULT,
+        extra_metrics: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, bool, GrowthTransactionReceipt]:
         """Calculates J(g) = Delta R - lambda_p P_g - lambda_c C_g - lambda_u U_g.
+
+        Optional (defaults keep legacy behaviour):
+          require_positive_lcb: additionally require Delta R - U > 0, where U is
+            the measured uncertainty (standard error), before promotion.
+          evidence_kind / extra_metrics: annotate the evidence receipt.
 
         Returns: (net_utility, promoted_bool, transaction_receipt)
         """
@@ -156,6 +164,8 @@ class CausalCircuitEvolutionEngine:
         )
         net_utility = float(measured_delta_reward - penalties)
         promoted = bool(net_utility > self.threshold)
+        if require_positive_lcb:
+            promoted = promoted and bool(float(measured_delta_reward) - u_val > 0.0)
         rolled_back = not promoted
 
         tx_id = f"tx_circuit_{int(time.time()*1000)}_{self._mutation_counter}"
@@ -169,9 +179,10 @@ class CausalCircuitEvolutionEngine:
             rolled_back=rolled_back,
             evidence=EvidenceReceipt(
                 item_id=tx_id,
-                kind=EvidenceKind.CONFIRMATORY_RESULT,
+                kind=evidence_kind,
                 source="CausalCircuitEvolutionEngine",
                 metrics={
+                    **(extra_metrics or {}),
                     "mutation_type": proposal.mutation_type,
                     "delta_reward": float(measured_delta_reward),
                     "penalties": float(penalties),
@@ -220,6 +231,78 @@ class CausalCircuitEvolutionEngine:
                 "lambda_compute": self.lambda_c,
                 "lambda_uncertainty": self.lambda_u,
             },
+        }
+
+    def run_measured_evolution_cycle(
+        self,
+        sandbox: Any,
+        trials: int = 3,
+        num_seeds: int = 6,
+        require_positive_lcb: bool = True,
+    ) -> Dict[str, Any]:
+        """Evolution cycle where Delta R is *measured* by a paired-seed sandbox.
+
+        ``sandbox`` must provide ``evaluate(proposal, seeds) -> SandboxMeasurement``,
+        ``commit(proposal)``, ``evaluation_seeds(n, round_index)`` and ``status()``
+        (see ``synapse.evo_compat.sandbox_evaluator.RateCircuitSandbox``).
+        Uncertainty U_g is the measured standard error of the paired deltas.
+        Promoted mutations are committed to the sandbox host sequentially, so
+        later candidates are evaluated against the updated host.
+        """
+        host_nodes = int(getattr(sandbox, "num_nodes", 16))
+        proposals = [
+            self.generate_motif_duplication("sensory_interneuron_cluster", num_nodes=6),
+            self.generate_topological_rewire(num_nodes=min(host_nodes, 12), rewire_fraction=0.1),
+            self.generate_motif_duplication("rhythm_generator", num_nodes=4),
+        ]
+        while len(proposals) < trials:
+            k = len(proposals)
+            proposals.append(
+                self.generate_motif_duplication(f"motif_{k}", num_nodes=4 + (k % 3) * 2)
+                if k % 2 == 0 else
+                self.generate_topological_rewire(num_nodes=min(host_nodes, 12), rewire_fraction=0.1)
+            )
+
+        results = []
+        for i, prop in enumerate(proposals[:trials]):
+            seeds = sandbox.evaluation_seeds(num_seeds, round_index=len(self.history) + i)
+            m = sandbox.evaluate(prop, seeds)
+            utility, promoted, receipt = self.evaluate_utility(
+                prop,
+                measured_delta_reward=m.delta_mean,
+                measured_uncertainty=m.delta_se,
+                require_positive_lcb=require_positive_lcb,
+                evidence_kind=EvidenceKind.EXPLORATORY_RESULT,
+                extra_metrics={"measurement": "paired_seed_sandbox", "delta_se": m.delta_se,
+                               "num_seeds": len(seeds), "sandbox_applied": m.applied},
+            )
+            committed = bool(promoted and m.applied and sandbox.commit(prop))
+            results.append({
+                "proposal": prop.to_dict(),
+                "delta_reward": round(m.delta_mean, 5),
+                "delta_reward_se": round(m.delta_se, 5),
+                "net_utility": round(utility, 5),
+                "promoted": promoted,
+                "committed": committed,
+                "measurement": m.to_dict(),
+                "receipt_id": receipt.transaction_id,
+            })
+
+        return {
+            "status": "completed",
+            "mode": "measured",
+            "measurement": "paired_seed_sandbox",
+            "evaluated_candidates": len(results),
+            "promoted_candidates": sum(1 for r in results if r["promoted"]),
+            "results": results,
+            "lambda_penalties": {
+                "lambda_param": self.lambda_p,
+                "lambda_compute": self.lambda_c,
+                "lambda_uncertainty": self.lambda_u,
+            },
+            "promotion_rule": "J(g) > threshold" + (" and delta - SE > 0" if require_positive_lcb else ""),
+            "threshold": self.threshold,
+            "sandbox": sandbox.status(),
         }
 
     def get_evolution_summary(self) -> Dict[str, Any]:

@@ -3629,10 +3629,15 @@ function ecologyBiomeView() {
       x.lineWidth = 1.2;
       x.beginPath(); x.moveTo(ax, ay); x.lineTo(hx, hy); x.stroke();
 
-      // Niche label
+      // Niche label & heritable genome traits
       x.fillStyle = 'rgba(255, 255, 255, 0.7)';
       x.font = '9px monospace';
-      x.fillText(ag.niche.slice(0, 3).toUpperCase(), ax + 8, ay + 3);
+      const genStr = ag.generation > 0 ? ` [G${ag.generation}]` : '';
+      x.fillText(ag.niche.slice(0, 3).toUpperCase() + genStr, ax + 8, ay + 3);
+      if (ag.genome) {
+        x.fillStyle = '#10b981';
+        x.fillText(`v:${(ag.genome.speed || 1.0).toFixed(1)} s:${(ag.genome.sense || 1.0).toFixed(1)}`, ax + 8, ay + 12);
+      }
     });
 
     // Header info
@@ -5489,10 +5494,53 @@ if ($('ecology-sleep-btn')) {
 if ($('ecology-transact-btn')) {
   $('ecology-transact-btn').onclick = () => action(async () => {
     try {
-      const res = await api('evo/transact', { trials: 3 });
-      alert(`Evolutionary Neuroplasticity: Promoted ${res.promoted_candidates}/${res.evaluated_candidates} candidates.`);
+      const res = await api('evo/transact', { mode: 'measured', trials: 3, num_seeds: 4 });
+      alert(`Measured Causal Circuit Evolution:
+Promoted: ${res.promoted_candidates}/${res.evaluated_candidates} candidates
+Host Nodes: ${res.sandbox?.host_nodes || 32}
+Dale's Law Compliant: ${res.sandbox?.dales_law_ok ? 'Yes (100%)' : 'No'}`);
     } catch (e) {
       alert(`Evo transaction: ${e.message}`);
+    }
+  });
+}
+
+if ($('ecology-evo-toggle-btn')) {
+  $('ecology-evo-toggle-btn').onclick = () => action(async () => {
+    try {
+      const isEnabled = Boolean(ecologyStateCache && ecologyStateCache.evolution_enabled);
+      const res = await api('ecology/evolution', { action: isEnabled ? 'disable' : 'enable' });
+      if ($('ecology-badge')) {
+        $('ecology-badge').textContent = res.status === 'enabled' ? 'Heritable Evo ON' : 'Evo Disabled';
+        setTone($('ecology-badge'), res.status === 'enabled' ? 'good' : 'warn');
+      }
+      await fetchEcologyState();
+      render(state);
+    } catch (e) {
+      alert(`Ecology evolution: ${e.message}`);
+    }
+  });
+}
+
+if ($('audio-mic-btn')) {
+  $('audio-mic-btn').onclick = () => action(async () => {
+    try {
+      // Synthesize an acoustic chord harmonic burst (440Hz + 880Hz + 1320Hz)
+      const samples = [];
+      const N = 512;
+      for (let i = 0; i < N; i++) {
+        const t = i / 16000;
+        const val = 0.3 * Math.sin(2 * Math.PI * 440 * t) + 0.15 * Math.sin(2 * Math.PI * 880 * t) + 0.1 * Math.sin(2 * Math.PI * 1320 * t);
+        samples.push(val);
+      }
+      const res = await api('audio/push', { samples });
+      if ($('audio-mic-badge')) {
+        $('audio-mic-badge').textContent = `Auditory Ingress: ${res.spikes_active || 0} Spikes (${(res.mean_rate_hz || 0).toFixed(1)} Hz)`;
+        setTone($('audio-mic-badge'), 'good');
+      }
+      render(state);
+    } catch (e) {
+      alert(`Audio push: ${e.message}`);
     }
   });
 }
