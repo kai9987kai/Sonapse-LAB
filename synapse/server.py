@@ -923,7 +923,7 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Cache-Control','no-store')
                 self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'")
                 self.end_headers(); self.wfile.write(raw); self.wfile.flush()
-            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            except Exception:
                 pass
         def local(self):
             host = self.headers.get('Host', '')
@@ -951,8 +951,12 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 names={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css'}
                 if path not in names: return self.send(404,{'error':'not found'})
                 file=web/names[path]; self.send(200,file.read_bytes(),mimetypes.guess_type(file.name)[0] or 'text/plain')
-            except KeyError as exc: self.send(404,{'error':str(exc)})
-            except Exception as exc: self.send(400,{'error':f'{type(exc).__name__}: {exc}'})
+            except KeyError as exc:
+                try: self.send(404,{'error':str(exc)})
+                except Exception: pass
+            except Exception as exc:
+                try: self.send(400,{'error':f'{type(exc).__name__}: {exc}'})
+                except Exception: pass
         def do_POST(self):
             try:
                 if not self.local(): return self.send(403,{'error':'loopback host and same origin required'})
@@ -962,13 +966,29 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 data=json.loads(self.rfile.read(size),parse_constant=lambda x: (_ for _ in ()).throw(ValueError('nonfinite JSON')))
                 if not isinstance(data,dict): raise ValueError('JSON body must be an object')
                 self.send(200,app.post(urlparse(self.path).path,data))
-            except KeyError as exc: self.send(404,{'error':str(exc)})
-            except Exception as exc: self.send(400,{'error':f'{type(exc).__name__}: {exc}'})
+            except KeyError as exc:
+                try: self.send(404,{'error':str(exc)})
+                except Exception: pass
+            except Exception as exc:
+                try: self.send(400,{'error':f'{type(exc).__name__}: {exc}'})
+                except Exception: pass
     ThreadingHTTPServer.allow_reuse_address = True
     server=ThreadingHTTPServer((host,port),Handler); server.workbench=app; server.daemon_threads=True
     return server
 
 def serve(host='127.0.0.1',port=8765,**kwargs):
+    import sys
+    def _crash_hook(exc_type, exc_value, exc_tb):
+        import traceback
+        try:
+            with open('server_crash.log', 'a', encoding='utf-8') as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]: Unhandled server crash:\n")
+                traceback.print_exception(exc_type, exc_value, exc_tb, file=f)
+        except Exception:
+            pass
+    sys.excepthook = _crash_hook
+    if hasattr(threading, 'excepthook'):
+        threading.excepthook = lambda args: _crash_hook(args.exc_type, args.exc_value, args.exc_traceback)
     server=create_server(host,port,**kwargs)
     print(f'SYNAPSE workbench: http://{host}:{server.server_port}',flush=True)
     alt_port = 8876 if server.server_port == 8765 else 8765
