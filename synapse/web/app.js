@@ -3647,6 +3647,187 @@ function ecologyBiomeView() {
   } catch (_) {}
 }
 
+let darwinianCache = null;
+let lastDarwinianPoll = 0;
+async function fetchDarwinianStatus() {
+  if (Date.now() - lastDarwinianPoll > 600) {
+    lastDarwinianPoll = Date.now();
+    try {
+      const res = await api('ecology/tournament/status');
+      if (res && res.status === 'active') darwinianCache = res;
+    } catch (_) {}
+  }
+}
+
+function darwinianSpeciationView() {
+  try {
+    const [x, w, h] = canvas('speciation-canvas');
+    if (!x) return;
+    fetchDarwinianStatus();
+    const d = darwinianCache;
+    if (!d) {
+      x.fillStyle = '#64748b';
+      x.fillText('Darwinian Speciation Observatory Standby...', 16, 24);
+      return;
+    }
+
+    // Left Half: Lotka-Volterra Phase Portrait (Forager vs Predator)
+    const midX = w * 0.48;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.lineWidth = 1;
+    x.strokeRect(8, 8, midX - 16, h - 16);
+
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    x.fillText('Predator-Prey Orbit (Lotka-Volterra Phase)', 14, 22);
+
+    const series = d.recent_series || [];
+    if (series.length > 2) {
+      x.strokeStyle = '#38bdf8';
+      x.lineWidth = 1.5;
+      x.beginPath();
+      const maxF = Math.max(1, ...series.map(s => s.counts?.forager || 1));
+      const maxP = Math.max(1, ...series.map(s => s.counts?.predator || 1));
+      series.forEach((pt, idx) => {
+        const px = 14 + ((pt.counts?.forager || 0) / (maxF * 1.2)) * (midX - 36);
+        const py = (h - 18) - ((pt.counts?.predator || 0) / (maxP * 1.2)) * (h - 40);
+        if (idx === 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      });
+      x.stroke();
+
+      // Current head point
+      const last = series[series.length - 1];
+      const lx = 14 + ((last.counts?.forager || 0) / (maxF * 1.2)) * (midX - 36);
+      const ly = (h - 18) - ((last.counts?.predator || 0) / (maxP * 1.2)) * (h - 40);
+      x.fillStyle = '#ef4444';
+      x.beginPath(); x.arc(lx, ly, 3.5, 0, Math.PI * 2); x.fill();
+    }
+
+    // Right Half: Niche Phenotype Speciation Scatter (Speed vs Sense)
+    const rightX = midX + 8;
+    const rightW = w - rightX - 8;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(rightX, 8, rightW, h - 16);
+
+    x.fillStyle = '#94a3b8';
+    x.fillText(`Niche Phenotype Divergence (ANOVA F: ${d.speciation_metrics?.divergence_index || 1.0})`, rightX + 8, 22);
+
+    // Plot genomes from ecologyStateCache
+    const eco = ecologyStateCache;
+    if (eco && eco.agents) {
+      const colors = { forager: '#10b981', sentinel: '#f59e0b', artisan: '#06b6d4', predator: '#ef4444' };
+      eco.agents.forEach(ag => {
+        if (!ag.genome) return;
+        const gx = rightX + 16 + ((ag.genome.speed - 0.5) / 1.3) * (rightW - 32);
+        const gy = (h - 20) - ((ag.genome.sense - 0.5) / 1.5) * (h - 44);
+        x.fillStyle = colors[ag.niche] || '#a855f7';
+        x.beginPath(); x.arc(gx, gy, 4, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = '#ffffff';
+        x.lineWidth = 0.8;
+        x.stroke();
+      });
+    }
+
+    // HUD Update
+    if ($('speciation-hud') && d.speciation_metrics) {
+      const sm = d.speciation_metrics;
+      keyValues($('speciation-hud'), [
+        ['Divergence F-Index', String(sm.divergence_index || 1.0)],
+        ['Active Lineages', String(sm.active_lineages || 0)],
+        ['Max Generation', `G${sm.max_lineage_depth || 0}`],
+        ['Predator-Prey Corr', String(sm.predator_prey_correlation || 0.0)],
+        ['Extinction Events', String(sm.extinction_events || 0)],
+        ['Shannon Biodiversity', String(sm.shannon_entropy || 0.0)],
+      ]);
+    }
+  } catch (_) {}
+}
+
+let liveMicActive = false;
+let liveAudioStream = null;
+let liveAudioCtx = null;
+let liveAudioProcessor = null;
+let lastAuditoryRates = Array(16).fill(10.0);
+let lastAuditoryWaveform = Array(64).fill(0.0);
+let lastAudioFeatures = null;
+
+function auditoryCochleaView() {
+  try {
+    const [x, w, h] = canvas('auditory-canvas');
+    if (!x) return;
+
+    // Background
+    x.fillStyle = '#030712';
+    x.fillRect(0, 0, w, h);
+
+    // Left Half: Real-time Audio Waveform Oscilloscope
+    const oscW = w * 0.42;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(6, 6, oscW - 12, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    x.fillText('Incoming Audio Oscilloscope', 12, 18);
+
+    x.strokeStyle = liveMicActive ? '#10b981' : '#38bdf8';
+    x.lineWidth = 1.6;
+    x.beginPath();
+    const wf = lastAuditoryWaveform;
+    const stepX = (oscW - 24) / Math.max(1, wf.length - 1);
+    const midY = h / 2;
+    wf.forEach((sample, i) => {
+      const px = 12 + i * stepX;
+      const py = midY - sample * (h * 0.35);
+      if (i === 0) x.moveTo(px, py);
+      else x.lineTo(px, py);
+    });
+    x.stroke();
+
+    // Right Half: 16 Tonotopic Cochlear Channels Bar Meter
+    const cochX = oscW + 4;
+    const cochW = w - cochX - 6;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(cochX, 6, cochW, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.fillText('Cochlear Tonotopic Spike Channels (100 Hz - 8 kHz)', cochX + 8, 18);
+
+    const numCh = 16;
+    const barW = (cochW - 20) / numCh;
+    const maxRate = 250.0;
+
+    for (let c = 0; c < numCh; c++) {
+      const rate = lastAuditoryRates[c] || 10.0;
+      const normH = Math.min(1.0, rate / maxRate) * (h - 38);
+      const bx = cochX + 10 + c * barW;
+      const by = h - 12 - normH;
+
+      // Color from cool cyan to fiery red for high rates
+      const hue = Math.max(0, 180 - (rate / maxRate) * 180);
+      x.fillStyle = `hsl(${hue}, 85%, 55%)`;
+      x.fillRect(bx, by, barW - 2, normH);
+
+      // Active Poisson spike indicator
+      if (rate > 60.0) {
+        x.fillStyle = '#ffffff';
+        x.beginPath(); x.arc(bx + barW / 2 - 1, by - 3, 2, 0, Math.PI * 2); x.fill();
+      }
+    }
+
+    // HUD Update
+    if ($('auditory-hud')) {
+      const f = lastAudioFeatures;
+      keyValues($('auditory-hud'), [
+        ['Mic Stream Status', liveMicActive ? 'STREAMING ACTIVE' : 'STANDBY'],
+        ['RMS Energy', f ? f.rms_energy?.toFixed(4) : '0.0000'],
+        ['Spectral Centroid', f ? `${f.spectral_centroid_hz?.toFixed(1)} Hz` : '0.0 Hz'],
+        ['Voice Activity (VAD)', f && f.is_speech_active ? 'ACTIVE VOICE' : 'SILENT'],
+        ['Mean Cochlear Rate', `${(lastAuditoryRates.reduce((a, b) => a + b, 0) / 16).toFixed(1)} Hz`],
+        ['12k Fusion Ingress', 'AUDITORY COLUMN (256n)'],
+      ]);
+    }
+  } catch (_) {}
+}
+
 function flatten(obj, prefix = '', out = []) {
   Object.entries(obj || {}).forEach(([k, v]) => {
     const name = prefix + k;
@@ -4615,6 +4796,8 @@ function render(s) {
   neuralPulsesView();
   sleepReplayView();
   ecologyBiomeView();
+  darwinianSpeciationView();
+  auditoryCochleaView();
 
   if ($('ecology-badge')) {
     const isEco = Boolean(ecologyStateCache && ecologyStateCache.population_count > 0);
@@ -5542,6 +5725,160 @@ if ($('audio-mic-btn')) {
     } catch (e) {
       alert(`Audio push: ${e.message}`);
     }
+  });
+}
+
+if ($('darwinian-run-btn')) {
+  $('darwinian-run-btn').onclick = () => action(async () => {
+    try {
+      if ($('darwinian-badge')) {
+        $('darwinian-badge').textContent = 'Tournament Running...';
+        setTone($('darwinian-badge'), 'warn');
+      }
+      const res = await api('ecology/tournament/run', { epochs: 4, steps_per_epoch: 35 });
+      alert(`Darwinian Tournament Completed!
+Epochs: 4 · Total Steps: ${res.total_steps}
+Divergence F-Index: ${res.metrics?.divergence_index}
+Max Generation: G${res.total_generations}
+Total Births: ${res.total_births} · Total Deaths: ${res.total_deaths}`);
+      if ($('darwinian-badge')) {
+        $('darwinian-badge').textContent = `Divergence F: ${res.metrics?.divergence_index}`;
+        setTone($('darwinian-badge'), 'good');
+      }
+      await fetchDarwinianStatus();
+      render(state);
+    } catch (e) {
+      alert(`Darwinian run error: ${e.message}`);
+    }
+  });
+}
+
+if ($('darwinian-cataclysm-btn')) {
+  $('darwinian-cataclysm-btn').onclick = () => action(async () => {
+    try {
+      const res = await api('ecology/tournament/cataclysm', { type: 'drought' });
+      alert(`Cataclysm Injected: ${res.cataclysm?.description}
+Remaining Population: ${res.population_after}`);
+      if ($('darwinian-badge')) {
+        $('darwinian-badge').textContent = 'Cataclysm Shock Injected!';
+        setTone($('darwinian-badge'), 'warn');
+      }
+      await fetchDarwinianStatus();
+      render(state);
+    } catch (e) {
+      alert(`Cataclysm error: ${e.message}`);
+    }
+  });
+}
+
+if ($('audio-harmonic-btn')) {
+  $('audio-harmonic-btn').onclick = () => action(async () => {
+    try {
+      const samples = [];
+      const N = 512;
+      for (let i = 0; i < N; i++) {
+        const t = i / 16000;
+        const val = 0.35 * Math.sin(2 * Math.PI * 440 * t) + 0.2 * Math.sin(2 * Math.PI * 880 * t) + 0.1 * Math.sin(2 * Math.PI * 1760 * t);
+        samples.push(val);
+      }
+      lastAuditoryWaveform = samples.slice(0, 64);
+      const res = await api('audio/push', { samples });
+      if (res.rates) lastAuditoryRates = res.rates;
+      if (res.features) lastAudioFeatures = res.features;
+      if ($('audio-cochlea-badge')) {
+        $('audio-cochlea-badge').textContent = `Chirp Ingested (${res.spikes_active || 0} Spikes)`;
+        setTone($('audio-cochlea-badge'), 'good');
+      }
+      render(state);
+    } catch (e) {
+      alert(`Harmonic chirp error: ${e.message}`);
+    }
+  });
+}
+
+if ($('audio-live-toggle-btn')) {
+  $('audio-live-toggle-btn').onclick = () => action(async () => {
+    if (liveMicActive) {
+      // Stop live stream
+      liveMicActive = false;
+      if (liveAudioStream) {
+        liveAudioStream.getTracks().forEach(tr => tr.stop());
+        liveAudioStream = null;
+      }
+      if (liveAudioCtx) {
+        try { await liveAudioCtx.close(); } catch (_) {}
+        liveAudioCtx = null;
+      }
+      $('audio-live-toggle-btn').textContent = 'Start Live Mic Stream';
+      $('audio-live-toggle-btn').style.background = 'rgba(13,148,136,0.35)';
+      if ($('audio-cochlea-badge')) {
+        $('audio-cochlea-badge').textContent = 'Mic Inactive';
+        setTone($('audio-cochlea-badge'), 'muted');
+      }
+      render(state);
+      return;
+    }
+
+    // Start live microphone stream via Web Audio API
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        liveAudioStream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+        });
+        liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const source = liveAudioCtx.createMediaStreamSource(liveAudioStream);
+        const processor = liveAudioCtx.createScriptProcessor(512, 1, 1);
+
+        processor.onaudioprocess = async (e) => {
+          if (!liveMicActive) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          lastAuditoryWaveform = Array.from(inputData.slice(0, 64));
+          try {
+            const res = await api('audio/push', { samples: Array.from(inputData) });
+            if (res.rates) lastAuditoryRates = res.rates;
+            if (res.features) lastAudioFeatures = res.features;
+          } catch (_) {}
+        };
+
+        source.connect(processor);
+        processor.connect(liveAudioCtx.destination);
+        liveMicActive = true;
+        $('audio-live-toggle-btn').textContent = 'Stop Live Mic Stream';
+        $('audio-live-toggle-btn').style.background = 'rgba(239,68,68,0.4)';
+        if ($('audio-cochlea-badge')) {
+          $('audio-cochlea-badge').textContent = 'Streaming Microphone Live';
+          setTone($('audio-cochlea-badge'), 'good');
+        }
+      } else {
+        throw new Error('navigator.mediaDevices not available in current context');
+      }
+    } catch (err) {
+      // Graceful fallback to acoustic oscillator sweep
+      alert(`Hardware microphone access: ${err.message}. Enabling synthetic acoustic sweep mode.`);
+      liveMicActive = true;
+      $('audio-live-toggle-btn').textContent = 'Stop Synthetic Stream';
+      $('audio-live-toggle-btn').style.background = 'rgba(239,68,68,0.4)';
+      const synthInterval = setInterval(async () => {
+        if (!liveMicActive) { clearInterval(synthInterval); return; }
+        const t0 = Date.now() / 1000;
+        const samples = [];
+        for (let i = 0; i < 512; i++) {
+          const t = i / 16000;
+          samples.push(0.3 * Math.sin(2 * Math.PI * (300 + 400 * Math.sin(t0)) * t));
+        }
+        lastAuditoryWaveform = samples.slice(0, 64);
+        try {
+          const res = await api('audio/push', { samples });
+          if (res.rates) lastAuditoryRates = res.rates;
+          if (res.features) lastAudioFeatures = res.features;
+        } catch (_) {}
+      }, 120);
+      if ($('audio-cochlea-badge')) {
+        $('audio-cochlea-badge').textContent = 'Streaming Synthetic Sweep';
+        setTone($('audio-cochlea-badge'), 'good');
+      }
+    }
+    render(state);
   });
 }
 

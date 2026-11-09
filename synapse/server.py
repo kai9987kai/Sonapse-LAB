@@ -54,6 +54,8 @@ class Workbench:
         if hasattr(self.runtime, 'transition_taps') and isinstance(self.runtime.transition_taps, list):
             self.runtime.transition_taps.append(self.episode_recorder)
         self.fusion_engine = MultiConnectomeFusionEngine(seed=seed)
+        from .darwinian_tournament import DarwinianEcologyTournamentEngine
+        self.darwinian_engine = DarwinianEcologyTournamentEngine(biome=self.virtual_biome, seed=seed)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -339,6 +341,8 @@ class Workbench:
                 return {'status': 'active', **snap}
             if path=='/api/ecology/stats':
                 return self.virtual_biome.evolution_stats()
+            if path=='/api/ecology/tournament/status':
+                return self.darwinian_engine.get_status()
             if path=='/api/evo/candidates':
                 return self.evo_engine.get_evolution_summary()
             if path=='/api/connectomes/fusion':
@@ -832,7 +836,16 @@ class Workbench:
                     'features': features.to_dict() if features else None,
                     'spikes_active': int(np.sum(spikes)) if spikes is not None else 0,
                     'mean_rate_hz': float(np.mean(rates)) if rates is not None else 0.0,
+                    'rates': [round(float(r), 1) for r in rates] if rates is not None else [],
                 }
+            if path=='/api/ecology/tournament/run':
+                epochs = max(1, min(100, int(data.get('epochs', 5))))
+                steps_per_epoch = max(1, min(500, int(data.get('steps_per_epoch', 50))))
+                rcpt = self.darwinian_engine.run_tournament_epochs(epochs=epochs, steps_per_epoch=steps_per_epoch)
+                return {'status': 'completed', **rcpt.to_dict()}
+            if path=='/api/ecology/tournament/cataclysm':
+                c_type = str(data.get('type', 'drought'))
+                return self.darwinian_engine.inject_cataclysm(c_type)
             if path=='/api/ecology/evolution':
                 action = data.get('action', 'enable')
                 if action == 'enable':
