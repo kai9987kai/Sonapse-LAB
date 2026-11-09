@@ -951,6 +951,7 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 self.send(200,app.post(urlparse(self.path).path,data))
             except KeyError as exc: self.send(404,{'error':str(exc)})
             except Exception as exc: self.send(400,{'error':f'{type(exc).__name__}: {exc}'})
+    ThreadingHTTPServer.allow_reuse_address = True
     server=ThreadingHTTPServer((host,port),Handler); server.workbench=app; server.daemon_threads=True
     return server
 
@@ -961,12 +962,26 @@ def serve(host='127.0.0.1',port=8765,**kwargs):
     alt_server = None
     try:
         alt_server = create_server(host, alt_port, workbench=server.workbench)
-        threading.Thread(target=alt_server.serve_forever, daemon=True, name=f'synapse-alt-{alt_port}').start()
+        def _run_alt():
+            while True:
+                try:
+                    alt_server.serve_forever()
+                except Exception:
+                    time.sleep(0.5)
+        threading.Thread(target=_run_alt, daemon=True, name=f'synapse-alt-{alt_port}').start()
         print(f'SYNAPSE workbench dual-listener: http://{host}:{alt_server.server_port}', flush=True)
     except Exception:
         pass
-    try: server.serve_forever()
-    except KeyboardInterrupt: pass
+    try:
+        while True:
+            try:
+                server.serve_forever()
+            except (KeyboardInterrupt, SystemExit):
+                break
+            except Exception:
+                time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
     finally:
         server.server_close()
         if alt_server:
