@@ -44,24 +44,52 @@ const sourceIds = ['malecns', 'banc', 'optic-lobe', 'fanc', 'flywire', 'manc', '
 let manualGripState = 0.0;
 let manualReachState = 0.0;
 
-// API transport with exponential backoff retry
+// Retry reads after transient transport errors. Writes are sent once so an
+// interrupted response cannot silently repeat a non-idempotent operation.
 async function api(path, data, retries = 3) {
   let lastErr = null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  const isRead = data === undefined;
+  const retryLimit = isRead ? Math.max(0, retries) : 0;
+  for (let attempt = 0; attempt <= retryLimit; attempt++) {
     try {
-      const r = await fetch('/api/' + path, data === undefined ? {} : {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const result = await r.json();
-      if (!r.ok) throw Error(result.error || r.statusText);
+      let r;
+      try {
+        r = await fetch('/api/' + path, isRead ? {} : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      } catch (err) {
+        const wrapped = Error(err?.message || String(err));
+        wrapped.cause = err;
+        wrapped.networkError = true;
+        throw wrapped;
+      }
+      let result;
+      try {
+        result = await r.json();
+      } catch (err) {
+        const wrapped = Error(err?.message || String(err));
+        wrapped.cause = err;
+        wrapped.responseReceived = true;
+        if (isRead) wrapped.networkError = true;
+        throw wrapped;
+      }
+      if (!r.ok) {
+        const err = Error(result.error || r.statusText);
+        err.apiResponse = true;
+        err.httpStatus = r.status;
+        throw err;
+      }
       return result;
     } catch (err) {
       lastErr = err;
-      if (attempt < retries) {
+      const retryableReadFailure = isRead && (err.networkError || err.responseReceived);
+      if (retryableReadFailure && attempt < retryLimit) {
         const delay = Math.min(800, 120 * Math.pow(1.6, attempt)) + Math.random() * 40;
         await new Promise(res => setTimeout(res, delay));
+      } else {
+        break;
       }
     }
   }
@@ -75,6 +103,10 @@ let pausedByError = false;
 function error(e) {
   $('error').hidden = false;
   $('error').textContent = e.message || String(e);
+  if (!e?.networkError) {
+    $('runstatus').textContent = running ? 'Running · request failed' : 'Paused · request failed';
+    return;
+  }
   if (running) pausedByError = true;
   running = false;
   $('runstatus').textContent = 'Paused · retrying connection...';
@@ -103,6 +135,8 @@ function error(e) {
             running = true;
             $('runstatus').textContent = Number($('simspeed')?.value) === 0 ? 'Running · MAX Uncapped' : 'Running';
             updateSimSpeed();
+          } else if ($('runstatus').textContent.includes('retrying connection')) {
+            $('runstatus').textContent = 'Paused';
           }
           return;
         }
@@ -1318,8 +1352,7 @@ function world() {
       const amb = s.ambient_light ?? 1.0;
       if (amb < 0.85) {
         const darkAlpha = Math.max(0, Math.min(0.65, (0.85 - amb) * 0.75));
-        x.fillStyle = 
-gba(5, 12, 24, );
+        x.fillStyle = `rgba(5, 12, 24, ${darkAlpha})`;
         x.fillRect(0, 0, w, h);
       }
 
@@ -5958,9 +5991,91 @@ if ($('config-max-preset')) {
   };
 }
 
+async function runTandemJob(payload) {
+  let runId = payload.request_id;
+  let shouldStart = true;
+  let retryDelay = 800;
+  const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  while (true) {
+    if (shouldStart) {
+      try {
+        const started = await api('tandem/start', payload, 0);
+        runId = started.run_id || runId;
+        shouldStart = false;
+        $('runstatus').textContent = 'Running · Max Mode · job accepted';
+      } catch (err) {
+        if (!err.networkError) throw err;
+        $('runstatus').textContent = 'Running · Max Mode · reconnecting to run';
+        await pause(retryDelay);
+        retryDelay = Math.min(4000, retryDelay * 1.5);
+        continue;
+      }
+    }
+
+    try {
+      const status = await api('tandem/status');
+      if (status.run_id === runId && status.status === 'completed') return status;
+      if (status.run_id === runId && status.status === 'failed') {
+        const err = Error(status.error || 'Max Mode failed');
+        err.apiResponse = true;
+        throw err;
+      }
+      if (status.status === 'queued' || status.status === 'running') {
+        runId = status.run_id || runId;
+        shouldStart = false;
+        $('runstatus').textContent = status.status === 'queued'
+          ? 'Running · Max Mode · queued'
+          : 'Running · Max Mode · Sections 01–05';
+      } else {
+        // If the start response was lost, reuse its idempotency key. The
+        // server either attaches to the existing run or safely starts it.
+        shouldStart = true;
+      }
+    } catch (err) {
+      if (!err.networkError) throw err;
+      $('runstatus').textContent = 'Running · Max Mode · reconnecting to run status';
+    }
+    await pause(retryDelay);
+    retryDelay = Math.min(4000, retryDelay * 1.15);
+  }
+}
+
+async function runLegacyTandemMax(payload, baselineStatus) {
+  const legacyPayload = { ...payload };
+  delete legacyPayload.request_id;
+  const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let retryDelay = 800;
+  try {
+    // Older workbench processes still expose the synchronous endpoint. Send
+    // this write once; after a dropped response, recover its receipt by polling.
+    return await api('tandem/max', legacyPayload, 0);
+  } catch (err) {
+    if (!err.networkError) throw err;
+    $('runstatus').textContent = 'Running · Max Mode · recovering the existing run';
+  }
+
+  while (true) {
+    try {
+      const status = await api('tandem/status');
+      const baselineDigest = baselineStatus?.tandem_sha256 || null;
+      const hasNewReceipt = status.status === 'completed' && (
+        baselineStatus?.status !== 'completed' || status.tandem_sha256 !== baselineDigest
+      );
+      if (hasNewReceipt) return status;
+    } catch (err) {
+      if (!err.networkError) throw err;
+    }
+    $('runstatus').textContent = 'Running · Max Mode · reconnecting to the existing run';
+    await pause(retryDelay);
+    retryDelay = Math.min(4000, retryDelay * 1.15);
+  }
+}
+
 async function runTandemMaxMode() {
   running = false;
   setAllControlsToMaxUI();
+  $('runstatus').textContent = 'Running · Max Mode · preparing job';
   const banner = $('tandem-banner');
   if (banner) banner.hidden = false;
   const pill = $('tandem-status-pill');
@@ -5970,7 +6085,10 @@ async function runTandemMaxMode() {
   }
   const btns = [$('btn-tandem-max'), $('btn-tandem-max-toolbar')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; b.textContent = '⚡ Running Tandem Max (Sections 1–5)...'; });
+  let progressPending = false;
   const progressTimer = setInterval(async () => {
+    if (progressPending) return;
+    progressPending = true;
     try {
       const om = await api('omnibus/status');
       if (om && om.total_stages && !om.is_completed) {
@@ -5980,15 +6098,20 @@ async function runTandemMaxMode() {
         btns.forEach(b => { b.textContent = `⚡ Tandem Max · Task ${stage}/${total} (${taskName})`; });
         if (pill) pill.textContent = `Section 01 · Task ${stage}/${total} (${taskName})`;
       } else {
-        btns.forEach(b => { b.textContent = '⚡ Tandem Max · Computing Sections 02–05...'; });
-        if (pill) pill.textContent = 'Executing Assays & Controlled Studies (Sec 02–05)...';
+        btns.forEach(b => { b.textContent = '⚡ Tandem Max · Sections 01–05 running...'; });
+        if (pill) pill.textContent = 'Starting or executing Max Mode sections 01–05...';
       }
     } catch (_) {}
+    finally { progressPending = false; }
   }, 800);
   try {
     const neurons = Number($('config')?.elements?.total_neurons?.value || 8000);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
-    const res = await api('tandem/max', {
+    const requestId = window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : `max_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const payload = {
+      request_id: requestId,
       total_neurons: Math.max(9000, neurons),
       task,
       pretrain_steps: 16,
@@ -6000,7 +6123,15 @@ async function runTandemMaxMode() {
       omnibus_tasks: ['forage', 'maze', 'push', 'delayed_match', 'ecosystem', 'continental_biosphere'],
       six_arm_steps: 4,
       causal_9arm_steps: 4
-    });
+    };
+    const baselineStatus = await api('tandem/status');
+    let res;
+    try {
+      res = await runTandemJob(payload);
+    } catch (err) {
+      if (err.httpStatus !== 404) throw err;
+      res = await runLegacyTandemMax(payload, baselineStatus);
+    }
 
     // Populate Section 01 panels
     if (res.section_01) {

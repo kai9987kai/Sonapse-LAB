@@ -180,6 +180,81 @@ def test_tandem_max_rejects_bad_options_before_replacing_live_runtime(tmp_path):
     assert wb.runtime is live_runtime
 
 
+def test_tandem_max_background_job_is_idempotent_and_reports_completion(tmp_path, monkeypatch):
+    import threading
+    import time
+    from synapse import tandem_max
+
+    wb = Workbench(config=SynapseConfig(nodes_per_source=16, seed=7), output_root=tmp_path)
+    started = threading.Event()
+    release = threading.Event()
+    calls = []
+    receipt = {'status': 'completed', 'tandem_sha256': 'test-receipt', 'sections_completed': []}
+
+    def fake_run(workbench, options):
+        calls.append(options)
+        started.set()
+        assert release.wait(3)
+        workbench.last_tandem_receipt = receipt
+        return receipt
+
+    monkeypatch.setattr(tandem_max, 'run_tandem_max_orchestration', fake_run)
+    request = {'request_id': 'max-run-test-01', 'total_neurons': 96}
+    first = wb.post('/api/tandem/start', request)
+    assert first['run_id'] == request['request_id']
+    assert started.wait(3)
+
+    duplicate = wb.post('/api/tandem/start', request)
+    concurrent = wb.post('/api/tandem/start', {'request_id': 'max-run-test-02'})
+    assert duplicate['run_id'] == first['run_id']
+    assert concurrent['run_id'] == first['run_id']
+    assert len(calls) == 1
+
+    release.set()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        status = wb.get('/api/tandem/status')
+        if status['status'] == 'completed':
+            break
+        time.sleep(0.01)
+    assert status['status'] == 'completed'
+    assert status['run_id'] == request['request_id']
+    assert status['tandem_sha256'] == receipt['tandem_sha256']
+    assert len(calls) == 1
+
+    replay = wb.post('/api/tandem/start', request)
+    assert replay['status'] == 'completed'
+    assert wb.get('/api/tandem/status')['tandem_sha256'] == receipt['tandem_sha256']
+    assert len(calls) == 1
+
+
+def test_tandem_max_background_validation_failure_preserves_live_runtime(tmp_path):
+    import time
+
+    wb = Workbench(config=SynapseConfig(nodes_per_source=16, seed=7), output_root=tmp_path)
+    live_runtime = wb.runtime
+    start = wb.post('/api/tandem/start', {'request_id': 'max-run-invalid-01', 'workers': 0})
+    assert start['run_id'] == 'max-run-invalid-01'
+
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        status = wb.get('/api/tandem/status')
+        if status['status'] == 'failed':
+            break
+        time.sleep(0.01)
+    assert status['status'] == 'failed'
+    assert 'workers' in status['error']
+    assert wb.runtime is live_runtime
+
+
+def test_reconsolidation_status_endpoint_returns_snapshot_fields(tmp_path):
+    wb = Workbench(config=SynapseConfig(nodes_per_source=16, seed=7), output_root=tmp_path)
+    status = wb.get('/api/sleep/reconsolidation')
+    assert 'enabled' in status
+    assert 'latest_memory_recall' in status
+    assert 'latest_memory_update' in status
+
+
 def test_poseidon_dvgem_6arm_lesion_and_tether_coordinator():
     dvgem = DecisionValueEpisodicMemory(seed=42)
     tether = TetherSuccessorCoordinator(seed=42)

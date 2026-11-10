@@ -5,6 +5,7 @@ import dataclasses
 import ipaddress
 import json
 import mimetypes
+from copy import deepcopy
 from pathlib import Path
 import re
 import threading
@@ -66,6 +67,7 @@ class Workbench:
         self.synesthetic_engine = SynestheticResonanceEngine()
         self.reconsolidation_engine = MemoryReconsolidationEngine(seed=seed)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
+        self.tandem_job_lock=threading.RLock(); self.tandem_job=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
             try:
@@ -90,6 +92,69 @@ class Workbench:
         except Exception:
             try: path.write_text(content, encoding='utf-8')
             except Exception: pass
+    def tandem_status(self):
+        with self.tandem_job_lock:
+            job=self.tandem_job
+            if job is None:
+                receipt=self.last_tandem_receipt
+            elif job['status']=='completed' and isinstance(job.get('result'),dict):
+                return {**job['result'],'run_id':job['run_id']}
+            elif job['status']=='failed':
+                return {
+                    'status':'failed',
+                    'mode':'tandem_max_sections_1_to_5',
+                    'run_id':job['run_id'],
+                    'error':job.get('error','Max Mode failed'),
+                }
+            else:
+                return {
+                    'status':job['status'],
+                    'mode':'tandem_max_sections_1_to_5',
+                    'run_id':job['run_id'],
+                    'started_at':job['started_at'],
+                }
+        return receipt or {
+            'status':'idle',
+            'mode':'tandem_max_sections_1_to_5',
+            'total_neurons':self.runtime.config.total_neuron_count(),
+        }
+
+    def start_tandem_max(self,data):
+        if not isinstance(data,dict): raise ValueError('Max Mode options must be an object')
+        run_id=safe_name(data.get('request_id'))
+        options={key:value for key,value in data.items() if key!='request_id'}
+        with self.tandem_job_lock:
+            job=self.tandem_job
+            if job and (job['status'] in ('queued','running') or job['run_id']==run_id):
+                return {'status':job['status'],'run_id':job['run_id']}
+            job={'status':'queued','run_id':run_id,'started_at':time.time(),'result':None,'error':None}
+            self.tandem_job=job
+
+        def worker():
+            with self.tandem_job_lock:
+                if self.tandem_job is not job: return
+                job['status']='running'
+            try:
+                from .tandem_max import run_tandem_max_orchestration
+                result=run_tandem_max_orchestration(self,options)
+            except Exception as exc:
+                with self.tandem_job_lock:
+                    if self.tandem_job is job:
+                        job.update(status='failed',error=f'{type(exc).__name__}: {exc}',finished_at=time.time())
+            else:
+                with self.tandem_job_lock:
+                    if self.tandem_job is job:
+                        job.update(status='completed',result=result,finished_at=time.time())
+
+        thread=threading.Thread(target=worker,daemon=True,name=f'tandem-max-{run_id[:8]}')
+        try:
+            thread.start()
+        except Exception as exc:
+            with self.tandem_job_lock:
+                if self.tandem_job is job:
+                    job.update(status='failed',error=f'{type(exc).__name__}: {exc}',finished_at=time.time())
+        return {'status':job['status'],'run_id':run_id}
+
     def start_study(self,config):
         if not isinstance(config,dict): raise ValueError('config must be an object')
         from .experiments import validate_config
@@ -184,6 +249,8 @@ class Workbench:
                     'latest_memory_recall':deepcopy(agent.last_memory_recall),
                     'latest_memory_update':deepcopy(agent.last_memory_reconciliation),
                 }
+        if path=='/api/tandem/status':
+            return self.tandem_status()
         with self.aux_lock:
             if path=='/api/ecology':
                 snap = self.virtual_biome.snapshot()
@@ -305,8 +372,6 @@ class Workbench:
                     'evidence_tier': 'not_instantiated',
                     'message': 'DSAG is disabled; no DSAG state is being simulated.',
                 }
-            if path=='/api/tandem/status':
-                return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':
                 library=self.omnibus_runner.skill_library if self.omnibus_runner is not None else self.runtime.skill_library
                 return {**library.summary(),'consumer':'current runtime or retained omnibus library'}
@@ -433,6 +498,8 @@ class Workbench:
         if path=='/api/tandem/max':
             from .tandem_max import run_tandem_max_orchestration
             return run_tandem_max_orchestration(self, data)
+        if path=='/api/tandem/start':
+            return self.start_tandem_max(data)
         if path=='/api/sleep/reconsolidation/reactivate':
             with self.lock:
                 if 'trace_id' in data and 'prediction_error' in data:
