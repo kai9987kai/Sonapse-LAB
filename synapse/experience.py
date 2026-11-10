@@ -277,8 +277,10 @@ class ExperienceWorldModel:
         actions = np.asarray(candidates)
         prediction = self.predict(state, actions)
         reward = prediction['reward'].copy()
+        recalled = None
+        confidence = np.zeros(len(actions), dtype=float)
         if memory is not None:
-            recalled = memory.retrieve(state, actions)
+            recalled = memory.retrieve(state, actions, include_slots=True)
             # Memory needs local coverage and remains a correction, not a reward oracle.
             confidence = np.clip(np.asarray(recalled['confidence'], dtype=float), 0, 1) * 0.5
             reward = (1 - confidence) * reward + confidence * recalled['reward']
@@ -309,6 +311,17 @@ class ExperienceWorldModel:
                            candidate_count=len(actions), predicted_gain=max(gain, 0),
                            mean_disagreement=float(prediction['disagreement'].mean()),
                            max_action_change=float(np.max(np.abs(actions[best] - baseline))))
+        if recalled is not None and confidence[best] > 0.05 and int(recalled['slot'][best]) >= 0:
+            diagnostics['selected_memory_recall'] = {
+                'slot': int(recalled['slot'][best]),
+                'timestamp': int(recalled['timestamp'][best]),
+                'predicted_reward': float(recalled['reward'][best]),
+                'confidence': float(recalled['confidence'][best]),
+                'distance': float(recalled['distance'][best]),
+                'query_action': actions[best].tolist(),
+            }
+        else:
+            diagnostics['selected_memory_recall'] = None
         return action, diagnostics
 
     def _prediction_gate(self):

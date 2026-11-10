@@ -21,6 +21,7 @@ from .predictive_coding import PredictiveCodingEngine
 from .vision_encoder import TrainableVisualEncoder
 from .experience import ExperienceWorldModel, encode_experience_state
 from .surprise_memory import SurpriseEpisodicMemory
+from .reconsolidation import MemoryReconsolidationEngine
 from .homeostasis import HomeostaticEngine
 from .neurogenesis import ConnectomeNeurogenesisEngine
 from .mimomix_reasoner import MiMoMixCognitiveCore, MiMoMixReasoningTrace
@@ -91,6 +92,9 @@ class IntegratedAgent:
         self.rng=np.random.default_rng(config.seed)
         self.experience_model=ExperienceWorldModel(state_dim=16,action_dim=5,ensemble_size=3,seed=config.seed,context_dim=2)
         self.surprise_memory=SurpriseEpisodicMemory()
+        self.memory_reconsolidation=MemoryReconsolidationEngine(seed=config.seed)
+        self.last_memory_recall=None
+        self.last_memory_reconciliation=None
         self.homeostasis=HomeostaticEngine(seed=config.seed)
         self.neurogenesis=ConnectomeNeurogenesisEngine(num_neurons=self.brain.n,seed=config.seed)
         if getattr(config,'continual_backprop',False):
@@ -819,7 +823,23 @@ class IntegratedAgent:
             )
             executed = np.clip(executed, np.maximum(-1., planner_act - .35), np.minimum(1., planner_act + .35))
         executed=govern_action(executed,self.homeostasis.get_max_allowed_thrust())
-        self.pending_transition={'state':np.array(experience_state,copy=True),'action':executed.copy(),'graft_receipt':graft_receipt}
+        memory_recall=None
+        selected_recall=planner_info.get('selected_memory_recall')
+        if mode=='memory' and self.config.surprise_memory and isinstance(selected_recall,dict):
+            confidence=float(selected_recall['confidence'])
+            slot=int(selected_recall['slot'])
+            timestamp=int(selected_recall['timestamp'])
+            record=self.surprise_memory.get_record(slot,timestamp)
+            if record is not None and confidence*0.5>0.05:
+                memory_recall={
+                    'slot':slot,
+                    'timestamp':int(record['timestamp']),
+                    'predicted_reward':float(selected_recall['predicted_reward']),
+                    'confidence':confidence,
+                    'distance':float(selected_recall['distance']),
+                    'query_action':np.asarray(selected_recall['query_action'],dtype=np.float32).tolist(),
+                }
+        self.pending_transition={'state':np.array(experience_state,copy=True),'action':executed.copy(),'graft_receipt':graft_receipt,'learning':bool(learn),'memory_recall':memory_recall}
         self.last_telemetry={'ticks':self.ticks,'graph_mean':float(r.mean()),'graph_delta':novelty,'tidal_intent':self.intent.tolist(),'tidal_routing':self.routing,'resources':self.resources.tolist(),'compass':float(self.compass.bump_angle),'mbon':mbon.tolist(),'curiosity':bonus,'recruited_expert':expert if recruited else None,'expert_usage':self.expert_usage.tolist(),'consolidations':self.consolidations,'readout':self.config.readout,'evoked_delta_norm':delta_norm,'evoked_baseline_norm':baseline_norm,'bridge_training':'experimental supervised preparation' if self.bridge_updates else 'untrained','camera_consumed':camera_consumed,'visual_latents':vis_latent.tolist() if vis_latent is not None else [],'visual_brightness':vis_info.get('mean_brightness',0.0),'visual_contrast':vis_info.get('contrast',0.0),'neuromodulators':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else {},'astrocytes':self.astrocytes.summary() if hasattr(self, 'astrocytes') else {},'predictive_coding':self.predictive.state.to_dict() if hasattr(self, 'predictive') else {}}
         self.last_telemetry['evoked_channels']={'channel_m_norm':baseline_norm,'channel_d_norm':delta_norm,'gate_alpha':gate_alpha,'persistent_norm':float(self.evoked.norm()) if hasattr(self,'evoked') else 0.0}
         self.last_telemetry['dormant_lifecycle']=self.dormant_lifecycle.summary() if hasattr(self,'dormant_lifecycle') else {}
@@ -832,6 +852,9 @@ class IntegratedAgent:
         self.last_telemetry['experience_planner']=planner_info
         self.last_telemetry['experience_model']=self.experience_model.summary()
         self.last_telemetry['surprise_memory']=self.surprise_memory.summary()
+        self.last_telemetry['memory_recall']=deepcopy(memory_recall)
+        self.last_telemetry['memory_reconsolidation']={**self.memory_reconsolidation.get_summary(),
+            'latest':deepcopy(self.last_memory_reconciliation)}
         if hasattr(self, 'homeostasis'): self.last_telemetry['homeostasis']=self.homeostasis.summary()
         if hasattr(self, 'neurogenesis'): self.last_telemetry['neurogenesis']=self.neurogenesis.summary()
         if getattr(self, 'self_model', None) is not None: self.last_telemetry['self_model']=self.self_model.summary()
@@ -956,6 +979,71 @@ class IntegratedAgent:
         if hasattr(self, 'mimomix'): self.last_telemetry['mimomix']={'system_engaged':mimomix_trace.system_engaged,'ponder_steps':mimomix_trace.ponder_steps,'ponder_cost':mimomix_trace.ponder_cost,'confidence':mimomix_trace.confidence,'action_delta_l2':mimomix_trace.action_delta_l2}
         return {'action':executed.copy(),'features':self.last_features.copy(),'telemetry':deepcopy(self.last_telemetry)}
 
+    def _reconcile_recalled_memory(self, memory_recall, state, action, reward):
+        if not isinstance(memory_recall,dict):
+            return None
+        slot=int(memory_recall['slot']); timestamp=int(memory_recall['timestamp'])
+        query_action=np.asarray(memory_recall['query_action'],dtype=np.float64)
+        if query_action.shape!=action.shape or np.sqrt(np.mean((query_action-action)**2))>0.05:
+            return {'status':'executed_action_changed','slot':slot,'timestamp':timestamp,
+                    'revised':False}
+        record=self.surprise_memory.get_record(slot,timestamp)
+        if record is None:
+            return {'status':'slot_identity_changed','slot':slot,'timestamp':timestamp,
+                    'revised':False}
+        distance=self.surprise_memory.distance_to_record(slot,state,action)
+        if distance is None or distance>self.surprise_memory.match_distance:
+            return {'status':'outside_memory_match_radius','slot':slot,'timestamp':timestamp,
+                    'distance':distance,'revised':False}
+        raw_error=abs(float(reward)-float(memory_recall['predicted_reward']))
+        scaled_error=raw_error/(1.0+raw_error)
+        trace_id=f'memory-slot:{slot}'
+        trace=self.memory_reconsolidation.labile_traces.get(trace_id)
+        if trace is not None:
+            trace_distance=self.surprise_memory.distance_to_record(
+                slot,trace.original_obs,trace.original_action)
+            if trace_distance is None or trace_distance>self.surprise_memory.match_distance:
+                self.memory_reconsolidation.labile_traces.pop(trace_id,None)
+                trace=None
+        if trace is None:
+            trace=self.memory_reconsolidation.reactivate_trace(
+                trace_id=trace_id,obs=record['state'],action=record['action'],
+                reward=record['reward'],importance=float(memory_recall['confidence']),
+                prediction_error=scaled_error,enabled=True)
+            if trace is None:
+                status=('extinction' if scaled_error>=self.memory_reconsolidation.extinction_threshold
+                        else 'stable')
+                return {'status':status,'slot':slot,'timestamp':timestamp,
+                        'raw_prediction_error':raw_error,'scaled_prediction_error':scaled_error,
+                        'confidence':float(memory_recall['confidence']),'distance':distance,
+                        'revised':False}
+        elif scaled_error>=self.memory_reconsolidation.extinction_threshold:
+            self.memory_reconsolidation.reactivate_trace(
+                trace_id=trace_id,obs=record['state'],action=record['action'],
+                reward=record['reward'],importance=float(memory_recall['confidence']),
+                prediction_error=scaled_error,enabled=True)
+            self.memory_reconsolidation.labile_traces.pop(trace_id,None)
+            return {'status':'extinction','slot':slot,'timestamp':timestamp,
+                    'raw_prediction_error':raw_error,'scaled_prediction_error':scaled_error,
+                    'confidence':float(memory_recall['confidence']),'distance':distance,
+                    'revised':False}
+        elif scaled_error<self.memory_reconsolidation.destabilization_threshold:
+            return {'status':'stable','slot':slot,'timestamp':timestamp,
+                    'raw_prediction_error':raw_error,'scaled_prediction_error':scaled_error,
+                    'confidence':float(memory_recall['confidence']),'distance':distance,
+                    'revised':False}
+        updated=self.memory_reconsolidation.update_labile_trace(
+            trace_id,state,action,float(reward),enabled=True)
+        trace=self.memory_reconsolidation.labile_traces.get(trace_id)
+        return {'status':'reconsolidating' if updated is not None else 'labile_window_closed',
+                'slot':slot,'timestamp':timestamp,'trace_id':trace_id,
+                'raw_prediction_error':raw_error,'scaled_prediction_error':scaled_error,
+                'error_rescaling':'abs(error) / (1 + abs(error)); heuristic, not calibrated probability',
+                'confidence':float(memory_recall['confidence']),'distance':distance,
+                'trace_updated':updated is not None,'trace_active':trace is not None,
+                'lability':float(trace.lability) if trace is not None else 0.0,
+                'revised':False}
+
     def observe_transition(self,next_obs,reward,done=False,action=None):
         """Learn once from an explicitly supplied real outcome and executed action.
 
@@ -977,6 +1065,9 @@ class IntegratedAgent:
         state=np.array(self.pending_transition['state'],copy=True)
         next_state=encode_experience_state(observation,self.last_features)
         diagnostics=self.experience_model.update(state,executed,next_state,float(reward),done=bool(done))
+        memory_recall=(self.pending_transition.get('memory_recall')
+                       if self.pending_transition.get('learning',True) else None)
+        recon=None
         if self.neural_graft is not None:
             receipt=self.pending_transition.get('graft_receipt')
             if receipt is not None and receipt.get('learning'):
@@ -989,7 +1080,57 @@ class IntegratedAgent:
                 fit=self.neural_graft.train_replay(updates=self.config.graft_updates,batch_size=self.config.graft_batch_size,actor=True)
                 diagnostics['graft_fit']={k:v for k,v in fit.items() if k not in ('cpu_seconds','wall_seconds')}
         if self.config.surprise_memory:
-            diagnostics={**diagnostics,'memory':self.surprise_memory.update(state,executed,float(reward),float(diagnostics['prediction_error']))}
+            memory_update=self.surprise_memory.update(state,executed,float(reward),float(diagnostics['prediction_error']))
+            if memory_recall is not None:
+                if memory_update['admitted']:
+                    raw_error=abs(float(reward)-float(memory_recall['predicted_reward']))
+                    recon={
+                        'status':'ordinary_memory_admission',
+                        'slot':int(memory_recall['slot']),
+                        'timestamp':int(memory_recall['timestamp']),
+                        'raw_prediction_error':raw_error,
+                        'scaled_prediction_error':raw_error/(1.0+raw_error),
+                        'confidence':float(memory_recall['confidence']),
+                        'distance':float(memory_recall['distance']),
+                        'revised':False,
+                        'memory_revision':{
+                            'revised':False,
+                            'reason':'ordinary admission stored the observed outcome',
+                        },
+                    }
+                else:
+                    recon=self._reconcile_recalled_memory(memory_recall,state,executed,float(reward))
+                if recon is not None and recon.get('trace_updated') and not memory_update['admitted']:
+                    trace=self.memory_reconsolidation.labile_traces.get(recon['trace_id'])
+                    if trace is not None:
+                        revision=self.surprise_memory.revise_rejected_record(
+                            recon['slot'],recon['timestamp'],state,executed,float(reward))
+                        recon['memory_revision']=revision
+                        recon['revised']=bool(revision.get('revised'))
+            diagnostics={**diagnostics,'memory':memory_update}
+        if memory_recall is not None:
+            self.last_memory_recall={
+                'slot':int(memory_recall['slot']),'timestamp':int(memory_recall['timestamp']),
+                'predicted_reward':float(memory_recall['predicted_reward']),
+                'confidence':float(memory_recall['confidence']),
+                'distance':float(memory_recall['distance']),
+            }
+            self.last_memory_reconciliation=deepcopy(recon)
+            if recon is not None:
+                diagnostics['memory_reconsolidation']=deepcopy(recon)
+        else:
+            self.last_memory_recall=None
+            self.last_memory_reconciliation=None
+        recon_summary=self.memory_reconsolidation.step_decay(enabled=True).to_dict()
+        if self.last_memory_reconciliation is not None:
+            self.last_memory_reconciliation['active_labile_count']=recon_summary['active_labile_count']
+            self.last_memory_reconciliation['mean_lability']=recon_summary['mean_lability']
+            if recon is not None:
+                diagnostics['memory_reconsolidation']=deepcopy(self.last_memory_reconciliation)
+        self.last_telemetry['memory_recall']=deepcopy(self.last_memory_recall)
+        self.last_telemetry['memory_reconsolidation']={
+            **recon_summary,'latest':deepcopy(self.last_memory_reconciliation),
+        }
         if getattr(self, 'self_model', None) is not None and getattr(self, 'last_obs', None) is not None:
             self_receipt = self.self_model.process_transition(self.last_obs, executed, observation, learn=True)
             diagnostics['self_model'] = self_receipt.to_dict()
@@ -1185,7 +1326,7 @@ class IntegratedAgent:
         return cloned
 
     def export_state(self):
-        state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
+        state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any','last_memory_recall','last_memory_reconciliation')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'memory_reconsolidation':self.memory_reconsolidation.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
         state['neural_graft']=self.neural_graft.export_state() if self.neural_graft is not None else None
         state['dendritic_ltc']=self.dendritic_ltc.export_state() if getattr(self,'dendritic_ltc',None) is not None else None
         state['oscillatory_coherence']=self.oscillatory_coherence.export_state() if getattr(self,'oscillatory_coherence',None) is not None else None
@@ -1281,6 +1422,10 @@ class IntegratedAgent:
             self.surprise_memory.import_state(state['surprise_memory'])
         else:
             self.surprise_memory=SurpriseEpisodicMemory()
+        if 'memory_reconsolidation' in state:
+            self.memory_reconsolidation.import_state(state['memory_reconsolidation'])
+        else:
+            self.memory_reconsolidation=MemoryReconsolidationEngine(seed=self.config.seed)
         self.compass.bump_angle=state['compass_angle']; self.routing=state['routing']
         if hasattr(self, 'neuromod') and state.get('neuromod'):
             self.neuromod.state = NeuromodulatorState(**state['neuromod'])

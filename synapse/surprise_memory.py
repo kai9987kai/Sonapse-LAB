@@ -154,8 +154,10 @@ class SurpriseEpisodicMemory:
                 'distance': nearest_distance, 'error_threshold': threshold,
                 'reason': 'initial' if initial else 'coverage' if novel else 'surprise' if surprising else 'predictable'}
 
-    def retrieve(self, state, actions):
+    def retrieve(self, state, actions, include_slots=False):
         """Return candidate reward/confidence/distance arrays without mutation."""
+        if type(include_slots) is not bool:
+            raise ValueError('include_slots must be boolean')
         state = self._array(state, (self.state_dim,), 'state')
         try:
             actions = np.asarray(actions, dtype=np.float64)
@@ -166,6 +168,9 @@ class SurpriseEpisodicMemory:
         count = len(actions)
         result = {'reward': np.zeros(count), 'confidence': np.zeros(count),
                   'distance': np.full(count, self._MAX_DISTANCE)}
+        if include_slots:
+            result['slot'] = np.full(count, -1, dtype=np.int64)
+            result['timestamp'] = np.full(count, -1, dtype=np.int64)
         if not len(self._rewards) or not count:
             return result
         distances = self._distances(state, actions)
@@ -173,6 +178,9 @@ class SurpriseEpisodicMemory:
         for row in range(count):
             indices = np.argsort(distances[row], kind='stable')[:self.neighbors]
             selected = distances[row, indices]
+            if include_slots:
+                result['slot'][row] = int(indices[0])
+                result['timestamp'][row] = int(self._timestamps[indices[0]])
             with np.errstate(over='ignore', under='ignore'):
                 weights = np.exp(-0.5 * (selected / self.bandwidth) ** 2
                                  - math.log(2.0) * (ages[indices] / self.recency_half_life))
@@ -185,6 +193,70 @@ class SurpriseEpisodicMemory:
                 average = np.sum((weights / total) * (self._rewards[indices] / scale))
                 result['reward'][row] = float(np.clip(average, -1.0, 1.0) * scale)
         return result
+
+    def get_record(self, slot, timestamp=None):
+        """Return one detached record if its slot still has the requested identity."""
+        if isinstance(slot, (bool, np.bool_)) or not isinstance(slot, (int, np.integer)):
+            raise ValueError('slot must be an integer')
+        slot = int(slot)
+        if not 0 <= slot < len(self._rewards):
+            return None
+        if timestamp is not None:
+            if (isinstance(timestamp, (bool, np.bool_))
+                    or not isinstance(timestamp, (int, np.integer))):
+                raise ValueError('timestamp must be an integer')
+            if int(timestamp) != int(self._timestamps[slot]):
+                return None
+        return {'slot': slot, 'timestamp': int(self._timestamps[slot]),
+                'state': self._states[slot].copy(), 'action': self._actions[slot].copy(),
+                'reward': float(self._rewards[slot])}
+
+    def distance_to_record(self, slot, state, action):
+        """Measure a bounded query against one slot without changing its age."""
+        if isinstance(slot, (bool, np.bool_)) or not isinstance(slot, (int, np.integer)):
+            raise ValueError('slot must be an integer')
+        slot = int(slot)
+        if not 0 <= slot < len(self._rewards):
+            return None
+        state = self._array(state, (self.state_dim,), 'state')
+        action = self._array(action, (self.action_dim,), 'action')
+        return float(self._distances(state, action[None, :])[0, slot])
+
+    def revise_rejected_record(self, slot, timestamp, state, action, reward):
+        """Admit one exact observed outcome into a recalled slot after rejection.
+
+        The caller must first submit the actual outcome through ``update``. This
+        method converts that same predictable rejection into one bounded memory
+        replacement. It preserves the observed state/action/reward and counter
+        identities; the separate reconsolidation engine decides eligibility.
+        """
+        if isinstance(slot, (bool, np.bool_)) or not isinstance(slot, (int, np.integer)):
+            raise ValueError('slot must be an integer')
+        if isinstance(timestamp, (bool, np.bool_)) or not isinstance(timestamp, (int, np.integer)):
+            raise ValueError('timestamp must be an integer')
+        slot = int(slot)
+        record = self.get_record(slot, int(timestamp))
+        if record is None:
+            return {'revised': False, 'reason': 'slot identity changed'}
+        state = self._array(state, (self.state_dim,), 'state')
+        action = self._array(action, (self.action_dim,), 'action')
+        reward = self._scalar(reward, 'reward')
+        distance = float(self._distances(state, action[None, :])[0, slot])
+        if distance > self.match_distance:
+            return {'revised': False, 'reason': 'state/action outside memory match radius',
+                    'distance': distance}
+        if self._counters['rejected'] <= 0:
+            return {'revised': False, 'reason': 'no rejected outcome to reconcile',
+                    'distance': distance}
+        self._states[slot] = state
+        self._actions[slot] = action
+        self._rewards[slot] = reward
+        self._timestamps[slot] = self._counters['updates']
+        self._counters['rejected'] -= 1
+        self._counters['writes'] += 1
+        self._counters['replacements'] += 1
+        return {'revised': True, 'slot': slot,
+                'timestamp': int(self._timestamps[slot]), 'distance': distance}
 
     def export_state(self):
         """Return a detached, JSON-compatible exact continuation checkpoint."""

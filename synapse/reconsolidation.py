@@ -79,6 +79,8 @@ class ReconsolidationTelemetry:
 class MemoryReconsolidationEngine:
     """Manages memory trace reactivation, destabilization, updating, and restabilization."""
 
+    max_labile_traces = 128
+
     def __init__(
         self,
         destabilization_threshold: float = 0.25,  # Minimum surprisal to destabilize trace
@@ -104,6 +106,99 @@ class MemoryReconsolidationEngine:
         self.total_reactivations = 0
         self.total_updates = 0
         self.total_extinctions = 0
+        self._last_telemetry = None
+
+    def export_state(self) -> Dict[str, Any]:
+        """Return a bounded primitive snapshot suitable for agent checkpoints."""
+        traces = {}
+        for trace_id, trace in self.labile_traces.items():
+            traces[trace_id] = {
+                'original_obs': np.asarray(trace.original_obs, dtype=np.float64).tolist(),
+                'original_action': np.asarray(trace.original_action, dtype=np.float64).tolist(),
+                'original_reward': float(trace.original_reward),
+                'importance': float(trace.importance),
+                'lability': float(trace.lability),
+                'reactivation_timestamp': float(trace.reactivation_timestamp),
+                'destabilization_surprisal': float(trace.destabilization_surprisal),
+                'update_count': int(trace.update_count),
+                'is_restabilized': bool(trace.is_restabilized),
+            }
+        return {
+            'schema': 1,
+            'config': {
+                'destabilization_threshold': self.destabilization_threshold,
+                'extinction_threshold': self.extinction_threshold,
+                'labile_window_steps': self.labile_window_steps,
+                'reconsolidation_lr': self.reconsolidation_lr,
+                'max_labile_traces': self.max_labile_traces,
+            },
+            'traces': traces,
+            'total_reactivations': self.total_reactivations,
+            'total_updates': self.total_updates,
+            'total_extinctions': self.total_extinctions,
+            'rng': copy.deepcopy(self.rng.bit_generator.state),
+        }
+
+    def import_state(self, state) -> None:
+        """Validate the whole trace snapshot before replacing live reconsolidation state."""
+        expected_config = {
+            'destabilization_threshold': self.destabilization_threshold,
+            'extinction_threshold': self.extinction_threshold,
+            'labile_window_steps': self.labile_window_steps,
+            'reconsolidation_lr': self.reconsolidation_lr,
+            'max_labile_traces': self.max_labile_traces,
+        }
+        if (not isinstance(state, dict) or state.get('schema') != 1
+                or state.get('config') != expected_config
+                or not isinstance(state.get('traces'), dict)
+                or len(state['traces']) > self.max_labile_traces):
+            raise ValueError('invalid reconsolidation state/config')
+        counters = []
+        for name in ('total_reactivations', 'total_updates', 'total_extinctions'):
+            value = state.get(name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError('invalid reconsolidation counters')
+            counters.append(value)
+        traces = {}
+        for trace_id, value in state['traces'].items():
+            if (not isinstance(trace_id, str) or not trace_id or len(trace_id) > 128
+                    or not isinstance(value, dict)):
+                raise ValueError('invalid reconsolidation trace')
+            try:
+                obs = np.asarray(value['original_obs'], dtype=np.float64)
+                action = np.asarray(value['original_action'], dtype=np.float64)
+                reward = float(value['original_reward'])
+                importance = float(value['importance'])
+                lability = float(value['lability'])
+                timestamp = float(value['reactivation_timestamp'])
+                surprisal = float(value['destabilization_surprisal'])
+                update_count = value['update_count']
+                restabilized = value['is_restabilized']
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                raise ValueError('invalid reconsolidation trace') from exc
+            if (obs.ndim != 1 or action.ndim != 1 or not 1 <= len(obs) <= 1024
+                    or not 1 <= len(action) <= 64 or not np.isfinite(obs).all()
+                    or not np.isfinite(action).all()
+                    or not np.isfinite([reward, importance, lability, timestamp, surprisal]).all()
+                    or not 0 <= importance <= 1 or not 0 <= lability <= 1
+                    or timestamp < 0 or not 0 <= surprisal <= 1
+                    or isinstance(update_count, bool) or not isinstance(update_count, int)
+                    or update_count < 0 or type(restabilized) is not bool):
+                raise ValueError('invalid reconsolidation trace values')
+            traces[trace_id] = LabileMemoryTrace(
+                trace_id=trace_id, original_obs=obs.copy(), original_action=action.copy(),
+                original_reward=reward, importance=importance, lability=lability,
+                reactivation_timestamp=timestamp, destabilization_surprisal=surprisal,
+                update_count=update_count, is_restabilized=restabilized,
+            )
+        rng = np.random.default_rng()
+        try:
+            rng.bit_generator.state = copy.deepcopy(state['rng'])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError('invalid reconsolidation RNG state') from exc
+        self.labile_traces = traces
+        self.total_reactivations, self.total_updates, self.total_extinctions = counters
+        self.rng = rng
         self._last_telemetry = None
 
     def reactivate_trace(
@@ -145,6 +240,9 @@ class MemoryReconsolidationEngine:
 
         # Check destabilization boundary (Nader 2000)
         if pe >= self.destabilization_threshold:
+            if trace_id not in self.labile_traces and len(self.labile_traces) >= self.max_labile_traces:
+                oldest = min(self.labile_traces, key=lambda key: self.labile_traces[key].reactivation_timestamp)
+                self.labile_traces.pop(oldest, None)
             trace = LabileMemoryTrace(
                 trace_id=trace_id,
                 original_obs=np.copy(obs),

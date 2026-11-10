@@ -3527,8 +3527,8 @@ async function fetchEcologyState() {
   if (Date.now() - lastEcologyPoll > 500) {
     lastEcologyPoll = Date.now();
     try {
-      const res = await api('ecology');
-      if (res && res.status === 'active') {
+      const res = await api('ecology/step', { steps: 1 });
+      if (res && res.population_count !== undefined) {
         ecologyStateCache = res;
       }
     } catch (_) {}
@@ -6553,6 +6553,7 @@ if ($('stdp-enable-btn')) {
     try {
       await api('connectome/stdp/enable', { gain: 1.0 });
       stdpStateCache = await api('connectome/stdp');
+      if ($('neuroplasticity-result')) $('neuroplasticity-result').textContent = 'STDP enabled for subsequent audio driven fusion steps. Weight changes require incoming audio activity.';
       stdpAndAllostasisView();
     } catch (_) {}
   });
@@ -6569,13 +6570,13 @@ if ($('allostasis-enable-btn')) {
 if ($('reconsolidation-reactivate-btn')) {
   $('reconsolidation-reactivate-btn').addEventListener('click', async () => {
     try {
-      await api('sleep/reconsolidation/reactivate', {
-        trace_id: 'salient_trace_' + Date.now(),
-        prediction_error: 0.55
-      });
+      const result = await api('sleep/reconsolidation/reactivate', {});
       reconsolidationStateCache = await api('sleep/reconsolidation');
+      if ($('neuroplasticity-result')) $('neuroplasticity-result').textContent = pretty(result);
       stdpAndAllostasisView();
-    } catch (_) {}
+    } catch (e) {
+      if ($('neuroplasticity-result')) $('neuroplasticity-result').textContent = e.message;
+    }
   });
 }
 

@@ -27,6 +27,7 @@ class _Path:
     memory_used: bool = False
     valid: bool = True
     reason: str = ''
+    root_memory_recall: Optional[dict] = None
 
     def score(self, penalty):
         return float(self.returns.mean() - penalty * self.uncertainty)
@@ -105,13 +106,25 @@ class ExperienceMPC:
         # representation. Neural context is conditioning, not predicted dynamics.
         next_states[:, model.predicted_dim:] = path.trajectory[0][:, model.predicted_dim:]
         memory_used = path.memory_used
+        root_memory_recall = path.root_memory_recall
         if memory is not None:
             for member, member_state in enumerate(states):
-                recalled = memory.retrieve(member_state, np.asarray(action)[None])
+                recalled = memory.retrieve(member_state, np.asarray(action)[None], include_slots=True)
                 confidence = float(np.clip(recalled['confidence'][0], 0, 1)) * 0.5
                 rewards[member] = ((1 - confidence) * rewards[member]
                                    + confidence * recalled['reward'][0])
                 memory_used |= confidence > 0.05
+                if len(path.actions) == 0 and member == 0 and confidence > 0.05:
+                    slot = int(recalled['slot'][0])
+                    if slot >= 0:
+                        root_memory_recall = {
+                            'slot': slot,
+                            'timestamp': int(recalled['timestamp'][0]),
+                            'predicted_reward': float(recalled['reward'][0]),
+                            'confidence': float(recalled['confidence'][0]),
+                            'distance': float(recalled['distance'][0]),
+                            'query_action': np.asarray(action, dtype=np.float64).tolist(),
+                        }
         reward_scale = max(float(np.sqrt(max(model.reward_error_ema, 0))), 0.001)
         delta_scale = max(float(np.sqrt(max(model.delta_error_ema, 0))), 0.001)
         state_disagreement = float(np.sqrt(np.mean(next_states[:, :model.predicted_dim].var(axis=0))))
@@ -132,7 +145,8 @@ class ExperienceMPC:
             # A rejected forecast must still be a finite, serializable abstention.
             return _Path(path.actions + [action.copy()], path.trajectory + [states.copy()],
                          path.returns.copy(), path.uncertainty, path.advantage_variance,
-                         path.coverage, path.memory_used, False, 'nonfinite model forecast')
+                         path.coverage, path.memory_used, False, 'nonfinite model forecast',
+                         root_memory_recall)
         valid = (path.valid and finite and np.max(np.abs(next_states), initial=0) <= 10
                  and coverage <= max(2.0, 2 * baseline_coverage)
                  and disagreement <= max(0.25, 4 * reward_scale)
@@ -149,7 +163,7 @@ class ExperienceMPC:
                      path.returns + weight * rewards + terminal_bonus,
                      path.uncertainty + weight * step_uncertainty,
                      variance, max(path.coverage, coverage), memory_used,
-                     valid, reason)
+                     valid, reason, root_memory_recall)
 
     def _summary(self, path, baseline=False):
         return {'baseline': baseline, 'actions': [action.tolist() for action in path.actions],
@@ -173,6 +187,7 @@ class ExperienceMPC:
                            member_trajectories=trajectory.tolist(),
                            mean_disagreement=float(selected.returns.std()),
                            memory_used=bool(selected.memory_used),
+                           selected_memory_recall=selected.root_memory_recall,
                            value_guided=self.value_guided,
                            uncertainty={'return_disagreement': float(selected.returns.std()),
                                          'state_disagreement': float(np.sqrt(np.mean(trajectory[:, -1, :self.model.predicted_dim].var(axis=0)))),
@@ -197,6 +212,7 @@ class ExperienceMPC:
                                            [base_path] if np.array_equal(action, baseline) else [base_path, selected],
                                            diagnostics, original['candidate_count'] + 2)
         diagnostics.update(original)
+        diagnostics['selected_memory_recall'] = original.get('selected_memory_recall')
         return output, diagnostics
 
     def plan(self, state, baseline, memory=None):

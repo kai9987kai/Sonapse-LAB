@@ -175,9 +175,18 @@ class Workbench:
     def get(self,path):
         if path=='/api/jobs':
             with self.job_lock: return {'jobs':json.loads(json.dumps(list(self.jobs.values()),default=str))}
+        if path in ('/api/sleep/reconsolidation', '/api/reconsolidation/status'):
+            with self.lock:
+                agent=self.runtime.agent
+                return {
+                    **agent.memory_reconsolidation.get_summary(),
+                    'enabled':bool(self.runtime.config.experience_planning and self.runtime.config.surprise_memory),
+                    'latest_memory_recall':deepcopy(agent.last_memory_recall),
+                    'latest_memory_update':deepcopy(agent.last_memory_reconciliation),
+                }
         with self.aux_lock:
             if path=='/api/ecology':
-                snap = self.virtual_biome.step(None).to_dict()
+                snap = self.virtual_biome.snapshot()
                 return {'status': 'active', **snap}
             if path=='/api/ecology/stats':
                 return self.virtual_biome.evolution_stats()
@@ -203,8 +212,6 @@ class Workbench:
                 return self.fusion_engine.cross_coupling.stdp_engine_aud_wpac.get_summary()
             if path=='/api/ecology/allostasis':
                 return self.virtual_biome.allostasis_stats()
-            if path in ('/api/sleep/reconsolidation', '/api/reconsolidation/status'):
-                return self.reconsolidation_engine.get_summary()
         with self.lock:
             if path=='/api/training/status':
                 from .compute import compute_summary
@@ -408,6 +415,42 @@ class Workbench:
         if path=='/api/tandem/max':
             from .tandem_max import run_tandem_max_orchestration
             return run_tandem_max_orchestration(self, data)
+        if path=='/api/sleep/reconsolidation/reactivate':
+            with self.lock:
+                if 'trace_id' in data and 'prediction_error' in data:
+                    import numpy as np
+                    tid=safe_name(data['trace_id'])
+                    try:
+                        pe=float(data['prediction_error'])
+                    except (TypeError,ValueError,OverflowError) as exc:
+                        raise ValueError('synthetic prediction_error must be finite in [0, 1]') from exc
+                    if isinstance(data['prediction_error'],bool) or not np.isfinite(pe) or not 0.0<=pe<=1.0:
+                        raise ValueError('synthetic prediction_error must be finite in [0, 1]')
+                    trace=self.reconsolidation_engine.reactivate_trace(
+                        trace_id=tid,obs=np.zeros(155,dtype=np.float32),
+                        action=np.zeros(5,dtype=np.float32),reward=0.75,
+                        importance=0.8,prediction_error=pe,enabled=True)
+                    return {
+                        'status':'reactivated' if trace is not None else 'not_destabilized',
+                        'source':'explicit synthetic probe; not runtime experience',
+                        'scaled_prediction_error':pe,
+                        'trace':trace.to_dict() if trace else None,
+                        **self.reconsolidation_engine.get_summary(),
+                    }
+                agent=self.runtime.agent
+                latest=deepcopy(agent.last_memory_reconciliation)
+                if latest is None:
+                    return {
+                        'status':'no_reconciled_memory',
+                        'detail':'Enable planner memory, then run learned steps that actually retrieve a matching memory slot.',
+                        **agent.memory_reconsolidation.get_summary(),
+                    }
+                return {
+                    **latest,
+                    'source':'actual planner retrieved memory',
+                    'latest_memory_recall':deepcopy(agent.last_memory_recall),
+                    **agent.memory_reconsolidation.get_summary(),
+                }
         with self.aux_lock:
             if path=='/api/ecology/tournament/run':
                 epochs = max(1, min(100, int(data.get('epochs', 5))))
@@ -471,26 +514,6 @@ class Workbench:
             if path=='/api/ecology/allostasis/enable':
                 self.virtual_biome.enable_allostatic_load()
                 return {'status': 'enabled', **self.virtual_biome.allostasis_stats()}
-            if path=='/api/sleep/reconsolidation/reactivate':
-                tid = str(data.get('trace_id', 'salient_trace_0'))
-                pe = float(data.get('prediction_error', 0.45))
-                import numpy as np
-                dummy_obs = np.random.randn(155).astype(np.float32)
-                dummy_act = np.random.randn(5).astype(np.float32)
-                trace = self.reconsolidation_engine.reactivate_trace(
-                    trace_id=tid,
-                    obs=dummy_obs,
-                    action=dummy_act,
-                    reward=0.75,
-                    importance=0.8,
-                    prediction_error=pe,
-                    enabled=True,
-                )
-                return {
-                    'status': 'reactivated' if trace else 'not_destabilized',
-                    'trace': trace.to_dict() if trace else None,
-                    **self.reconsolidation_engine.get_summary()
-                }
             if path=='/api/evo/transact':
                 trials = max(1, min(10, int(data.get('trials', 3))))
                 mode = data.get('mode', 'measured')

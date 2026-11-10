@@ -108,6 +108,7 @@ class LabRuntime:
             act=govern_action(proposed,self.agent.homeostasis.get_max_allowed_thrust())
             self.agent.pending_transition['action']=act.copy()
             self.agent.pending_transition['manual']=manual is not None
+            self.agent.pending_transition['learning']=learn
             self.last_action=act.copy()
             self.last.update(action=act.tolist(),manual_teleop=manual is not None,
                              action_source='manual' if manual is not None else 'actor',
@@ -144,6 +145,11 @@ class LabRuntime:
                 self.plasticity_monitor.record_activity(features,step=self.total_steps+1)
                 plast_report=self.plasticity_monitor.evaluate_plasticity().to_dict()
                 self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done,action=act)
+                self.last['memory_recall']=deepcopy(self.agent.last_memory_recall)
+                self.last['memory_reconsolidation']={
+                    **self.agent.memory_reconsolidation.get_summary(),
+                    'latest':deepcopy(self.agent.last_memory_reconciliation),
+                }
                 self.agent.feedback(reward,done)
                 self.skill_library.record_transition(previous_observation,act,reward,self.obs,self.total_steps)
                 if (self.total_steps+1)%32==0: self.skill_library.discover_skills()
