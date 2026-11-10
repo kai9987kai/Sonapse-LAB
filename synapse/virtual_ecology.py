@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 from .bioacoustic_soundscape import BioacousticSoundscapeEngine, SoundscapeTelemetry
 from .epigenetics import EpigeneticRemodelingEngine, EpigeneticProfile
+from .allostatic_load import AllostaticLoadEngine, AllostaticProfile, AllostaticPopulationStats
 
 from .neuroendocrine.evidence_types import (
     EvidenceReceipt,
@@ -126,6 +127,7 @@ class VisualEcologySnapshot:
     biomass_energy: float
     swarm_coherence: float
     soundscape: Optional[Dict[str, Any]] = None
+    allostasis: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = {
@@ -141,6 +143,8 @@ class VisualEcologySnapshot:
         }
         if self.soundscape is not None:
             d["soundscape"] = self.soundscape
+        if self.allostasis is not None:
+            d["allostasis"] = self.allostasis
         return d
 
 
@@ -160,6 +164,7 @@ class VirtualEcologyBiome:
         max_population: int = 18,
         soundscape_enabled: bool = False,
         epigenetics_enabled: bool = False,
+        allostatic_load_enabled: bool = False,
     ):
         self.evolution_enabled = bool(evolution_enabled)
         self.mutation_sigma = float(mutation_sigma)
@@ -189,6 +194,12 @@ class VirtualEcologyBiome:
         self.epigenetics_enabled = bool(epigenetics_enabled)
         self.epigenetics_engine = EpigeneticRemodelingEngine()
 
+        # Allostatic load and chronic stress engine (opt-in)
+        self.allostatic_load_enabled = bool(allostatic_load_enabled)
+        self.allostatic_engine = AllostaticLoadEngine(seed=seed)
+        if self.allostatic_load_enabled:
+            self.enable_allostatic_load()
+
         # Connectome weights for micro-brain simulation across agents
         self._init_resources()
         self._init_agents(num_foragers, num_sentinels, num_artisans, num_predators)
@@ -212,6 +223,16 @@ class VirtualEcologyBiome:
     def _mutate(self, parent: Dict[str, float]) -> Dict[str, float]:
         return {k: float(np.clip(parent.get(k, 1.0) + self.evo_rng.normal(0.0, self.mutation_sigma), lo, hi))
                 for k, (lo, hi) in self.GENE_BOUNDS.items()}
+
+    def enable_allostatic_load(self) -> None:
+        """Enables allostatic load tracking and cumulative stress wear across agents."""
+        self.allostatic_load_enabled = True
+        for ag in self.agents:
+            self.allostatic_engine.get_or_create_profile(ag.agent_id, ag.generation)
+
+    def allostasis_stats(self) -> Dict[str, Any]:
+        """Returns population allostatic load statistics."""
+        return self.allostatic_engine.get_summary()
 
     def enable_epigenetics(self, heritability: float = 0.65) -> None:
         """Activates transgenerational epigenetic inheritance and chromatin plasticity."""
@@ -624,6 +645,22 @@ class VirtualEcologyBiome:
                     if ag.sleep_state != "awake":
                         ag.sleep_state = "awake"
 
+            # Update allostatic load from chronic stress mediators (opt-in)
+            if self.allostatic_load_enabled:
+                prof = self.allostatic_engine.get_or_create_profile(ag.agent_id, ag.generation)
+                spd_mag = math.hypot(ag.vx, ag.vy)
+                self.allostatic_engine.update_agent(
+                    profile=prof,
+                    cortisol=ag.cortisol,
+                    adrenaline=ag.adrenaline,
+                    energy=ag.energy,
+                    speed_magnitude=spd_mag,
+                    dt=dt,
+                )
+                if prof.is_overloaded:
+                    # Allostatic overload induces accelerated metabolic wear
+                    ag.energy = max(0.0, ag.energy - 0.04)
+
             # Update chromatin remodeling from environmental stress (opt-in)
             if self.epigenetics_enabled and ag.epigenetic_profile is not None:
                 starv = max(0.0, (50.0 - ag.energy) / 50.0) if ag.energy < 50.0 else 0.0
@@ -683,11 +720,18 @@ class VirtualEcologyBiome:
                     offspring.epigenetic_profile = self.epigenetics_engine.inherit_epigenetics(
                         ag.epigenetic_profile, self.evo_rng
                     )
+                if self.allostatic_load_enabled:
+                    p_prof = self.allostatic_engine.get_or_create_profile(ag.agent_id, ag.generation)
+                    self.allostatic_engine.inherit_allostasis(p_prof, offspring.agent_id)
                 new_offspring.append(offspring)
         self.agents.extend(new_offspring)
         self.births += len(new_offspring)
 
         # Clean dead agents
+        if self.allostatic_load_enabled:
+            for a in self.agents:
+                if not a.alive:
+                    self.allostatic_engine.remove_dead_agent(a.agent_id)
         living_agents = [a for a in self.agents if a.alive]
         self.deaths += len(self.agents) - len(living_agents)
         self.agents = living_agents
@@ -715,6 +759,10 @@ class VirtualEcologyBiome:
         if self.soundscape_enabled and self.soundscape is not None:
             sc_summary = self.soundscape.get_summary()
 
+        allo_summary = None
+        if self.allostatic_load_enabled:
+            allo_summary = self.allostatic_engine.get_summary()
+
         return VisualEcologySnapshot(
             step_count=self.step_count,
             biome_half=self.biome_half,
@@ -726,6 +774,7 @@ class VirtualEcologyBiome:
             biomass_energy=total_biomass,
             swarm_coherence=coherence,
             soundscape=sc_summary,
+            allostasis=allo_summary,
         )
 
     def get_snapshot(self) -> Dict[str, Any]:

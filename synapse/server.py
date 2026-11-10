@@ -61,8 +61,10 @@ class Workbench:
         self.fusion_engine = MultiConnectomeFusionEngine(seed=seed)
         from .darwinian_tournament import DarwinianEcologyTournamentEngine
         from .synesthetic_resonance import SynestheticResonanceEngine
+        from .reconsolidation import MemoryReconsolidationEngine
         self.darwinian_engine = DarwinianEcologyTournamentEngine(biome=self.virtual_biome, seed=seed)
         self.synesthetic_engine = SynestheticResonanceEngine()
+        self.reconsolidation_engine = MemoryReconsolidationEngine(seed=seed)
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -197,6 +199,12 @@ class Workbench:
                 return self.fusion_engine.pac_engine.get_summary()
             if path in ('/api/multimodal/synesthesia', '/api/synesthesia'):
                 return self.synesthetic_engine.get_summary()
+            if path in ('/api/connectome/stdp', '/api/stdp/status'):
+                return self.fusion_engine.cross_coupling.stdp_engine_aud_wpac.get_summary()
+            if path=='/api/ecology/allostasis':
+                return self.virtual_biome.allostasis_stats()
+            if path in ('/api/sleep/reconsolidation', '/api/reconsolidation/status'):
+                return self.reconsolidation_engine.get_summary()
         with self.lock:
             if path=='/api/training/status':
                 from .compute import compute_summary
@@ -456,6 +464,33 @@ class Workbench:
                 endo = torch.randn(12)
                 pulse, telem = self.synesthetic_engine.step(vis, aud, endo, resonance_gain=1.0)
                 return {'status': 'synesthetic_burst_triggered', 'pulse': round(float(pulse), 4), **telem.to_dict()}
+            if path=='/api/connectome/stdp/enable':
+                gain = float(data.get('gain', 1.0))
+                self.fusion_engine.enable_stdp(stdp_gain=gain)
+                return {'status': 'stdp_configured', 'stdp_gain': self.fusion_engine.stdp_gain, **self.fusion_engine.cross_coupling.stdp_engine_aud_wpac.get_summary()}
+            if path=='/api/ecology/allostasis/enable':
+                self.virtual_biome.enable_allostatic_load()
+                return {'status': 'enabled', **self.virtual_biome.allostasis_stats()}
+            if path=='/api/sleep/reconsolidation/reactivate':
+                tid = str(data.get('trace_id', 'salient_trace_0'))
+                pe = float(data.get('prediction_error', 0.45))
+                import numpy as np
+                dummy_obs = np.random.randn(155).astype(np.float32)
+                dummy_act = np.random.randn(5).astype(np.float32)
+                trace = self.reconsolidation_engine.reactivate_trace(
+                    trace_id=tid,
+                    obs=dummy_obs,
+                    action=dummy_act,
+                    reward=0.75,
+                    importance=0.8,
+                    prediction_error=pe,
+                    enabled=True,
+                )
+                return {
+                    'status': 'reactivated' if trace else 'not_destabilized',
+                    'trace': trace.to_dict() if trace else None,
+                    **self.reconsolidation_engine.get_summary()
+                }
             if path=='/api/evo/transact':
                 trials = max(1, min(10, int(data.get('trials', 3))))
                 mode = data.get('mode', 'measured')

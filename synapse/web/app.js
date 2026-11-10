@@ -3755,6 +3755,9 @@ let soundscapeStateCache = null;
 let pacStateCache = null;
 let epigeneticsStateCache = null;
 let synesthesiaStateCache = null;
+let stdpStateCache = null;
+let allostasisStateCache = null;
+let reconsolidationStateCache = null;
 let fusionStateCache = null;
 
 function auditoryCochleaView() {
@@ -4080,6 +4083,142 @@ function pacWavesAndEpigeneticsView() {
     if ($('pac-badge')) {
       $('pac-badge').textContent = `PAC MI: ${miVal.toFixed(3)} · CMBI: ${(cmbi * 100).toFixed(0)}%`;
       setTone($('pac-badge'), (miVal > 0.05 || cmbi > 0.5) ? 'good' : 'muted');
+    }
+  } catch (_) {}
+}
+
+function stdpAndAllostasisView() {
+  try {
+    const [x, w, h] = canvas('stdp-allostasis-canvas');
+    if (!x) return;
+
+    x.fillStyle = '#030712';
+    x.fillRect(0, 0, w, h);
+
+    const stdp = stdpStateCache;
+    const allo = allostasisStateCache;
+    const recon = reconsolidationStateCache;
+
+    // Left Half: Bi & Poo (1998) Asymmetric Exponential STDP Window
+    const curveW = w * 0.48;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(6, 6, curveW - 12, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    const meanDw = stdp ? Number(stdp.mean_dw || 0.0) : 0.0;
+    x.fillText(`Bi & Poo (1998) STDP Window (Mean |Δw|: ${meanDw.toFixed(6)})`, 12, 18);
+
+    // Baseline axis
+    const midY = h * 0.55;
+    const midX = 6 + (curveW - 12) * 0.5;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    x.lineWidth = 1;
+    x.beginPath();
+    x.moveTo(12, midY);
+    x.lineTo(curveW - 12, midY);
+    x.stroke();
+
+    x.beginPath();
+    x.moveTo(midX, 22);
+    x.lineTo(midX, h - 14);
+    x.stroke();
+
+    // Plot theoretical STDP exponential curves
+    // LTP (Delta t > 0): A_+ * exp(-dt / tau_+)
+    x.strokeStyle = '#a855f7';
+    x.lineWidth = 2.0;
+    x.beginPath();
+    for (let dt = 0; dt <= 50; dt += 1) {
+      const px = midX + (dt / 50.0) * (curveW * 0.42);
+      const dwVal = 0.010 * Math.exp(-dt / 20.0);
+      const py = midY - (dwVal / 0.012) * (h * 0.35);
+      if (dt === 0) x.moveTo(px, py); else x.lineTo(px, py);
+    }
+    x.stroke();
+
+    // LTD (Delta t < 0): -A_- * exp(dt / tau_-)
+    x.strokeStyle = '#ef4444';
+    x.lineWidth = 2.0;
+    x.beginPath();
+    for (let dt = -50; dt <= 0; dt += 1) {
+      const px = midX + (dt / 50.0) * (curveW * 0.42);
+      const dwVal = -0.0105 * Math.exp(dt / 20.0);
+      const py = midY - (dwVal / 0.012) * (h * 0.35);
+      if (dt === -50) x.moveTo(px, py); else x.lineTo(px, py);
+    }
+    x.stroke();
+
+    x.fillStyle = '#a855f7';
+    x.font = '8px sans-serif';
+    x.fillText('LTP (Pre→Post)', midX + 16, midY - 26);
+    x.fillStyle = '#ef4444';
+    x.fillText('LTD (Post→Pre)', midX - 70, midY + 28);
+
+    x.fillStyle = '#64748b';
+    x.fillText('-50ms', 14, midY + 12);
+    x.fillText('+50ms', curveW - 40, midY + 12);
+
+    // Right Half: Allostatic Load Index (ALI) & Memory Reconsolidation Lability
+    const alloX = curveW + 4;
+    const alloW = w - alloX - 6;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(alloX, 6, alloW, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    const meanAli = allo ? Number(allo.mean_ali || 0.0) : 0.0;
+    const ovFrac = allo ? Number(allo.overloaded_fraction || 0.0) : 0.0;
+    x.fillText(`Allostatic Load Index (Mean ALI: ${meanAli.toFixed(3)} · Overload: ${(ovFrac * 100).toFixed(0)}%)`, alloX + 8, 18);
+
+    // Draw Bar Gauges for ALI, HPA Exhaustion, and Labile Memory
+    const barStartY = 34;
+    const barH = 14;
+    const maxBarW = alloW - 130;
+
+    const drawGauge = (label, val, maxVal, col, yPos) => {
+      x.fillStyle = '#cbd5e1';
+      x.font = '9px sans-serif';
+      x.fillText(label, alloX + 10, yPos + 10);
+      x.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      x.fillRect(alloX + 115, yPos, maxBarW, barH);
+      const fillW = Math.min(1.0, Math.max(0.0, val / maxVal)) * maxBarW;
+      x.fillStyle = col;
+      x.fillRect(alloX + 115, yPos, fillW, barH);
+      x.fillStyle = '#ffffff';
+      x.font = 'bold 8px sans-serif';
+      x.fillText(`${(val * 100).toFixed(1)}%`, alloX + 120 + fillW + 4, yPos + 10);
+    };
+
+    const hpaExhaust = allo ? Number(allo.mean_hpa_exhaustion || 0.0) : 0.0;
+    const labileMean = recon ? Number(recon.mean_lability || 0.0) : 0.0;
+    const labileCount = recon ? Number(recon.active_labile_count || 0) : 0;
+
+    drawGauge('Allostatic Load (ALI)', meanAli, 1.0, meanAli > 0.65 ? '#ef4444' : '#f59e0b', barStartY);
+    drawGauge('HPA Exhaustion', hpaExhaust, 1.0, '#38bdf8', barStartY + 22);
+    drawGauge('Memory Lability', labileMean, 1.0, '#ec4899', barStartY + 44);
+
+    x.fillStyle = '#94a3b8';
+    x.font = '9px sans-serif';
+    x.fillText(`Active Labile Traces: ${labileCount} | Recon Updates: ${recon ? recon.total_updates : 0}`, alloX + 10, barStartY + 76);
+
+    if ($('stdp-allostasis-hud')) {
+      const ltpSum = stdp ? Number(stdp.dw_ltp_sum || 0.0) : 0.0;
+      const ltdSum = stdp ? Number(stdp.dw_ltd_sum || 0.0) : 0.0;
+      const stab = stdp ? Number(stdp.weight_stability || 1.0) : 1.0;
+      const ovCount = allo ? Number(allo.overloaded_count || 0) : 0;
+
+      keyValues($('stdp-allostasis-hud'), [
+        ['STDP Mean |Δw|', `${meanDw.toFixed(6)} (${meanDw > 0 ? 'PLASTIC' : 'FROZEN'})`],
+        ['LTP / LTD Integral', `+${ltpSum.toFixed(4)} / -${ltdSum.toFixed(4)}`],
+        ['Weight Stability', `${(stab * 100).toFixed(2)}% cosine`],
+        ['Allostatic Load Index', `${meanAli.toFixed(4)} (${ovCount} overloaded)`],
+        ['HPA Axis Exhaustion', `${(hpaExhaust * 100).toFixed(1)}% blunting`],
+        ['Labile Memory Traces', `${labileCount} traces (Nader window active)`],
+      ]);
+    }
+
+    if ($('stdp-badge')) {
+      $('stdp-badge').textContent = `STDP: ${meanDw > 0 ? 'Active' : 'Standby'} · ALI: ${meanAli.toFixed(2)}`;
+      setTone($('stdp-badge'), (meanDw > 0 || meanAli > 0.4) ? 'purple' : 'muted');
     }
   } catch (_) {}
 }
@@ -6409,6 +6548,36 @@ if ($('synesthesia-burst-btn')) {
     } catch (_) {}
   });
 }
+if ($('stdp-enable-btn')) {
+  $('stdp-enable-btn').addEventListener('click', async () => {
+    try {
+      await api('connectome/stdp/enable', { gain: 1.0 });
+      stdpStateCache = await api('connectome/stdp');
+      stdpAndAllostasisView();
+    } catch (_) {}
+  });
+}
+if ($('allostasis-enable-btn')) {
+  $('allostasis-enable-btn').addEventListener('click', async () => {
+    try {
+      await api('ecology/allostasis/enable', {});
+      allostasisStateCache = await api('ecology/allostasis');
+      stdpAndAllostasisView();
+    } catch (_) {}
+  });
+}
+if ($('reconsolidation-reactivate-btn')) {
+  $('reconsolidation-reactivate-btn').addEventListener('click', async () => {
+    try {
+      await api('sleep/reconsolidation/reactivate', {
+        trace_id: 'salient_trace_' + Date.now(),
+        prediction_error: 0.55
+      });
+      reconsolidationStateCache = await api('sleep/reconsolidation');
+      stdpAndAllostasisView();
+    } catch (_) {}
+  });
+}
 
 setInterval(async () => {
   try {
@@ -6419,5 +6588,9 @@ setInterval(async () => {
     epigeneticsStateCache = await api('ecology/epigenetics');
     synesthesiaStateCache = await api('multimodal/synesthesia');
     pacWavesAndEpigeneticsView();
+    stdpStateCache = await api('connectome/stdp');
+    allostasisStateCache = await api('ecology/allostasis');
+    reconsolidationStateCache = await api('sleep/reconsolidation');
+    stdpAndAllostasisView();
   } catch (_) {}
 }, 1500);

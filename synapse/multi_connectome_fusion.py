@@ -34,6 +34,7 @@ from synapse.neuroendocrine.evidence_types import (
     compute_tensor_digest,
 )
 from synapse.pac_waves import PhaseAmplitudeCouplingEngine, PACTelemetry
+from synapse.stdp import SpikeTimingPlasticityEngine
 
 
 @dataclasses.dataclass
@@ -72,6 +73,8 @@ class FusionConnectomeTelemetry:
     bcm_mean_theta: float = 0.0
     pac_modulation_index: float = 0.0
     pac_wave_coherence: float = 1.0
+    stdp_dw: float = 0.0
+    stdp_stability: float = 1.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -87,6 +90,8 @@ class FusionConnectomeTelemetry:
             "bcm_mean_theta": round(float(self.bcm_mean_theta), 4),
             "pac_modulation_index": round(float(self.pac_modulation_index), 5),
             "pac_wave_coherence": round(float(self.pac_wave_coherence), 4),
+            "stdp_dw": round(float(self.stdp_dw), 6),
+            "stdp_stability": round(float(self.stdp_stability), 4),
         }
 
 
@@ -123,6 +128,9 @@ class CrossConnectomeCoupling(nn.Module):
         s_dro = torch.ones(64)
         s_dro[int(0.8 * 64):] = -1.0
         self.register_buffer("sign_dro", s_dro)
+
+        # Spike-Timing-Dependent Plasticity (Bi & Poo 1998)
+        self.stdp_engine_aud_wpac = SpikeTimingPlasticityEngine(n_pre=256, n_post=512, seed=seed)
 
         # BCM Sliding Modification Thresholds (Bienenstock et al. 1982)
         self.register_buffer("theta_bcm_wpac", torch.full((512,), 0.15))
@@ -163,6 +171,25 @@ class CrossConnectomeCoupling(nn.Module):
             dw = eta * torch.outer(phi, r_pre_aud)
             self.raw_w_aud_wpac.add_(dw)
             return float(self.theta_bcm_wpac.mean().item())
+
+    def adapt_stdp(
+        self,
+        r_post_wpac: torch.Tensor,
+        r_pre_aud: torch.Tensor,
+        stdp_gain: float = 1.0,
+    ) -> Tuple[torch.Tensor, Any]:
+        """Updates synaptic weights according to Spike-Timing-Dependent Plasticity."""
+        new_w, telem = self.stdp_engine_aud_wpac.step(
+            s_pre=r_pre_aud,
+            s_post=r_post_wpac,
+            weights=self.raw_w_aud_wpac,
+            presynaptic_signs=self.sign_aud,
+            learn=True,
+            stdp_gain=stdp_gain,
+        )
+        with torch.no_grad():
+            self.raw_w_aud_wpac.copy_(new_w)
+        return new_w, telem
 
 
 class MultiConnectomeFusionEngine(nn.Module):
@@ -268,6 +295,7 @@ class MultiConnectomeFusionEngine(nn.Module):
         # Phase-Amplitude Coupling (PAC) and traveling wave oscillator
         self.pac_engine = PhaseAmplitudeCouplingEngine(num_substrates=6, dt_ms=2.0, seed=seed)
         self.pac_gain = 0.0
+        self.stdp_gain = 0.0
 
         # Internal state buffer (firing rates r \in [0, 1])
         self.register_buffer("firing_rates", torch.zeros(self.total_dim))
@@ -287,6 +315,14 @@ class MultiConnectomeFusionEngine(nn.Module):
         """Disables PAC, enforcing strict legacy gating identity (1.0)."""
         self.pac_gain = 0.0
 
+    def enable_stdp(self, stdp_gain: float = 1.0) -> None:
+        """Enables Spike-Timing-Dependent Plasticity across connectome bridge pathways."""
+        self.stdp_gain = max(0.0, float(stdp_gain))
+
+    def disable_stdp(self) -> None:
+        """Disables STDP, maintaining exact legacy weights."""
+        self.stdp_gain = 0.0
+
     def step(
         self,
         sensory_input: Optional[torch.Tensor] = None,
@@ -296,6 +332,8 @@ class MultiConnectomeFusionEngine(nn.Module):
         coupling_gain: Optional[float] = None,
         learn_bcm: bool = False,
         pac_gain: Optional[float] = None,
+        learn_stdp: bool = False,
+        stdp_gain: Optional[float] = None,
     ) -> Tuple[torch.Tensor, FusionConnectomeTelemetry]:
         """Executes one chunked continuous-time numerical integration step.
 
@@ -329,6 +367,8 @@ class MultiConnectomeFusionEngine(nn.Module):
 
         # Advanced cross-substrate coupling with Dale's Law and BCM (opt-in)
         bcm_theta = float(self.cross_coupling.theta_bcm_wpac.mean().item())
+        cur_stdp_dw = 0.0
+        cur_stdp_stab = 1.0
         if effective_coupling > 0.0:
             r_aud = r[self.auditory_offset : self.auditory_offset + 256]
             r_wpac = r[self.wpac_offset : self.wpac_offset + 512]
@@ -343,6 +383,16 @@ class MultiConnectomeFusionEngine(nn.Module):
 
             if learn_bcm:
                 bcm_theta = self.cross_coupling.adapt_bcm(r[self.wpac_offset : self.wpac_offset + 512], r_aud)
+
+            eff_stdp = float(self.stdp_gain if stdp_gain is None else stdp_gain)
+            if learn_stdp or eff_stdp > 0.0:
+                _, stdp_telem = self.cross_coupling.adapt_stdp(
+                    r[self.wpac_offset : self.wpac_offset + 512],
+                    r_aud,
+                    stdp_gain=eff_stdp if eff_stdp > 0.0 else 1.0,
+                )
+                cur_stdp_dw = stdp_telem.mean_dw
+                cur_stdp_stab = stdp_telem.weight_stability
 
         # Phase-Amplitude Coupling (PAC) modulation (opt-in)
         eff_pac_gain = float(self.pac_gain if pac_gain is None else pac_gain)
@@ -378,6 +428,8 @@ class MultiConnectomeFusionEngine(nn.Module):
             bcm_mean_theta=bcm_theta,
             pac_modulation_index=pac_telem.modulation_index,
             pac_wave_coherence=pac_telem.wave_coherence,
+            stdp_dw=cur_stdp_dw,
+            stdp_stability=cur_stdp_stab,
         )
         self._last_telemetry = telemetry
         return new_r, telemetry
@@ -391,5 +443,7 @@ class MultiConnectomeFusionEngine(nn.Module):
             "coupling_gain": self.coupling_gain,
             "pac_gain": self.pac_gain,
             "pac_summary": self.pac_engine.get_summary(),
+            "stdp_gain": self.stdp_gain,
+            "stdp_summary": self.cross_coupling.stdp_engine_aud_wpac.get_summary(),
             "telemetry": self._last_telemetry.to_dict() if self._last_telemetry else None,
         }
