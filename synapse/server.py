@@ -42,6 +42,7 @@ class Workbench:
         from .multi_connectome_fusion import MultiConnectomeFusionEngine
         seed = getattr(getattr(self.runtime, 'config', None), 'seed', 42)
         self.virtual_biome = VirtualEcologyBiome(biome_half=10.0, seed=seed)
+        self.soundscape = self.virtual_biome.enable_soundscape()
         self.evo_engine = CausalCircuitEvolutionEngine(seed=seed)
         self.evo_sandbox = RateCircuitSandbox(seed=seed)
         self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=seed)
@@ -349,6 +350,12 @@ class Workbench:
                 return self.fusion_engine.get_summary()
             if path=='/api/sleep/consolidation/status':
                 return self.consolidation_engine.get_summary()
+            if path in ('/api/ecology/soundscape', '/api/soundscape'):
+                if hasattr(self, 'soundscape') and self.soundscape is not None:
+                    return {'status': 'active', **self.soundscape.get_summary()}
+                return {'status': 'disabled', 'telemetry': None}
+            if path in ('/api/connectome/fusion/summary', '/api/connectomes/fusion/summary'):
+                return self.fusion_engine.get_summary()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -823,14 +830,18 @@ class Workbench:
                     agent.auditory_encoder = AuditorySpikeEncoder(seed=seed)
                 samples = data.get('samples', [])
                 if samples:
-                    agent.audio_gateway.ingest_samples(np.array(samples, dtype=np.float32))
+                    pcm_arr = np.array(samples, dtype=np.float32)
+                    agent.audio_gateway.ingest_samples(pcm_arr)
+                    if hasattr(self, 'soundscape') and self.soundscape is not None:
+                        self.soundscape.inject_external_audio(pcm_arr)
                 features = agent.audio_gateway.process_latest_frame()
                 spikes, rates = None, None
                 if getattr(agent, 'auditory_encoder', None) is not None and features is not None:
                     spikes, rates = agent.auditory_encoder.encode(features)
                     if hasattr(self, 'fusion_engine') and self.fusion_engine is not None and spikes is not None:
                         aud_tensor = torch.from_numpy(agent.auditory_encoder.to_feature_vector()).float()
-                        self.fusion_engine.step(sensory_input=aud_tensor)
+                        cochlear_rates = torch.from_numpy(self.soundscape.to_cochlear_rates()).float() if (hasattr(self, 'soundscape') and self.soundscape is not None) else None
+                        self.fusion_engine.step(sensory_input=aud_tensor, cochlear_input=cochlear_rates)
                 return {
                     'status': 'ingested',
                     'features': features.to_dict() if features else None,
@@ -846,6 +857,22 @@ class Workbench:
             if path=='/api/ecology/tournament/cataclysm':
                 c_type = str(data.get('type', 'drought'))
                 return self.darwinian_engine.inject_cataclysm(c_type)
+            if path=='/api/ecology/vocalize':
+                if hasattr(self, 'soundscape') and self.soundscape is not None:
+                    aid = str(data.get('agent_id', 'manual_operator'))
+                    niche = str(data.get('niche', 'sentinel'))
+                    x = float(data.get('x', 0.0))
+                    y = float(data.get('y', 0.0))
+                    amp = float(data.get('amplitude', 1.0))
+                    voc = self.soundscape.emit_vocalization(aid, niche, x, y, amplitude=amp)
+                    return {'status': 'emitted', 'vocalization': voc.to_dict()}
+                return {'status': 'soundscape_not_enabled'}
+            if path in ('/api/connectome/fusion/couple', '/api/connectomes/fusion/couple'):
+                gain = float(data.get('coupling_gain', 0.1))
+                self.fusion_engine.coupling_gain = gain
+                learn = bool(data.get('learn_bcm', False))
+                _, telem = self.fusion_engine.step(coupling_gain=gain, learn_bcm=learn)
+                return {'status': 'updated', 'coupling_gain': gain, 'telemetry': telem.to_dict()}
             if path=='/api/ecology/evolution':
                 action = data.get('action', 'enable')
                 if action == 'enable':

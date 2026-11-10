@@ -3751,6 +3751,8 @@ let liveAudioProcessor = null;
 let lastAuditoryRates = Array(16).fill(10.0);
 let lastAuditoryWaveform = Array(64).fill(0.0);
 let lastAudioFeatures = null;
+let soundscapeStateCache = null;
+let fusionStateCache = null;
 
 function auditoryCochleaView() {
   try {
@@ -3824,6 +3826,127 @@ function auditoryCochleaView() {
         ['Mean Cochlear Rate', `${(lastAuditoryRates.reduce((a, b) => a + b, 0) / 16).toFixed(1)} Hz`],
         ['12k Fusion Ingress', 'AUDITORY COLUMN (256n)'],
       ]);
+    }
+  } catch (_) {}
+}
+
+function bioacousticSoundscapeView() {
+  try {
+    const [x, w, h] = canvas('soundscape-canvas');
+    if (!x) return;
+
+    // Background
+    x.fillStyle = '#030712';
+    x.fillRect(0, 0, w, h);
+
+    const sc = soundscapeStateCache;
+    const telem = sc ? sc.telemetry : null;
+    const fus = fusionStateCache;
+    const fusTelem = fus ? fus.telemetry : null;
+
+    // Left Half: 16-Channel Bioacoustic Frequency Spectrum & Species Niches
+    const specW = w * 0.48;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(6, 6, specW - 12, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    x.fillText('Bioacoustic Frequency Spectrum (60 Hz - 8 kHz)', 12, 18);
+
+    const energies = telem ? telem.channel_energies : (sc && sc.spectrogram_recent && sc.spectrogram_recent.length > 0 ? sc.spectrogram_recent[sc.spectrogram_recent.length - 1] : Array(16).fill(0.1));
+    const numBins = 16;
+    const binW = (specW - 24) / numBins;
+
+    const getNicheColor = (bin) => {
+      if (bin <= 2) return '#f59e0b';
+      if (bin <= 4) return '#10b981';
+      if (bin <= 6) return '#ef4444';
+      if (bin <= 10) return '#eab308';
+      return '#06b6d4';
+    };
+
+    const maxEnergy = Math.max(0.5, ...energies);
+    energies.forEach((energy, b) => {
+      const normH = Math.min(1.0, energy / maxEnergy) * (h - 40);
+      const bx = 12 + b * binW;
+      const by = h - 14 - normH;
+
+      x.fillStyle = getNicheColor(b);
+      x.fillRect(bx, by, binW - 2, normH);
+    });
+
+    x.fillStyle = '#f59e0b'; x.fillText('Art', 14, h - 4);
+    x.fillStyle = '#10b981'; x.fillText('For', 12 + 3 * binW, h - 4);
+    x.fillStyle = '#ef4444'; x.fillText('Pred', 12 + 5.5 * binW, h - 4);
+    x.fillStyle = '#eab308'; x.fillText('Sent', 12 + 8.5 * binW, h - 4);
+
+    // Right Half: 12k Dale's Law Cross-Connectome Substrate Flow
+    const flowX = specW + 4;
+    const flowW = w - flowX - 6;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(flowX, 6, flowW, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.fillText("12,082-Neuron Dale's Law Flow (80% Exc / 20% Inh)", flowX + 8, 18);
+
+    const substrates = [
+      { name: 'Auditory', n: '256n', col: '#10b981' },
+      { name: 'WPAC', n: '512n', col: '#f59e0b' },
+      { name: 'Poseidon', n: '4,000n', col: '#38bdf8' },
+      { name: 'Drosophila', n: '6,500n', col: '#a855f7' },
+      { name: 'C.elegans', n: '302n', col: '#ec4899' },
+    ];
+
+    const subStepX = (flowW - 20) / substrates.length;
+    substrates.forEach((sub, idx) => {
+      const sx = flowX + 10 + idx * subStepX + subStepX * 0.5;
+      const sy = h * 0.52;
+
+      x.fillStyle = sub.col;
+      x.beginPath(); x.arc(sx, sy, 12, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#ffffff';
+      x.font = 'bold 8px sans-serif';
+      x.textAlign = 'center';
+      x.fillText(sub.name[0], sx, sy + 3);
+
+      x.fillStyle = '#94a3b8';
+      x.font = '8px sans-serif';
+      x.fillText(sub.name, sx, sy + 22);
+      x.fillText(sub.n, sx, sy + 30);
+
+      if (idx < substrates.length - 1) {
+        const nextX = flowX + 10 + (idx + 1) * subStepX + subStepX * 0.5;
+        x.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        x.lineWidth = 1.2;
+        x.beginPath();
+        x.moveTo(sx + 14, sy);
+        x.lineTo(nextX - 14, sy);
+        x.stroke();
+      }
+    });
+    x.textAlign = 'left';
+
+    if ($('soundscape-hud')) {
+      const anp = telem ? telem.anp_index : 0.88;
+      const db = telem ? telem.ambient_db_spl : 42.0;
+      const vocs = telem ? telem.active_vocalizations : 0;
+      const dominant = telem ? telem.dominant_niche : 'ambient';
+      const cGain = fusTelem ? fusTelem.coupling_gain : 0.0;
+      const bcmTheta = fusTelem ? fusTelem.bcm_mean_theta : 0.15;
+
+      keyValues($('soundscape-hud'), [
+        ['ANP Niche Partitioning', `${(anp * 100).toFixed(1)}% (Krause ANH)`],
+        ['Ambient Sound Pressure', `${db.toFixed(1)} dB SPL`],
+        ['Active Vocalizations', `${vocs} calling in biome`],
+        ['Dominant Bioacoustic Niche', dominant.toUpperCase()],
+        ["Dale's Law Coupling Gain", cGain > 0 ? `${cGain.toFixed(2)} (ACTIVE)` : '0.0 (STANDBY)'],
+        ['BCM Sliding Threshold θ', `${bcmTheta.toFixed(3)}`],
+      ]);
+    }
+
+    if ($('soundscape-badge')) {
+      const anp = telem ? telem.anp_index : 0.88;
+      const cGain = fusTelem ? fusTelem.coupling_gain : 0.0;
+      $('soundscape-badge').textContent = `ANP: ${(anp * 100).toFixed(0)}% · Dale: ${cGain > 0 ? 'Coupled' : 'Standby'}`;
+      setTone($('soundscape-badge'), cGain > 0 ? 'good' : 'muted');
     }
   } catch (_) {}
 }
@@ -4798,6 +4921,7 @@ function render(s) {
   ecologyBiomeView();
   darwinianSpeciationView();
   auditoryCochleaView();
+  bioacousticSoundscapeView();
 
   if ($('ecology-badge')) {
     const isEco = Boolean(ecologyStateCache && ecologyStateCache.population_count > 0);
@@ -6096,3 +6220,38 @@ setInterval(async () => {
     }
   } catch (_) {}
 }, 400);
+
+if ($('soundscape-sentinel-alarm-btn')) {
+  $('soundscape-sentinel-alarm-btn').addEventListener('click', async () => {
+    try {
+      await api('ecology/vocalize', { agent_id: 'browser_sentinel', niche: 'sentinel', amplitude: 1.5 });
+      soundscapeStateCache = await api('ecology/soundscape');
+      bioacousticSoundscapeView();
+    } catch (_) {}
+  });
+}
+if ($('soundscape-forager-call-btn')) {
+  $('soundscape-forager-call-btn').addEventListener('click', async () => {
+    try {
+      await api('ecology/vocalize', { agent_id: 'browser_forager', niche: 'forager', amplitude: 1.0 });
+      soundscapeStateCache = await api('ecology/soundscape');
+      bioacousticSoundscapeView();
+    } catch (_) {}
+  });
+}
+if ($('soundscape-cross-couple-btn')) {
+  $('soundscape-cross-couple-btn').addEventListener('click', async () => {
+    try {
+      await api('connectome/fusion/couple', { coupling_gain: 0.25, learn_bcm: true });
+      fusionStateCache = await api('connectome/fusion/summary');
+      bioacousticSoundscapeView();
+    } catch (_) {}
+  });
+}
+setInterval(async () => {
+  try {
+    soundscapeStateCache = await api('ecology/soundscape');
+    fusionStateCache = await api('connectome/fusion/summary');
+    bioacousticSoundscapeView();
+  } catch (_) {}
+}, 1500);

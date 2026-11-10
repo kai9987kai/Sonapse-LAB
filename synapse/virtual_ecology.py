@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+from .bioacoustic_soundscape import BioacousticSoundscapeEngine, SoundscapeTelemetry
 
 from .neuroendocrine.evidence_types import (
     EvidenceReceipt,
@@ -116,9 +117,10 @@ class VisualEcologySnapshot:
     temperature_c: float
     biomass_energy: float
     swarm_coherence: float
+    soundscape: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d = {
             "step_count": self.step_count,
             "biome_half": self.biome_half,
             "population_count": self.population_count,
@@ -129,6 +131,9 @@ class VisualEcologySnapshot:
             "biomass_energy": round(float(self.biomass_energy), 2),
             "swarm_coherence": round(float(self.swarm_coherence), 3),
         }
+        if self.soundscape is not None:
+            d["soundscape"] = self.soundscape
+        return d
 
 
 class VirtualEcologyBiome:
@@ -145,6 +150,7 @@ class VirtualEcologyBiome:
         evolution_enabled: bool = False,
         mutation_sigma: float = 0.08,
         max_population: int = 18,
+        soundscape_enabled: bool = False,
     ):
         self.evolution_enabled = bool(evolution_enabled)
         self.mutation_sigma = float(mutation_sigma)
@@ -163,6 +169,12 @@ class VirtualEcologyBiome:
         self.agents: List[EcologyAgentState] = []
         self.resources: List[EcologicalResource] = []
         self.active_pulses: List[Dict[str, Any]] = []
+
+        # Bioacoustic soundscape engine (opt-in)
+        self.soundscape_enabled = bool(soundscape_enabled)
+        self.soundscape: Optional[BioacousticSoundscapeEngine] = None
+        if self.soundscape_enabled:
+            self.enable_soundscape()
 
         # Connectome weights for micro-brain simulation across agents
         self._init_resources()
@@ -195,6 +207,13 @@ class VirtualEcologyBiome:
         if not self.evolution_enabled or ag.genome is None:
             return 1.0
         return self._gene(ag, "speed") ** 2 * (0.75 + 0.25 * self._gene(ag, "sense"))
+
+    def enable_soundscape(self) -> BioacousticSoundscapeEngine:
+        """Activates bioacoustic soundscape simulation."""
+        if self.soundscape is None:
+            self.soundscape = BioacousticSoundscapeEngine(biome_half=self.biome_half, seed=int(self.seed) + 333)
+        self.soundscape_enabled = True
+        return self.soundscape
 
     def enable_evolution(self) -> int:
         """Turns on heritable variation; assigns genomes to agents lacking one."""
@@ -354,6 +373,9 @@ class VirtualEcologyBiome:
         self.step_count += 1
         dt = 0.1
 
+        if self.soundscape_enabled and self.soundscape is not None:
+            self.soundscape.step()
+
         # Process external interventions / stimulus
         if external_stimulus:
             action_type = external_stimulus.get("type", "")
@@ -438,6 +460,8 @@ class VirtualEcologyBiome:
                         ag.energy = min(100.0, ag.energy + consumed * 40.0)
                         ag.dopamine = min(1.0, ag.dopamine + 0.1)
                         ag.valence = min(1.0, ag.valence + 0.15)
+                        if self.soundscape_enabled and self.soundscape is not None and self.step_count % 10 == 0:
+                            self.soundscape.emit_vocalization(ag.agent_id, 'forager', ag.x, ag.y, amplitude=0.8)
                     else:
                         ag.heading = math.atan2(dy, dx)
                         speed = 0.8
@@ -493,6 +517,8 @@ class VirtualEcologyBiome:
                             "color": "rgba(234, 179, 8, 0.65)",
                         })
                         ag.oxytocin = min(1.0, ag.oxytocin + 0.1)
+                        if self.soundscape_enabled and self.soundscape is not None:
+                            self.soundscape.emit_vocalization(ag.agent_id, 'sentinel', ag.x, ag.y, amplitude=1.2)
                         break
 
             elif ag.niche == "artisan":
@@ -532,6 +558,16 @@ class VirtualEcologyBiome:
                         speed = 1.05
                         ag.vx = speed * math.cos(ag.heading)
                         ag.vy = speed * math.sin(ag.heading)
+
+            # Bioacoustic hearing and vocalization updates (opt-in)
+            if self.soundscape_enabled and self.soundscape is not None:
+                tot_amp, _, niche_amps = self.soundscape.get_acoustic_at_point(ag.x, ag.y)
+                if niche_amps.get("sentinel", 0.0) > 0.2 and ag.niche in ("forager", "artisan"):
+                    ag.arousal = min(1.0, ag.arousal + 0.2)
+                    ag.adrenaline = min(1.0, ag.adrenaline + 0.25)
+                    ag.cortisol = min(1.0, ag.cortisol + 0.15)
+                    if ag.sleep_state != "awake":
+                        ag.sleep_state = "awake"
 
             # Continuous motion update with biome bounds
             spd = self._gene(ag, "speed")
@@ -604,6 +640,10 @@ class VirtualEcologyBiome:
 
         total_biomass = float(sum(a.energy for a in self.agents) + sum(r.amount * 20.0 for r in self.resources))
 
+        sc_summary = None
+        if self.soundscape_enabled and self.soundscape is not None:
+            sc_summary = self.soundscape.get_summary()
+
         return VisualEcologySnapshot(
             step_count=self.step_count,
             biome_half=self.biome_half,
@@ -614,6 +654,7 @@ class VirtualEcologyBiome:
             temperature_c=self.temperature_c,
             biomass_energy=total_biomass,
             swarm_coherence=coherence,
+            soundscape=sc_summary,
         )
 
     def get_snapshot(self) -> Dict[str, Any]:
