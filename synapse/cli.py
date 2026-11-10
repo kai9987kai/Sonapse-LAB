@@ -1,6 +1,7 @@
 """SYNAPSE command line entry point."""
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 from .config import SynapseConfig, ARTIFACTS
 
@@ -12,6 +13,9 @@ def main(argv=None):
     parser.add_argument('--compute-threads',type=int,help='CPU thread budget, bounded by available logical CPUs')
     parser.add_argument('--neural-graft',action='store_true',help='enable the trainable bounded neural residual')
     parser.add_argument('--active-training',action='store_true',help='fit the residual from actual live exploratory outcomes')
+    parser.add_argument('--dsag',dest='dsag_enabled',action='store_true',help='opt in to the synthetic DSAG residual channel')
+    parser.add_argument('--dsag-gain',type=float,default=0.05,help='maximum DSAG gain when --dsag is supplied')
+    parser.add_argument('--dsag-config',type=Path,help='load an explicit DSAGSpecV1 YAML/JSON configuration')
     parser.add_argument('--programmed-connectome',action='store_true',help='bind the verified 128-neuron MaleCNS sparse prior')
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
@@ -20,6 +24,12 @@ def main(argv=None):
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
+    dsag_parser=sub.add_parser('dsag',help='validate and inspect the optional DSAG rate graft')
+    dsag_sub=dsag_parser.add_subparsers(dest='dsag_action',required=True)
+    dsag_validate=dsag_sub.add_parser('validate'); dsag_validate.add_argument('--config',type=Path,required=True); dsag_validate.add_argument('--input-dim',type=int,default=32)
+    dsag_smoke=dsag_sub.add_parser('smoke'); dsag_smoke.add_argument('--seed',type=int,default=42); dsag_smoke.add_argument('--steps',type=int,default=24); dsag_smoke.add_argument('--input-dim',type=int,default=32); dsag_smoke.add_argument('--gain',type=float,default=0.05)
+    dsag_inspect=dsag_sub.add_parser('inspect'); dsag_inspect.add_argument('--config',type=Path); dsag_inspect.add_argument('--input-dim',type=int,default=32)
+    dsag_ablate=dsag_sub.add_parser('ablate'); dsag_ablate.add_argument('--feature',choices=['second_soma','axon_branches','rich_messages','phase_gate','plasticity','structural_growth'],required=True); dsag_ablate.add_argument('--seed',type=int,default=42); dsag_ablate.add_argument('--steps',type=int,default=24)
     for name in ('run','train'):
         p=sub.add_parser(name); p.add_argument('--steps',type=int,default=100); p.add_argument('--save')
     p=sub.add_parser('serve'); p.add_argument('--port',type=int,default=8765); p.add_argument('--host',default='127.0.0.1')
@@ -103,8 +113,18 @@ def main(argv=None):
             config=SynapseConfig.frontier_apex(total_neurons=total,seed=args.seed,task=args.task)
         else:
             config=SynapseConfig(seed=args.seed,nodes_per_source=100 if args.nodes is None else args.nodes,total_neurons=total,task=args.task)
+        dsag_spec = None
+        if args.dsag_config is not None:
+            from .dsag.config import DSAGSpecV1
+            dsag_spec = DSAGSpecV1.from_file(args.dsag_config)
+        elif args.dsag_enabled:
+            from .dsag.config import DSAGSpecV1
+            if not 0.0 <= args.dsag_gain <= 0.5:
+                raise ValueError('--dsag-gain must be in [0,0.5]')
+            dsag_spec = DSAGSpecV1(enabled=True, gain=args.dsag_gain, max_gain=max(args.dsag_gain, 0.1), seed=args.seed)
+        if dsag_spec is not None:
+            config=replace(config,dsag=dsag_spec)
         if args.command=='serve' and args.nodes is None and not getattr(args, 'frontier_all', False):
-            from dataclasses import replace
             import os
             config=replace(config,
                 neural_graft=True,
@@ -114,7 +134,6 @@ def main(argv=None):
                 connectome_mode=args.connectome_mode or 'prefer_authentic')
         elif (args.compute_threads is not None or args.neural_graft or args.active_training
                 or args.programmed_connectome or args.connectome_mode is not None or args.command=='pretrain'):
-            from dataclasses import replace
             import os
             enable_graft = (config.neural_graft or args.neural_graft or args.active_training
                             or args.programmed_connectome or args.command=='pretrain')
@@ -128,7 +147,66 @@ def main(argv=None):
         if args.command=='serve':
             from .server import serve
             serve(args.host,args.port,config=config,output_root=args.output); return 0
-        if args.command=='connectome-inventory':
+        if args.command=='dsag':
+            from dataclasses import replace as dc_replace
+            import torch
+            from .dsag.config import DSAGSpecV1
+            from .dsag.model import DualSomaAxodendriticGraft
+            from .dsag.bridge import DSAGBusChannel
+            from .dsag.validation import validate_spec
+            if args.dsag_action == 'validate':
+                spec = DSAGSpecV1.from_file(args.config)
+                result = validate_spec(spec, input_dim=args.input_dim)
+            elif args.dsag_action == 'inspect':
+                spec = DSAGSpecV1.from_file(args.config) if args.config else DSAGSpecV1()
+                result = validate_spec(spec, input_dim=args.input_dim)
+                result['enabled'] = spec.enabled
+                result['observe_only'] = spec.observe_only
+                result['alpha_initial'] = 0.0
+            else:
+                if args.dsag_action == 'ablate':
+                    spec = DSAGSpecV1(enabled=True, gain=0.05, max_gain=0.1, seed=args.seed)
+                    feature_flags = {
+                        'second_soma': {'dual_soma': False},
+                        'axon_branches': {'axo_branches': False, 'branch_segments': (), 'branch_delays': ()},
+                        'rich_messages': {'richer_messages': False},
+                        'phase_gate': {'phase_gate_enabled': False},
+                        'plasticity': {'plasticity_enabled': False},
+                        'structural_growth': {'structural_growth_enabled': False},
+                    }
+                    spec = dc_replace(spec, **feature_flags[args.feature])
+                    steps, seed, gain = args.steps, args.seed, spec.gain
+                else:
+                    if not 0.0 < args.gain <= 0.5:
+                        raise ValueError('--gain must be in (0,0.5]')
+                    if type(args.steps) is not int or not 1 <= args.steps <= 10000:
+                        raise ValueError('--steps must be in [1,10000]')
+                    steps, seed, gain = args.steps, args.seed, args.gain
+                    spec = DSAGSpecV1(enabled=True, gain=gain, max_gain=max(gain, 0.1), ramp_steps=min(8, steps), seed=seed)
+                model = DualSomaAxodendriticGraft(input_dim=args.input_dim if args.dsag_action == 'smoke' else 32, spec=spec)
+                channel = DSAGBusChannel(spec, input_dim=model.input_dim)
+                rates = torch.linspace(0.0, 1.0, model.input_dim, dtype=torch.float32)
+                currents = []
+                for tick in range(steps):
+                    current = channel.compute_current(rates, microstep=tick, context=torch.zeros(spec.context_dim), advance=True, adapt=False)
+                    currents.append(current.detach())
+                checkpoint = channel.export_state()
+                restored = DSAGBusChannel(spec, input_dim=model.input_dim)
+                restored.import_state(checkpoint)
+                result = {
+                    'feature': args.feature if args.dsag_action == 'ablate' else 'full_rate_kernel',
+                    'steps': steps,
+                    'seed': seed,
+                    'spec_digest': spec.spec_digest,
+                    'state_digest': checkpoint['state_digest'],
+                    'first_step_exact_zero': bool(torch.count_nonzero(currents[0]).item() == 0),
+                    'last_current_inf_norm': float(currents[-1].abs().max().item()),
+                    'finite': bool(torch.isfinite(currents[-1]).all().item()),
+                    'checkpoint_round_trip': restored.model.topology_digest == channel.model.topology_digest,
+                    'telemetry': channel.get_telemetry_dict(),
+                    'evidence_tier': 'synthetic_fixture',
+                }
+        elif args.command=='connectome-inventory':
             from .connectome_assets import get_source_inventory
             result={'sources':get_source_inventory()}
         elif args.command=='capabilities':

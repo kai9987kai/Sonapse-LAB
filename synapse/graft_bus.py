@@ -518,6 +518,12 @@ class NeuralGraftCommunicationBus(nn.Module):
         # Multi-channel bounded clipping: clip_B ( sum gamma_k g_k I_k )
         B = self.max_aux_current
         final_current = torch.clamp(accumulated_current, -B, B)
+        # DSAG can observe the single composed/capped result, but never injects
+        # downstream of this existing global clamp. Keep the legacy path exact.
+        if advance and "dsag" in self.channels:
+            dsag_channel = self.channels["dsag"]
+            if hasattr(dsag_channel, "record_composition"):
+                dsag_channel.record_composition(accumulated_current, final_current)
 
         # Compute saturation ratio (fraction of units hitting clip bound)
         sat_count = (final_current.abs() >= (B - 1e-4)).sum().item()

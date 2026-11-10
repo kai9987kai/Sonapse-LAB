@@ -287,6 +287,19 @@ class Workbench:
             if path=='/api/graft_bus/status':
                 bus = getattr(self.runtime.agent, 'graft_bus', None)
                 return bus.get_telemetry_dict() if bus is not None else {'enabled': False}
+            if path=='/api/dsag/status':
+                channel = getattr(self.runtime.agent, 'dsag_channel', None)
+                if channel is not None:
+                    return channel.get_telemetry_dict()
+                return {
+                    'schema_version': 1,
+                    'enabled': False,
+                    'observe_only': False,
+                    'alpha': 0.0,
+                    'spec_digest': None,
+                    'evidence_tier': 'not_instantiated',
+                    'message': 'DSAG is disabled; no DSAG state is being simulated.',
+                }
             if path=='/api/tandem/status':
                 return self.last_tandem_receipt or {'status':'idle','mode':'tandem_max_sections_1_to_5','total_neurons':self.runtime.config.total_neuron_count()}
             if path=='/api/reusable_skills':

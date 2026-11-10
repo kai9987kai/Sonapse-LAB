@@ -143,6 +143,7 @@ class IntegratedAgent:
         self.metaplasticity_bcm=None
         self.transfer_entropy=None
         self.neurowave_x2=None
+        self.dsag_channel=None
         self.sensory_fabric=None
         self.wpac=None
         self.wpac_programmer=None
@@ -326,6 +327,12 @@ class IntegratedAgent:
                 )
                 self.modules['aether_bridge'] = self.aether_bridge
                 self.graft_bus.register_channel("aether_bridge", AetherBridgeBusChannel(self.aether_bridge), gain=1.0)
+
+            dsag_spec = getattr(self.config, 'dsag', None)
+            if dsag_spec is not None and dsag_spec.enabled and self.dsag_channel is None:
+                from .dsag.bridge import DSAGBusChannel
+                self.dsag_channel = DSAGBusChannel(dsag_spec, input_dim=self.brain.n)
+                self.graft_bus.register_channel("dsag", self.dsag_channel, gain=1.0)
 
             # Route unified communication fabric
             if self.graft_bus.enabled:
@@ -1348,6 +1355,14 @@ class IntegratedAgent:
         if getattr(self, 'aether_bridge', None) is not None: state['aether_bridge'] = self.aether_bridge.export_state()
         if getattr(self, 'graft_bus', None) is not None: state['graft_bus'] = self.graft_bus.export_state()
         state['comm_fabric']=self.comm_fabric.export_state() if getattr(self,'comm_fabric',None) is not None else None
+        if getattr(self, 'dsag_channel', None) is not None:
+            state['dsag_v1'] = self.dsag_channel.export_state()
+            for fabric_key in ('graft_bus', 'comm_fabric'):
+                fabric_state = state.get(fabric_key)
+                if isinstance(fabric_state, dict):
+                    channels = fabric_state.get('channels')
+                    if isinstance(channels, dict):
+                        channels.pop('dsag', None)
         state['neurowave_x2']=self.neurowave_x2.export_state() if getattr(self,'neurowave_x2',None) is not None else None
         state['overflow_mini_brain']=self.overflow_mini_brain.state_dict() if getattr(self,'overflow_mini_brain',None) is not None else None
         state['selective_ssm']=self.selective_ssm.state_dict() if getattr(self,'selective_ssm',None) is not None else None
@@ -1498,6 +1513,12 @@ class IntegratedAgent:
             self.graft_bus.import_state(state['graft_bus'])
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
+        if state.get('dsag_v1') is not None:
+            if self.dsag_channel is None:
+                raise ValueError('checkpoint contains DSAG state but this agent has no DSAG configuration')
+            self.dsag_channel.import_state(state['dsag_v1'])
+        elif self.dsag_channel is not None:
+            raise ValueError('DSAG-enabled checkpoint is missing its DSAG namespace')
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:
             self.neurowave_x2.import_state(state['neurowave_x2'])
         if getattr(self,'overflow_mini_brain',None) is not None and state.get('overflow_mini_brain') is not None:

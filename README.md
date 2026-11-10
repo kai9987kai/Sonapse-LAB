@@ -148,6 +148,20 @@ Open the local workbench at [http://127.0.0.1:8765](http://127.0.0.1:8765) or la
 
 SYNAPSE provides comprehensive CLI commands for headless execution, experiments, and inspection:
 
+### Dual-Soma Axodendritic Graft (DSAG)
+
+DSAG v1 is an **opt-in synthetic continuous-rate** research module with two recurrent soma states, axon-segment routing, bounded packet sidecars, optional local plasticity, and reversible branch edits. It is integrated through the existing capped graft bus. It does not simulate membrane voltage or action potentials, and no task-performance benefit is claimed. The example configs use YAML; install its parser with `python -m pip install -e '.[yaml]'`. See the [architecture](docs/research/dsag-architecture.md), [matched controls](docs/research/dsag-matched-controls.md), and [baseline audit](docs/research/dsag/DSAG_BASELINE_AUDIT.md).
+
+```powershell
+python -m synapse dsag validate --config configs/dsag/default_off.yaml
+python -m synapse dsag smoke --seed 42 --steps 24
+python -m synapse dsag ablate --feature second_soma --seed 42
+python -m synapse --nodes 16 --dsag --dsag-gain 0.05 run --steps 24
+python -m synapse --nodes 16 --dsag-config configs/dsag/rate_pilot.yaml serve --port 8877
+```
+
+The default config remains unchanged and DSAG state is stored under a versioned checkpoint namespace. A smoke run is engineering validation only; compare task performance with the preregistered capacity, routing, ablation, and independent-neuron controls before considering promotion.
+
 ```powershell
 # Inspection & Baseline Execution
 python -m synapse.cli --nodes 16 status

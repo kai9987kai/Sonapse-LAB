@@ -114,8 +114,17 @@ class SynapseConfig:
     virtual_ecology_v2: bool = False
     cross_model_exchange: bool = False
     evo_compat: bool = False
+    # Kept outside legacy config exports when absent so old checkpoint schemas
+    # remain byte-for-byte the same under the default-off path.
+    dsag: object | None = None
 
     def __post_init__(self):
+        if self.dsag is not None:
+            from .dsag.config import DSAGSpecV1
+            if isinstance(self.dsag, dict):
+                object.__setattr__(self, 'dsag', DSAGSpecV1.from_dict(self.dsag))
+            elif not isinstance(self.dsag, DSAGSpecV1):
+                raise ValueError('dsag must be a DSAGSpecV1 or its mapping')
         bool_keys = (
             'experience_planning', 'surprise_memory', 'experimental_cognition',
             'continual_backprop', 'fast_weight_memory', 'dormant_lifecycle',
@@ -382,6 +391,8 @@ class SynapseConfig:
     def to_dict(self):
         d = asdict(self)
         d['connectome_sources'] = list(self.connectome_sources)
+        if self.dsag is None:
+            d.pop('dsag')
         return d
 
     def matches_saved(self, saved):
@@ -389,6 +400,7 @@ class SynapseConfig:
         if not isinstance(saved, dict):
             return False
         normalized = {
+            'dsag': None,
             'experience_planning': False, 'surprise_memory': True, 'experience_horizon': 1,
             'experimental_cognition': False, 'continual_backprop': False,
             'fast_weight_memory': False, 'dormant_lifecycle': True,

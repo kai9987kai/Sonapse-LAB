@@ -14,6 +14,8 @@ let tickInterval = 125;
 let tickTimer = null;
 let uncappedLoopTimer = null;
 let liveSpsEma = 0;
+let dsagTelemetry = null;
+let dsagRefreshPending = false;
 
 // View state for zero-warping renderers
 let worldMode = 'iso';      // 'iso' | 'top'
@@ -3236,6 +3238,107 @@ function aetherGraftView() {
   }
 }
 
+function dsagView() {
+  try {
+    const [x, w, h] = canvas('dsag-canvas');
+    if (!x) return;
+    const telem = dsagTelemetry || state.telemetry?.graft_bus?.channels?.dsag || state.agent?.telemetry?.graft_bus?.channels?.dsag || {};
+    const active = Boolean(telem.enabled);
+    const badge = $('dsag-badge');
+    const hud = $('dsag-hud');
+    x.fillStyle = '#030712';
+    x.fillRect(0, 0, w, h);
+    if (dsagTelemetry === null && !active) {
+      if (badge) badge.textContent = 'DSAG Connecting';
+      x.fillStyle = '#94a3b8';
+      x.font = '11px Consolas, monospace';
+      x.fillText('Reading the live DSAG endpoint…', 16, 38);
+      if (hud) hud.textContent = 'Evidence: waiting for runtime telemetry';
+      return;
+    }
+    if (!active) {
+      if (badge) badge.textContent = 'DSAG Disabled';
+      x.fillStyle = '#94a3b8';
+      x.font = '11px Consolas, monospace';
+      x.fillText('No DSAG model instance is active. No synthetic activity is being drawn.', 16, 38);
+      x.fillStyle = '#64748b';
+      x.fillText('Opt in with --dsag or --dsag-config configs/dsag/rate_pilot.yaml', 16, 60);
+      if (hud) hud.textContent = `Evidence: not instantiated · alpha: 0 · host current path unchanged`;
+      return;
+    }
+
+    const somaA = Number(telem.soma_a_norm || 0);
+    const somaB = Number(telem.soma_b_norm || 0);
+    const alpha = Number(telem.alpha || 0);
+    const segmentValues = Array.isArray(telem.segments) ? telem.segments.map(Number) : [];
+    const branchValues = Array.isArray(telem.branches) ? telem.branches.map(Number) : [];
+    const branchTargets = Array.isArray(telem.active_branch_segments) ? telem.active_branch_segments : [];
+    const y = Math.floor(h * 0.57), somaAX = 42, somaBX = 126;
+    const axonStart = Math.max(210, Math.floor(w * 0.3)), terminalX = w - 28;
+    const segmentCount = Math.max(1, segmentValues.length);
+    const spacing = Math.max(20, (terminalX - axonStart) / segmentCount);
+    const segmentX = (index) => axonStart + spacing * (index + 0.5);
+
+    x.strokeStyle = '#475569';
+    x.lineWidth = 2;
+    x.beginPath(); x.moveTo(somaAX + 21, y - 26); x.lineTo(axonStart, y); x.stroke();
+    x.beginPath(); x.moveTo(somaBX + 21, y + 23); x.lineTo(axonStart, y); x.stroke();
+    x.strokeStyle = '#64748b';
+    x.beginPath(); x.moveTo(somaAX + 19, y - 18); x.lineTo(somaBX + 11, y + 14); x.stroke();
+    x.fillStyle = '#94a3b8'; x.font = '9px Consolas, monospace';
+    x.fillText('SOMA A', somaAX - 5, y - 39); x.fillText(`||h|| ${somaA.toFixed(3)}`, somaAX - 12, y - 29);
+    x.fillText('SOMA B', somaBX - 5, y + 44); x.fillText(`||h|| ${somaB.toFixed(3)}`, somaBX - 12, y + 55);
+    x.fillStyle = '#0f172a'; x.strokeStyle = '#38bdf8';
+    x.beginPath(); x.arc(somaAX + 10, y - 22, 11 + Math.min(5, somaA * 2), 0, Math.PI * 2); x.fill(); x.stroke();
+    x.strokeStyle = '#c084fc';
+    x.beginPath(); x.arc(somaBX + 10, y + 22, 11 + Math.min(5, somaB * 2), 0, Math.PI * 2); x.fill(); x.stroke();
+
+    x.strokeStyle = '#334155'; x.lineWidth = 3;
+    x.beginPath(); x.moveTo(axonStart, y); x.lineTo(terminalX, y); x.stroke();
+    segmentValues.forEach((value, index) => {
+      const px = segmentX(index), radius = 5 + Math.min(5, Math.max(0, value) * 4);
+      x.fillStyle = '#0f172a'; x.strokeStyle = `hsl(${190 + Math.min(100, value * 90)}, 80%, 62%)`; x.lineWidth = 2;
+      x.beginPath(); x.arc(px, y, radius, 0, Math.PI * 2); x.fill(); x.stroke();
+      x.fillStyle = '#94a3b8'; x.font = '8px Consolas, monospace';
+      x.fillText(`x${index} ${value.toFixed(2)}`, px - 20, y + 19);
+    });
+    branchValues.forEach((value, index) => {
+      const target = Number(branchTargets[index]);
+      if (!Number.isInteger(target) || target < 0 || target >= segmentCount) return;
+      const px = segmentX(target), top = y - 42 - (index % 2) * 15;
+      x.strokeStyle = `rgba(251, 191, 36, ${Math.min(0.9, 0.25 + value)})`; x.lineWidth = 1 + Math.min(2, value * 2);
+      x.beginPath(); x.moveTo(px, top); x.lineTo(px, y - 8); x.stroke();
+      x.fillStyle = '#fbbf24'; x.beginPath(); x.arc(px, top, 3 + Math.min(3, value * 3), 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#94a3b8'; x.font = '8px Consolas, monospace'; x.fillText(`b${index}`, px - 8, top - 5);
+    });
+    x.fillStyle = '#f8fafc'; x.beginPath(); x.arc(terminalX, y, 5 + Math.min(5, Number(telem.proposed_current_inf_norm || 0) * 15), 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#94a3b8'; x.font = '8px Consolas, monospace'; x.fillText('TERMINAL', terminalX - 22, y + 18);
+    x.fillStyle = '#64748b'; x.font = '9px Consolas, monospace';
+    x.fillText(`Synthetic rate morphology · topology v${Number(telem.topology_version || 0)} · alpha ${alpha.toFixed(4)}`, 14, 14);
+    x.fillText(`packet events ${Number(telem.branch_events || 0)} · queued ${Number(telem.queued_packets || 0)} · cap ${Number(telem.effective_current_inf_norm || 0).toFixed(4)}`, 14, h - 7);
+    const flow = Array.isArray(telem.packet_flow) ? telem.packet_flow : [];
+    const lastFlow = flow.length ? flow[flow.length - 1] : null;
+    const source = lastFlow ? `${lastFlow.source_kind} ${lastFlow.source_region} → ${lastFlow.destination_kind}[${lastFlow.destination_index}] age ${lastFlow.age_ticks} ${String(lastFlow.envelope_checksum || '').slice(0, 10)}` : 'no packet event received';
+    if (badge) badge.textContent = alpha > 0 ? `DSAG Active · α ${alpha.toFixed(3)}` : 'DSAG Ramping · α 0';
+    if (hud) hud.textContent = `Soma coupling ${Number(telem.coupling_flux || 0).toFixed(4)} · phase ${telem.phase_coherence == null ? 'neutral / absent' : Number(telem.phase_coherence).toFixed(3)} · drops ${(100 * Number(telem.event_drop_fraction || 0)).toFixed(1)}% · current proposed/effective ${Number(telem.proposed_current_inf_norm || 0).toFixed(4)}/${Number(telem.effective_current_inf_norm || 0).toFixed(4)} · ${source} · ${telem.evidence_tier || 'synthetic_fixture'} · lineage ${telem.lineage_id || 'pending'}`;
+  } catch (err) {
+    console.error('DSAG view error:', err);
+  }
+}
+
+async function refreshDsag() {
+  if (dsagRefreshPending) return;
+  dsagRefreshPending = true;
+  try {
+    dsagTelemetry = await api('dsag/status', undefined, 0);
+    dsagView();
+  } catch (err) {
+    console.warn('DSAG telemetry refresh failed:', err);
+  } finally {
+    dsagRefreshPending = false;
+  }
+}
+
 function crossGraftView() {
   try {
     const [x, w, h] = canvas('cross-graft-canvas');
@@ -5186,6 +5289,7 @@ function render(s) {
   carrierView();
   crossGraftView();
   aetherGraftView();
+  dsagView();
   wpacAffectiveView();
   syntheticGlandsView();
   neuralPulsesView();
@@ -6464,6 +6568,7 @@ async function initSession() {
   try {
     const s = await api('state');
     render(s);
+    await refreshDsag();
     catalogItems = items(await api('capabilities'));
     renderCatalog();
     await checkpoints();
@@ -6480,6 +6585,7 @@ initSession();
 
 updateSimSpeed();
 setInterval(() => action(jobs), 3000);
+setInterval(() => refreshDsag(), 1000);
 // Background SimWorker live synchronization loop
 setInterval(async () => {
   try {
