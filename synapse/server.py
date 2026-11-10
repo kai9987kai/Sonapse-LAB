@@ -33,6 +33,10 @@ class Workbench:
             from .runtime import LabRuntime
             runtime=LabRuntime(config or SynapseConfig(total_neurons=8000),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
+        # Guards subsystems that never touch the runtime (biome, soundscape, fusion,
+        # tournament, evo sandbox) so polling them never waits behind runtime.step().
+        # Lock order when both are needed: self.lock -> self.aux_lock.
+        self.aux_lock=threading.RLock()
         from .sim_worker import SimulationWorker
         self.sim_worker=SimulationWorker(self.runtime, self.lock)
         from .virtual_ecology import VirtualEcologyBiome
@@ -167,6 +171,24 @@ class Workbench:
     def get(self,path):
         if path=='/api/jobs':
             with self.job_lock: return {'jobs':json.loads(json.dumps(list(self.jobs.values()),default=str))}
+        with self.aux_lock:
+            if path=='/api/ecology':
+                snap = self.virtual_biome.step(None).to_dict()
+                return {'status': 'active', **snap}
+            if path=='/api/ecology/stats':
+                return self.virtual_biome.evolution_stats()
+            if path=='/api/ecology/tournament/status':
+                return self.darwinian_engine.get_status()
+            if path=='/api/evo/candidates':
+                return self.evo_engine.get_evolution_summary()
+            if path=='/api/connectomes/fusion':
+                return self.fusion_engine.get_summary()
+            if path in ('/api/ecology/soundscape', '/api/soundscape'):
+                if hasattr(self, 'soundscape') and self.soundscape is not None:
+                    return {'status': 'active', **self.soundscape.get_summary()}
+                return {'status': 'disabled', 'telemetry': None}
+            if path in ('/api/connectome/fusion/summary', '/api/connectomes/fusion/summary'):
+                return self.fusion_engine.get_summary()
         with self.lock:
             if path=='/api/training/status':
                 from .compute import compute_summary
@@ -337,25 +359,8 @@ class Workbench:
                     'enabled': ag.enabled if ag is not None else False,
                     'last_features': ag.last_features.to_dict() if (ag is not None and ag.last_features is not None) else None,
                 }
-            if path=='/api/ecology':
-                snap = self.virtual_biome.step(None).to_dict()
-                return {'status': 'active', **snap}
-            if path=='/api/ecology/stats':
-                return self.virtual_biome.evolution_stats()
-            if path=='/api/ecology/tournament/status':
-                return self.darwinian_engine.get_status()
-            if path=='/api/evo/candidates':
-                return self.evo_engine.get_evolution_summary()
-            if path=='/api/connectomes/fusion':
-                return self.fusion_engine.get_summary()
             if path=='/api/sleep/consolidation/status':
                 return self.consolidation_engine.get_summary()
-            if path in ('/api/ecology/soundscape', '/api/soundscape'):
-                if hasattr(self, 'soundscape') and self.soundscape is not None:
-                    return {'status': 'active', **self.soundscape.get_summary()}
-                return {'status': 'disabled', 'telemetry': None}
-            if path in ('/api/connectome/fusion/summary', '/api/connectomes/fusion/summary'):
-                return self.fusion_engine.get_summary()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
@@ -387,6 +392,62 @@ class Workbench:
         if path=='/api/tandem/max':
             from .tandem_max import run_tandem_max_orchestration
             return run_tandem_max_orchestration(self, data)
+        with self.aux_lock:
+            if path=='/api/ecology/tournament/run':
+                epochs = max(1, min(100, int(data.get('epochs', 5))))
+                steps_per_epoch = max(1, min(500, int(data.get('steps_per_epoch', 50))))
+                rcpt = self.darwinian_engine.run_tournament_epochs(epochs=epochs, steps_per_epoch=steps_per_epoch)
+                return {'status': 'completed', **rcpt.to_dict()}
+            if path=='/api/ecology/tournament/cataclysm':
+                c_type = str(data.get('type', 'drought'))
+                return self.darwinian_engine.inject_cataclysm(c_type)
+            if path=='/api/ecology/vocalize':
+                if hasattr(self, 'soundscape') and self.soundscape is not None:
+                    aid = str(data.get('agent_id', 'manual_operator'))
+                    niche = str(data.get('niche', 'sentinel'))
+                    x = float(data.get('x', 0.0))
+                    y = float(data.get('y', 0.0))
+                    amp = float(data.get('amplitude', 1.0))
+                    voc = self.soundscape.emit_vocalization(aid, niche, x, y, amplitude=amp)
+                    return {'status': 'emitted', 'vocalization': voc.to_dict()}
+                return {'status': 'soundscape_not_enabled'}
+            if path in ('/api/connectome/fusion/couple', '/api/connectomes/fusion/couple'):
+                gain = float(data.get('coupling_gain', 0.1))
+                self.fusion_engine.coupling_gain = gain
+                learn = bool(data.get('learn_bcm', False))
+                _, telem = self.fusion_engine.step(coupling_gain=gain, learn_bcm=learn)
+                return {'status': 'updated', 'coupling_gain': gain, 'telemetry': telem.to_dict()}
+            if path=='/api/ecology/evolution':
+                action = data.get('action', 'enable')
+                if action == 'enable':
+                    assigned = self.virtual_biome.enable_evolution()
+                    return {'status': 'enabled', 'assigned_genomes': assigned, 'stats': self.virtual_biome.evolution_stats()}
+                elif action == 'disable':
+                    self.virtual_biome.evolution_enabled = False
+                    return {'status': 'disabled', 'stats': self.virtual_biome.evolution_stats()}
+                return {'status': 'unknown_action', 'action': action}
+            if path=='/api/ecology/step':
+                steps = max(1, min(64, int(data.get('steps', 1))))
+                stim = data.get('stimulus')
+                snap = None
+                for _ in range(steps):
+                    snap = self.virtual_biome.step(stim)
+                return {'status': 'completed', 'steps': steps, **snap.to_dict()}
+            if path=='/api/evo/transact':
+                trials = max(1, min(10, int(data.get('trials', 3))))
+                mode = data.get('mode', 'measured')
+                if mode == 'synthetic':
+                    def eval_fn(cand):
+                        base = 0.08
+                        if cand.mutation_type == 'motif_duplication':
+                            return base + 0.04 * (cand.delta_nodes / 8.0)
+                        return base + 0.02
+                    return self.evo_engine.run_sandbox_evolution_cycle(eval_fn, trials=trials)
+                num_seeds = max(2, min(16, int(data.get('num_seeds', 6))))
+                req_lcb = bool(data.get('require_positive_lcb', True))
+                return self.evo_engine.run_measured_evolution_cycle(
+                    self.evo_sandbox, trials=trials, num_seeds=num_seeds, require_positive_lcb=req_lcb
+                )
         with self.lock:
             if path=='/api/training/config':
                 active=data.get('active',self.runtime.config.active_training)
@@ -833,15 +894,17 @@ class Workbench:
                     pcm_arr = np.array(samples, dtype=np.float32)
                     agent.audio_gateway.ingest_samples(pcm_arr)
                     if hasattr(self, 'soundscape') and self.soundscape is not None:
-                        self.soundscape.inject_external_audio(pcm_arr)
+                        with self.aux_lock:
+                            self.soundscape.inject_external_audio(pcm_arr)
                 features = agent.audio_gateway.process_latest_frame()
                 spikes, rates = None, None
                 if getattr(agent, 'auditory_encoder', None) is not None and features is not None:
                     spikes, rates = agent.auditory_encoder.encode(features)
                     if hasattr(self, 'fusion_engine') and self.fusion_engine is not None and spikes is not None:
                         aud_tensor = torch.from_numpy(agent.auditory_encoder.to_feature_vector()).float()
-                        cochlear_rates = torch.from_numpy(self.soundscape.to_cochlear_rates()).float() if (hasattr(self, 'soundscape') and self.soundscape is not None) else None
-                        self.fusion_engine.step(sensory_input=aud_tensor, cochlear_input=cochlear_rates)
+                        with self.aux_lock:
+                            cochlear_rates = torch.from_numpy(self.soundscape.to_cochlear_rates()).float() if (hasattr(self, 'soundscape') and self.soundscape is not None) else None
+                            self.fusion_engine.step(sensory_input=aud_tensor, cochlear_input=cochlear_rates)
                 return {
                     'status': 'ingested',
                     'features': features.to_dict() if features else None,
@@ -849,39 +912,6 @@ class Workbench:
                     'mean_rate_hz': float(np.mean(rates)) if rates is not None else 0.0,
                     'rates': [round(float(r), 1) for r in rates] if rates is not None else [],
                 }
-            if path=='/api/ecology/tournament/run':
-                epochs = max(1, min(100, int(data.get('epochs', 5))))
-                steps_per_epoch = max(1, min(500, int(data.get('steps_per_epoch', 50))))
-                rcpt = self.darwinian_engine.run_tournament_epochs(epochs=epochs, steps_per_epoch=steps_per_epoch)
-                return {'status': 'completed', **rcpt.to_dict()}
-            if path=='/api/ecology/tournament/cataclysm':
-                c_type = str(data.get('type', 'drought'))
-                return self.darwinian_engine.inject_cataclysm(c_type)
-            if path=='/api/ecology/vocalize':
-                if hasattr(self, 'soundscape') and self.soundscape is not None:
-                    aid = str(data.get('agent_id', 'manual_operator'))
-                    niche = str(data.get('niche', 'sentinel'))
-                    x = float(data.get('x', 0.0))
-                    y = float(data.get('y', 0.0))
-                    amp = float(data.get('amplitude', 1.0))
-                    voc = self.soundscape.emit_vocalization(aid, niche, x, y, amplitude=amp)
-                    return {'status': 'emitted', 'vocalization': voc.to_dict()}
-                return {'status': 'soundscape_not_enabled'}
-            if path in ('/api/connectome/fusion/couple', '/api/connectomes/fusion/couple'):
-                gain = float(data.get('coupling_gain', 0.1))
-                self.fusion_engine.coupling_gain = gain
-                learn = bool(data.get('learn_bcm', False))
-                _, telem = self.fusion_engine.step(coupling_gain=gain, learn_bcm=learn)
-                return {'status': 'updated', 'coupling_gain': gain, 'telemetry': telem.to_dict()}
-            if path=='/api/ecology/evolution':
-                action = data.get('action', 'enable')
-                if action == 'enable':
-                    assigned = self.virtual_biome.enable_evolution()
-                    return {'status': 'enabled', 'assigned_genomes': assigned, 'stats': self.virtual_biome.evolution_stats()}
-                elif action == 'disable':
-                    self.virtual_biome.evolution_enabled = False
-                    return {'status': 'disabled', 'stats': self.virtual_biome.evolution_stats()}
-                return {'status': 'unknown_action', 'action': action}
             if path=='/api/pulses/trigger':
                 agent = self.runtime.agent
                 if getattr(agent, 'pulse_field', None) is not None:
@@ -904,28 +934,6 @@ class Workbench:
                         agent.fatigue_controller.force_state(SleepState(st_str))
                     return {'status': 'updated', 'current_state': agent.fatigue_controller.current_state.value}
                 return {'status': 'fatigue_controller_not_initialized'}
-            if path=='/api/ecology/step':
-                steps = max(1, min(64, int(data.get('steps', 1))))
-                stim = data.get('stimulus')
-                snap = None
-                for _ in range(steps):
-                    snap = self.virtual_biome.step(stim)
-                return {'status': 'completed', 'steps': steps, **snap.to_dict()}
-            if path=='/api/evo/transact':
-                trials = max(1, min(10, int(data.get('trials', 3))))
-                mode = data.get('mode', 'measured')
-                if mode == 'synthetic':
-                    def eval_fn(cand):
-                        base = 0.08
-                        if cand.mutation_type == 'motif_duplication':
-                            return base + 0.04 * (cand.delta_nodes / 8.0)
-                        return base + 0.02
-                    return self.evo_engine.run_sandbox_evolution_cycle(eval_fn, trials=trials)
-                num_seeds = max(2, min(16, int(data.get('num_seeds', 6))))
-                req_lcb = bool(data.get('require_positive_lcb', True))
-                return self.evo_engine.run_measured_evolution_cycle(
-                    self.evo_sandbox, trials=trials, num_seeds=num_seeds, require_positive_lcb=req_lcb
-                )
             if path=='/api/sleep/dream_cycle':
                 import torch
                 agent = self.runtime.agent

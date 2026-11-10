@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import numpy as np
+import torch
 
 from .config import SynapseConfig
 from .agent import IntegratedAgent
@@ -159,36 +160,37 @@ class OmnibusRunner:
         Recurrent state and synthetic physiology start identically in each episode.
         No outcome is observed by a learner and no live state is changed.
         """
-        try:
-            candidate = deepcopy(agent)
-        except Exception:
-            from .agent import IntegratedAgent
-            candidate = IntegratedAgent(agent.config)
-            candidate.import_state(agent.export_state())
-        frozen = candidate.export_state()
-        scores = {}
-        for task in tasks:
-            returns = []
-            for episode in range(self.eval_episodes):
-                candidate.import_state(frozen)
-                candidate.reset_episode()
-                eval_seed = self._evaluation_seed(task, episode)
-                candidate.homeostasis = HomeostaticEngine(seed=eval_seed)
-                world = ComplexWorld(seed=eval_seed)
-                obs = world.reset(task)
-                score = 0.
-                for _ in range(self.eval_steps):
-                    action = candidate.act(obs, learn=False)['action']
-                    obs, reward, done, info = world.step(action)
-                    self._advance_physiology(candidate, action, reward, info)
-                    candidate.pending_transition = None
-                    score += float(reward)
-                    self.evaluation_steps_executed += 1
-                    if done:
-                        break
-                returns.append(score)
-            scores[task] = float(np.mean(returns))
-        return scores
+        with torch.random.fork_rng(devices=[]):
+            try:
+                candidate = deepcopy(agent)
+            except Exception:
+                from .agent import IntegratedAgent
+                candidate = IntegratedAgent(agent.config)
+                candidate.import_state(agent.export_state())
+            frozen = candidate.export_state()
+            scores = {}
+            for task in tasks:
+                returns = []
+                for episode in range(self.eval_episodes):
+                    candidate.import_state(frozen)
+                    candidate.reset_episode()
+                    eval_seed = self._evaluation_seed(task, episode)
+                    candidate.homeostasis = HomeostaticEngine(seed=eval_seed)
+                    world = ComplexWorld(seed=eval_seed)
+                    obs = world.reset(task)
+                    score = 0.
+                    for _ in range(self.eval_steps):
+                        action = candidate.act(obs, learn=False)['action']
+                        obs, reward, done, info = world.step(action)
+                        self._advance_physiology(candidate, action, reward, info)
+                        candidate.pending_transition = None
+                        score += float(reward)
+                        self.evaluation_steps_executed += 1
+                        if done:
+                            break
+                    returns.append(score)
+                scores[task] = float(np.mean(returns))
+            return scores
 
     def step(self):
         if self.is_completed:

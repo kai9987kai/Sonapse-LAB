@@ -77,6 +77,32 @@ class ConnectomeNeurogenesisEngine:
         )
         self.activity_steps += 1
 
+    @staticmethod
+    def _ranked_candidates(cov_mat: np.ndarray, n: int, threshold: float = 0.01, head: int = 256):
+        """Lazily yields flat indices of off-diagonal entries >= threshold, descending.
+
+        A small head is ranked first with argpartition; the remainder is only
+        sorted if the caller keeps consuming (rare: sprouting stops after
+        ``max_new_synapses``).
+        """
+        flat = cov_mat.reshape(-1) if cov_mat.flags['C_CONTIGUOUS'] else np.ascontiguousarray(cov_mat).reshape(-1)
+        cand = np.flatnonzero(flat >= threshold)
+        if cand.size:
+            cand = cand[(cand % (n + 1)) != 0]  # drop self-loops (diagonal)
+        if cand.size == 0:
+            return
+        vals = flat[cand]
+        if cand.size <= head:
+            for k in np.argsort(vals)[::-1]:
+                yield int(cand[k])
+            return
+        part = np.argpartition(vals, cand.size - head)
+        top, rest = part[cand.size - head:], part[:cand.size - head]
+        for k in top[np.argsort(vals[top])[::-1]]:
+            yield int(cand[k])
+        for k in rest[np.argsort(vals[rest])[::-1]]:
+            yield int(cand[k])
+
     def evaluate_structural_remodeling(
         self,
         agent: Any,
@@ -131,12 +157,16 @@ class ConnectomeNeurogenesisEngine:
             existing_pairs = set(zip(pre.tolist(), post.tolist()))
             n = min(self.num_neurons, self.rate_cov.shape[0])
 
-            # Zero out diagonal (no self-loops)
-            cov_mat = self.rate_cov[:n, :n].copy()
-            np.fill_diagonal(cov_mat, -1.0)
+            # Covariance view (no N x N copy). Self-loops are excluded inside
+            # _ranked_candidates, matching the legacy fill_diagonal(-1.0).
+            cov_mat = self.rate_cov[:n, :n]
 
-            # Find top covarying candidate pairs
-            flat_indices = np.argsort(cov_mat.ravel())[::-1]
+            # Visit candidate pairs in descending covariance order. Legacy code
+            # fully argsorted all N^2 entries (~12 s at N=9000) and then stopped
+            # at the first value < 0.01; only entries >= 0.01 can be visited,
+            # so ranking just those gives the same visit sequence (up to the
+            # order of exactly-tied values) far more cheaply.
+            flat_indices = self._ranked_candidates(cov_mat, n, threshold=0.01)
             sprouted = 0
 
             for idx in flat_indices:
