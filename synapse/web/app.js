@@ -3752,6 +3752,9 @@ let lastAuditoryRates = Array(16).fill(10.0);
 let lastAuditoryWaveform = Array(64).fill(0.0);
 let lastAudioFeatures = null;
 let soundscapeStateCache = null;
+let pacStateCache = null;
+let epigeneticsStateCache = null;
+let synesthesiaStateCache = null;
 let fusionStateCache = null;
 
 function auditoryCochleaView() {
@@ -3947,6 +3950,136 @@ function bioacousticSoundscapeView() {
       const cGain = fusTelem ? fusTelem.coupling_gain : 0.0;
       $('soundscape-badge').textContent = `ANP: ${(anp * 100).toFixed(0)}% · Dale: ${cGain > 0 ? 'Coupled' : 'Standby'}`;
       setTone($('soundscape-badge'), cGain > 0 ? 'good' : 'muted');
+    }
+  } catch (_) {}
+}
+
+function pacWavesAndEpigeneticsView() {
+  try {
+    const [x, w, h] = canvas('pac-waves-canvas');
+    if (!x) return;
+
+    x.fillStyle = '#030712';
+    x.fillRect(0, 0, w, h);
+
+    const pac = pacStateCache;
+    const epi = epigeneticsStateCache;
+    const syn = synesthesiaStateCache;
+
+    // Left Half: 18-Phase-Bin Tort (2010) Modulation Index Distribution
+    const specW = w * 0.48;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(6, 6, specW - 12, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    const miVal = pac ? Number(pac.modulation_index || 0.0) : 0.0;
+    x.fillText(`Tort PAC Modulation Index (MI: ${miVal.toFixed(4)}) & Theta Phase`, 12, 18);
+
+    const pDist = (pac && pac.phase_distribution && pac.phase_distribution.length === 18)
+      ? pac.phase_distribution
+      : Array(18).fill(1.0 / 18.0);
+    const binW = (specW - 24) / 18;
+    const maxP = Math.max(0.1, ...pDist);
+
+    pDist.forEach((p, b) => {
+      const normH = Math.min(1.0, p / maxP) * (h - 40);
+      const bx = 12 + b * binW;
+      const by = h - 14 - normH;
+
+      // Color bins across phase circle: cyan -> purple -> amber
+      const hue = Math.round((b / 18) * 280);
+      x.fillStyle = `hsl(${hue}, 80%, 55%)`;
+      x.fillRect(bx, by, binW - 2, normH);
+    });
+
+    x.fillStyle = '#94a3b8';
+    x.font = '8px sans-serif';
+    x.fillText('-π', 12, h - 4);
+    x.fillText('0', 12 + 9 * binW, h - 4);
+    x.fillText('+π', specW - 22, h - 4);
+
+    // Right Half: Synesthetic Cross-Modal Phase Binding Radar & Epigenetic Plasticity
+    const radarX = specW + 4;
+    const radarW = w - radarX - 6;
+    x.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    x.strokeRect(radarX, 6, radarW, h - 12);
+    x.fillStyle = '#94a3b8';
+    x.font = '10px sans-serif';
+    const cmbi = syn ? Number(syn.cross_modal_binding_index || 0.0) : 0.0;
+    x.fillText(`Synesthetic Phase-Locking Radar (CMBI: ${cmbi.toFixed(3)}) & Epigenetics`, radarX + 8, 18);
+
+    // Multimodal Triangle: Visual (top), Auditory (bottom-left), Endocrine (bottom-right)
+    const cx = radarX + radarW * 0.35;
+    const cy = h * 0.55;
+    const radius = Math.min(38, h * 0.32);
+
+    const nodes = [
+      { name: 'Vision', col: '#38bdf8', x: cx, y: cy - radius },
+      { name: 'Audio', col: '#10b981', x: cx - radius * 0.866, y: cy + radius * 0.5 },
+      { name: 'Endo', col: '#ec4899', x: cx + radius * 0.866, y: cy + radius * 0.5 },
+    ];
+
+    // Draw triangle edges with PLV opacity
+    const plvVA = syn ? Number(syn.visual_auditory_plv || 0.3) : 0.3;
+    const plvVE = syn ? Number(syn.visual_endocrine_plv || 0.3) : 0.3;
+    const plvAE = syn ? Number(syn.auditory_endocrine_plv || 0.3) : 0.3;
+
+    const drawEdge = (n1, n2, plv) => {
+      x.strokeStyle = `rgba(236, 72, 153, ${Math.max(0.15, plv)})`;
+      x.lineWidth = 1.0 + plv * 2.5;
+      x.beginPath();
+      x.moveTo(n1.x, n1.y);
+      x.lineTo(n2.x, n2.y);
+      x.stroke();
+    };
+    drawEdge(nodes[0], nodes[1], plvVA);
+    drawEdge(nodes[0], nodes[2], plvVE);
+    drawEdge(nodes[1], nodes[2], plvAE);
+
+    nodes.forEach(n => {
+      x.fillStyle = n.col;
+      x.beginPath(); x.arc(n.x, n.y, 8, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#ffffff';
+      x.font = 'bold 7px sans-serif';
+      x.textAlign = 'center';
+      x.fillText(n.name[0], n.x, n.y + 2.5);
+      x.fillStyle = '#94a3b8';
+      x.fillText(n.name, n.x, n.y + 16);
+    });
+    x.textAlign = 'left';
+
+    // Epigenetic Chromatin Gauges on right side of radar
+    const epiX = cx + radius + 22;
+    const ppi = epi ? Number(epi.mean_plasticity_index || 0.0) : 0.0;
+    const herit = epi ? Number(epi.heritability || 0.65) : 0.65;
+    x.fillStyle = '#e2e8f0';
+    x.font = '9px sans-serif';
+    x.fillText(`Plasticity (PPI): ${(ppi * 100).toFixed(1)}%`, epiX, cy - 14);
+    x.fillText(`Heritability (h): ${(herit * 100).toFixed(0)}%`, epiX, cy);
+    x.fillStyle = '#10b981';
+    x.fillText('Acetylation: High', epiX, cy + 14);
+    x.fillStyle = '#f59e0b';
+    x.fillText('Methylation: Active', epiX, cy + 26);
+
+    if ($('pac-synesthesia-hud')) {
+      const coh = pac ? Number(pac.wave_coherence || 1.0) : 1.0;
+      const prefPhase = pac ? Number(pac.preferred_phase_rad || 0.0) : 0.0;
+      const vel = pac ? Number(pac.wave_velocity || 0.0) : 0.0;
+      const burstActive = syn ? Boolean(syn.synesthetic_burst_active) : false;
+
+      keyValues($('pac-synesthesia-hud'), [
+        ['Tort Modulation Index (MI)', `${miVal.toFixed(5)} (${miVal > 0.1 ? 'COUPLED' : 'RESTING'})`],
+        ['Kuramoto Wave Coherence', `${(coh * 100).toFixed(1)}% phase alignment`],
+        ['Traveling Wave Speed', `${vel.toFixed(1)} mm/s across 12k core`],
+        ['Preferred Phase (rad)', `${prefPhase.toFixed(3)} rad`],
+        ['Cross-Modal Binding (CMBI)', `${(cmbi * 100).toFixed(1)}% ${burstActive ? '🔥 RESONANCE' : ''}`],
+        ['Phenotypic Plasticity (PPI)', `${(ppi * 100).toFixed(1)}% chromatin shift`],
+      ]);
+    }
+
+    if ($('pac-badge')) {
+      $('pac-badge').textContent = `PAC MI: ${miVal.toFixed(3)} · CMBI: ${(cmbi * 100).toFixed(0)}%`;
+      setTone($('pac-badge'), (miVal > 0.05 || cmbi > 0.5) ? 'good' : 'muted');
     }
   } catch (_) {}
 }
@@ -4922,6 +5055,7 @@ function render(s) {
   darwinianSpeciationView();
   auditoryCochleaView();
   bioacousticSoundscapeView();
+  pacWavesAndEpigeneticsView();
 
   if ($('ecology-badge')) {
     const isEco = Boolean(ecologyStateCache && ecologyStateCache.population_count > 0);
@@ -6248,10 +6382,42 @@ if ($('soundscape-cross-couple-btn')) {
     } catch (_) {}
   });
 }
+if ($('pac-enable-btn')) {
+  $('pac-enable-btn').addEventListener('click', async () => {
+    try {
+      await api('connectome/pac/enable', { gain: 0.35 });
+      pacStateCache = await api('connectome/pac');
+      pacWavesAndEpigeneticsView();
+    } catch (_) {}
+  });
+}
+if ($('epigenetics-enable-btn')) {
+  $('epigenetics-enable-btn').addEventListener('click', async () => {
+    try {
+      await api('ecology/epigenetics/enable', { heritability: 0.70 });
+      epigeneticsStateCache = await api('ecology/epigenetics');
+      pacWavesAndEpigeneticsView();
+    } catch (_) {}
+  });
+}
+if ($('synesthesia-burst-btn')) {
+  $('synesthesia-burst-btn').addEventListener('click', async () => {
+    try {
+      await api('multimodal/synesthesia/burst', {});
+      synesthesiaStateCache = await api('multimodal/synesthesia');
+      pacWavesAndEpigeneticsView();
+    } catch (_) {}
+  });
+}
+
 setInterval(async () => {
   try {
     soundscapeStateCache = await api('ecology/soundscape');
     fusionStateCache = await api('connectome/fusion/summary');
     bioacousticSoundscapeView();
+    pacStateCache = await api('connectome/pac');
+    epigeneticsStateCache = await api('ecology/epigenetics');
+    synesthesiaStateCache = await api('multimodal/synesthesia');
+    pacWavesAndEpigeneticsView();
   } catch (_) {}
 }, 1500);

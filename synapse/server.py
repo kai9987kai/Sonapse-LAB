@@ -60,7 +60,9 @@ class Workbench:
             self.runtime.transition_taps.append(self.episode_recorder)
         self.fusion_engine = MultiConnectomeFusionEngine(seed=seed)
         from .darwinian_tournament import DarwinianEcologyTournamentEngine
+        from .synesthetic_resonance import SynestheticResonanceEngine
         self.darwinian_engine = DarwinianEcologyTournamentEngine(biome=self.virtual_biome, seed=seed)
+        self.synesthetic_engine = SynestheticResonanceEngine()
         self.jobs={}; self.cancel={}; self.receipts={}; self.omnibus_runner=None; self.last_tandem_receipt=None
         jobsdir=self.root/'jobs'; jobsdir.mkdir(exist_ok=True)
         for path in jobsdir.glob('*.json'):
@@ -189,6 +191,12 @@ class Workbench:
                 return {'status': 'disabled', 'telemetry': None}
             if path in ('/api/connectome/fusion/summary', '/api/connectomes/fusion/summary'):
                 return self.fusion_engine.get_summary()
+            if path=='/api/ecology/epigenetics':
+                return self.virtual_biome.epigenetics_stats()
+            if path in ('/api/connectome/pac', '/api/pac/status'):
+                return self.fusion_engine.pac_engine.get_summary()
+            if path in ('/api/multimodal/synesthesia', '/api/synesthesia'):
+                return self.synesthetic_engine.get_summary()
         with self.lock:
             if path=='/api/training/status':
                 from .compute import compute_summary
@@ -433,6 +441,21 @@ class Workbench:
                 for _ in range(steps):
                     snap = self.virtual_biome.step(stim)
                 return {'status': 'completed', 'steps': steps, **snap.to_dict()}
+            if path=='/api/ecology/epigenetics/enable':
+                h = float(data.get('heritability', 0.65))
+                self.virtual_biome.enable_epigenetics(heritability=h)
+                return {'status': 'enabled', **self.virtual_biome.epigenetics_stats()}
+            if path=='/api/connectome/pac/enable':
+                gain = float(data.get('gain', 0.25))
+                self.fusion_engine.enable_pac(pac_gain=gain)
+                return {'status': 'pac_configured', 'pac_gain': self.fusion_engine.pac_gain, **self.fusion_engine.pac_engine.get_summary()}
+            if path=='/api/multimodal/synesthesia/burst':
+                import torch
+                vis = torch.randn(64)
+                aud = torch.randn(64)
+                endo = torch.randn(12)
+                pulse, telem = self.synesthetic_engine.step(vis, aud, endo, resonance_gain=1.0)
+                return {'status': 'synesthetic_burst_triggered', 'pulse': round(float(pulse), 4), **telem.to_dict()}
             if path=='/api/evo/transact':
                 trials = max(1, min(10, int(data.get('trials', 3))))
                 mode = data.get('mode', 'measured')

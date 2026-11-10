@@ -33,6 +33,7 @@ from synapse.neuroendocrine.evidence_types import (
     EvidenceKind,
     compute_tensor_digest,
 )
+from synapse.pac_waves import PhaseAmplitudeCouplingEngine, PACTelemetry
 
 
 @dataclasses.dataclass
@@ -69,6 +70,8 @@ class FusionConnectomeTelemetry:
     wallclock_timestamp: float
     coupling_gain: float = 0.0
     bcm_mean_theta: float = 0.0
+    pac_modulation_index: float = 0.0
+    pac_wave_coherence: float = 1.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -82,6 +85,8 @@ class FusionConnectomeTelemetry:
             "wallclock_timestamp": self.wallclock_timestamp,
             "coupling_gain": round(float(self.coupling_gain), 3),
             "bcm_mean_theta": round(float(self.bcm_mean_theta), 4),
+            "pac_modulation_index": round(float(self.pac_modulation_index), 5),
+            "pac_wave_coherence": round(float(self.pac_wave_coherence), 4),
         }
 
 
@@ -260,6 +265,10 @@ class MultiConnectomeFusionEngine(nn.Module):
         self.cross_coupling = CrossConnectomeCoupling(seed=seed)
         self.coupling_gain = 0.0
 
+        # Phase-Amplitude Coupling (PAC) and traveling wave oscillator
+        self.pac_engine = PhaseAmplitudeCouplingEngine(num_substrates=6, dt_ms=2.0, seed=seed)
+        self.pac_gain = 0.0
+
         # Internal state buffer (firing rates r \in [0, 1])
         self.register_buffer("firing_rates", torch.zeros(self.total_dim))
         self.register_buffer("tau_membrane", torch.full((self.total_dim,), 20.0))  # 20ms membrane time constant
@@ -270,6 +279,14 @@ class MultiConnectomeFusionEngine(nn.Module):
         """Resets all neuron firing rates to zero resting potential."""
         self.firing_rates.zero_()
 
+    def enable_pac(self, pac_gain: float = 0.25) -> None:
+        """Enables Phase-Amplitude Coupling and traveling wave gating across substrates."""
+        self.pac_gain = max(0.0, float(pac_gain))
+
+    def disable_pac(self) -> None:
+        """Disables PAC, enforcing strict legacy gating identity (1.0)."""
+        self.pac_gain = 0.0
+
     def step(
         self,
         sensory_input: Optional[torch.Tensor] = None,
@@ -278,6 +295,7 @@ class MultiConnectomeFusionEngine(nn.Module):
         dt_ms: float = 2.0,
         coupling_gain: Optional[float] = None,
         learn_bcm: bool = False,
+        pac_gain: Optional[float] = None,
     ) -> Tuple[torch.Tensor, FusionConnectomeTelemetry]:
         """Executes one chunked continuous-time numerical integration step.
 
@@ -326,6 +344,18 @@ class MultiConnectomeFusionEngine(nn.Module):
             if learn_bcm:
                 bcm_theta = self.cross_coupling.adapt_bcm(r[self.wpac_offset : self.wpac_offset + 512], r_aud)
 
+        # Phase-Amplitude Coupling (PAC) modulation (opt-in)
+        eff_pac_gain = float(self.pac_gain if pac_gain is None else pac_gain)
+        mean_rate_prev = float(r.mean().item())
+        pac_gating, pac_telem = self.pac_engine.step(ref_gamma_activity=mean_rate_prev, pac_gain=eff_pac_gain)
+        if eff_pac_gain > 0.0:
+            aux_drive[self.celegans_offset : self.drosophila_offset] *= pac_gating[0]
+            aux_drive[self.drosophila_offset : self.poseidon_offset] *= pac_gating[1]
+            aux_drive[self.poseidon_offset : self.wpac_offset] *= pac_gating[2]
+            aux_drive[self.wpac_offset : self.auditory_offset] *= pac_gating[3]
+            aux_drive[self.auditory_offset : self.visual_offset] *= pac_gating[4]
+            aux_drive[self.visual_offset :] *= pac_gating[5]
+
         # Fused ODE update
         total_drive = in_vec + aux_drive
         new_r = r * decay + leak * torch.sigmoid((total_drive * neuromod_gain) * 3.0)
@@ -346,6 +376,8 @@ class MultiConnectomeFusionEngine(nn.Module):
             wallclock_timestamp=time.time(),
             coupling_gain=effective_coupling,
             bcm_mean_theta=bcm_theta,
+            pac_modulation_index=pac_telem.modulation_index,
+            pac_wave_coherence=pac_telem.wave_coherence,
         )
         self._last_telemetry = telemetry
         return new_r, telemetry
@@ -357,5 +389,7 @@ class MultiConnectomeFusionEngine(nn.Module):
             "num_substrates": len(self.substrates),
             "substrates": [s.to_dict() for s in self.substrates],
             "coupling_gain": self.coupling_gain,
+            "pac_gain": self.pac_gain,
+            "pac_summary": self.pac_engine.get_summary(),
             "telemetry": self._last_telemetry.to_dict() if self._last_telemetry else None,
         }

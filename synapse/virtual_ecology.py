@@ -18,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from .bioacoustic_soundscape import BioacousticSoundscapeEngine, SoundscapeTelemetry
+from .epigenetics import EpigeneticRemodelingEngine, EpigeneticProfile
 
 from .neuroendocrine.evidence_types import (
     EvidenceReceipt,
@@ -51,11 +52,18 @@ class EcologyAgentState:
     connectome_rates: Optional[List[float]] = None
     alive: bool = True
     genome: Optional[Dict[str, float]] = None
+    epigenetic_profile: Optional[Any] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = self._legacy_dict()
         if self.genome is not None:
             d["genome"] = {k: round(float(v), 4) for k, v in self.genome.items()}
+        if self.epigenetic_profile is not None:
+            d["epigenetic_profile"] = (
+                self.epigenetic_profile.to_dict()
+                if hasattr(self.epigenetic_profile, "to_dict")
+                else self.epigenetic_profile
+            )
         return d
 
     def _legacy_dict(self) -> Dict[str, Any]:
@@ -151,6 +159,7 @@ class VirtualEcologyBiome:
         mutation_sigma: float = 0.08,
         max_population: int = 18,
         soundscape_enabled: bool = False,
+        epigenetics_enabled: bool = False,
     ):
         self.evolution_enabled = bool(evolution_enabled)
         self.mutation_sigma = float(mutation_sigma)
@@ -176,11 +185,17 @@ class VirtualEcologyBiome:
         if self.soundscape_enabled:
             self.enable_soundscape()
 
+        # Epigenetics & transgenerational chromatin remodeling engine (opt-in)
+        self.epigenetics_enabled = bool(epigenetics_enabled)
+        self.epigenetics_engine = EpigeneticRemodelingEngine()
+
         # Connectome weights for micro-brain simulation across agents
         self._init_resources()
         self._init_agents(num_foragers, num_sentinels, num_artisans, num_predators)
         if self.evolution_enabled:
             self.enable_evolution()
+        if self.epigenetics_enabled:
+            self.enable_epigenetics()
 
     # ------------------------------------------------------------------
     # Heritable genome (opt-in). Traits trade performance against energy:
@@ -198,9 +213,49 @@ class VirtualEcologyBiome:
         return {k: float(np.clip(parent.get(k, 1.0) + self.evo_rng.normal(0.0, self.mutation_sigma), lo, hi))
                 for k, (lo, hi) in self.GENE_BOUNDS.items()}
 
+    def enable_epigenetics(self, heritability: float = 0.65) -> None:
+        """Activates transgenerational epigenetic inheritance and chromatin plasticity."""
+        self.epigenetics_enabled = True
+        self.epigenetics_engine.heritability = min(1.0, max(0.0, float(heritability)))
+        for ag in self.agents:
+            if ag.epigenetic_profile is None:
+                ag.epigenetic_profile = self.epigenetics_engine.default_profile()
+
+    def epigenetics_stats(self) -> Dict[str, Any]:
+        """Population chromatin methylation, acetylation, and plasticity statistics."""
+        profiles = [a.epigenetic_profile for a in self.agents if a.alive and a.epigenetic_profile is not None]
+        if not profiles:
+            return {
+                "epigenetics_enabled": self.epigenetics_enabled,
+                "count": 0,
+                "mean_plasticity_index": 0.0,
+                "traits": {},
+            }
+        mean_ppi = float(np.mean([p.plasticity_index for p in profiles]))
+        traits = {}
+        for locus in self.epigenetics_engine.TRAIT_LOCI:
+            m_vals = [p.methylation.get(locus, 0.1) for p in profiles]
+            a_vals = [p.acetylation.get(locus, 0.1) for p in profiles]
+            traits[locus] = {
+                "mean_methylation": round(float(np.mean(m_vals)), 4),
+                "mean_acetylation": round(float(np.mean(a_vals)), 4),
+            }
+        return {
+            "epigenetics_enabled": self.epigenetics_enabled,
+            "count": len(profiles),
+            "mean_plasticity_index": round(mean_ppi, 4),
+            "heritability": self.epigenetics_engine.heritability,
+            "traits": traits,
+        }
+
     def _gene(self, ag: EcologyAgentState, key: str) -> float:
         if not self.evolution_enabled or ag.genome is None:
             return 1.0
+        if self.epigenetics_enabled and ag.epigenetic_profile is not None:
+            expressed = self.epigenetics_engine.express_phenotype(
+                ag.genome, ag.epigenetic_profile, self.GENE_BOUNDS, enabled=True
+            )
+            return float(expressed.get(key, 1.0))
         return float(ag.genome.get(key, 1.0))
 
     def _metabolic_factor(self, ag: EcologyAgentState) -> float:
@@ -569,6 +624,18 @@ class VirtualEcologyBiome:
                     if ag.sleep_state != "awake":
                         ag.sleep_state = "awake"
 
+            # Update chromatin remodeling from environmental stress (opt-in)
+            if self.epigenetics_enabled and ag.epigenetic_profile is not None:
+                starv = max(0.0, (50.0 - ag.energy) / 50.0) if ag.energy < 50.0 else 0.0
+                alarm_heard = bool(self.soundscape_enabled and self.soundscape is not None)
+                self.epigenetics_engine.update_from_stress(
+                    ag.epigenetic_profile,
+                    cortisol=ag.cortisol,
+                    adrenaline=ag.adrenaline,
+                    starvation_stress=starv,
+                    acoustic_alarm_heard=alarm_heard,
+                )
+
             # Continuous motion update with biome bounds
             spd = self._gene(ag, "speed")
             ag.x += ag.vx * dt * spd
@@ -612,6 +679,10 @@ class VirtualEcologyBiome:
                 )
                 if self.evolution_enabled and ag.genome is not None:
                     offspring.genome = self._mutate(ag.genome)
+                if self.epigenetics_enabled and ag.epigenetic_profile is not None:
+                    offspring.epigenetic_profile = self.epigenetics_engine.inherit_epigenetics(
+                        ag.epigenetic_profile, self.evo_rng
+                    )
                 new_offspring.append(offspring)
         self.agents.extend(new_offspring)
         self.births += len(new_offspring)
