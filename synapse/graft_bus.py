@@ -550,11 +550,14 @@ class NeuralGraftCommunicationBus(nn.Module):
         self.last_step_output = out
         return out
 
-    def get_telemetry_dict(self) -> Dict[str, Any]:
+    def get_telemetry_dict(self, include_timing: bool = True) -> Dict[str, Any]:
         """Aggregate telemetry from bus and all member protocol channels."""
         channels_telem = {}
         for name, ch in self.channels.items():
-            channels_telem[name] = ch.get_telemetry_dict()
+            if name == 'dsag':
+                channels_telem[name] = ch.get_telemetry_dict(include_timing=include_timing)
+            else:
+                channels_telem[name] = ch.get_telemetry_dict()
 
         bus_telem = {
             "enabled": self.enabled,

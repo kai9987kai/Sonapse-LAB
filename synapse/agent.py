@@ -860,7 +860,9 @@ class IntegratedAgent:
         self.last_telemetry['experience_model']=self.experience_model.summary()
         self.last_telemetry['surprise_memory']=self.surprise_memory.summary()
         self.last_telemetry['memory_recall']=deepcopy(memory_recall)
-        self.last_telemetry['memory_reconsolidation']={**self.memory_reconsolidation.get_summary(),
+        recon_telem = self.memory_reconsolidation.get_summary()
+        recon_telem.pop('timestamp', None)
+        self.last_telemetry['memory_reconsolidation']={**recon_telem,
             'latest':deepcopy(self.last_memory_reconciliation)}
         if hasattr(self, 'homeostasis'): self.last_telemetry['homeostasis']=self.homeostasis.summary()
         if hasattr(self, 'neurogenesis'): self.last_telemetry['neurogenesis']=self.neurogenesis.summary()
@@ -920,7 +922,9 @@ class IntegratedAgent:
         if getattr(self, 'aether_bridge', None) is not None:
             self.last_telemetry['aether_graft_bridge'] = self.aether_bridge.telemetry.to_dict()
         if getattr(self, 'graft_bus', None) is not None:
-            self.last_telemetry['graft_bus'] = self.graft_bus.get_telemetry_dict()
+            # Timing is sampled by the live status endpoint, not included in
+            # exact-transition receipts that must replay byte-for-byte.
+            self.last_telemetry['graft_bus'] = self.graft_bus.get_telemetry_dict(include_timing=False)
         if getattr(self, 'dpo_engine', None) is not None:
             self.last_telemetry['verifiable_dpo']={'enabled':True,'pairs':len(self.dpo_engine.preference_buffer),'last_margin':getattr(self.dpo_engine,'last_margin',0.0)}
         if getattr(self, 'sancf_fabric', None) is not None:
@@ -976,7 +980,11 @@ class IntegratedAgent:
         if getattr(self, 'audio_gateway', None) is not None and self.audio_gateway.enabled:
             af = self.audio_gateway.process_latest_frame()
             if af is not None:
-                self.last_telemetry['audio_gateway'] = af.to_dict()
+                audio_features = af.to_dict()
+                # Keep wall-clock timestamps on the audio ingress surface, not
+                # in deterministic step receipts or checkpoint replay output.
+                audio_features.pop('timestamp', None)
+                self.last_telemetry['audio_gateway'] = audio_features
                 if getattr(self, 'auditory_encoder', None) is not None:
                     spikes, rates = self.auditory_encoder.encode(af)
                     self.last_telemetry['auditory_spikes'] = {
@@ -1129,6 +1137,7 @@ class IntegratedAgent:
             self.last_memory_recall=None
             self.last_memory_reconciliation=None
         recon_summary=self.memory_reconsolidation.step_decay(enabled=True).to_dict()
+        recon_summary.pop('timestamp', None)
         if self.last_memory_reconciliation is not None:
             self.last_memory_reconciliation['active_labile_count']=recon_summary['active_labile_count']
             self.last_memory_reconciliation['mean_lability']=recon_summary['mean_lability']
@@ -1335,6 +1344,12 @@ class IntegratedAgent:
     def export_state(self):
         state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any','last_memory_recall','last_memory_reconciliation')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'memory_reconsolidation':self.memory_reconsolidation.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
         state['neural_graft']=self.neural_graft.export_state() if self.neural_graft is not None else None
+        if getattr(self, 'auditory_encoder', None) is not None:
+            state['auditory_encoder_state'] = {
+                'rng': self.auditory_encoder.rng.get_state(),
+                'last_spikes': self.auditory_encoder.last_spikes.copy(),
+                'last_rates': self.auditory_encoder.last_rates.copy(),
+            }
         state['dendritic_ltc']=self.dendritic_ltc.export_state() if getattr(self,'dendritic_ltc',None) is not None else None
         state['oscillatory_coherence']=self.oscillatory_coherence.export_state() if getattr(self,'oscillatory_coherence',None) is not None else None
         state['recurrent_planner']=self.recurrent_planner.export_state() if getattr(self,'recurrent_planner',None) is not None else None
@@ -1555,6 +1570,20 @@ class IntegratedAgent:
             self.phase_protocol.load_state_dict(state['phase_protocol'])
         if getattr(self, 'fatigue_controller', None) is not None and state.get('fatigue_controller') is not None:
             self.fatigue_controller.load_state_dict(state['fatigue_controller'])
+        audio_state = state.get('auditory_encoder_state')
+        if getattr(self, 'auditory_encoder', None) is not None and audio_state is not None:
+            spikes = np.asarray(audio_state['last_spikes'], dtype=np.int32)
+            rates = np.asarray(audio_state['last_rates'], dtype=np.float64)
+            if (spikes.shape != (self.auditory_encoder.num_channels,)
+                    or rates.shape != (self.auditory_encoder.num_channels,)
+                    or not np.isin(spikes, (0, 1)).all()
+                    or not np.isfinite(rates).all()
+                    or np.any(rates < 0)
+                    or np.any(rates > self.auditory_encoder.max_rate)):
+                raise ValueError('invalid auditory encoder checkpoint state')
+            self.auditory_encoder.rng.set_state(audio_state['rng'])
+            self.auditory_encoder.last_spikes = spikes.copy()
+            self.auditory_encoder.last_rates = rates.copy()
         if 'torch_rng' in state:
             torch.random.set_rng_state(state['torch_rng'])
         self.programmed_prior_status=deepcopy(state.get('programmed_prior_status',self.programmed_prior_status))

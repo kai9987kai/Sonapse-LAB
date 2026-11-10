@@ -15,8 +15,9 @@ license: apache-2.0
 
 # SYNAPSE: Developmental Connectome Intelligence & Weight-Space Lab (SAIL Edition)
 
-**Current evidence:** SYNAPSE is a CPU research workbench with an integrated
-executed-transition learner and many standalone experiments. Module availability
+**Current evidence:** SYNAPSE is a CPU-first research workbench with an integrated
+executed-transition learner and many standalone experiments. Compatible PyTorch
+accelerators are used for isolated neural-graft fitting when present. Module availability
 does not establish embodied capability or biological fidelity. Planning is
 experimental and off by default. Read the [design recovery audit](docs/design-audit.md),
 [Antigravity contract audit](docs/antigravity-audit.md), [neural graft training specification](docs/training-graft.md),
@@ -117,7 +118,29 @@ flowchart TD
 
 ## Run Locally
 
-Requires Python 3.10+ with PyTorch CPU, NumPy, and SciPy:
+Requires Python 3.10+ with PyTorch, NumPy, and SciPy. CPU execution is always
+supported; a compatible accelerator-enabled PyTorch build is optional.
+
+### Max Mode Compute and Feature Coverage
+
+The **Complete System in Tandem (Max Mode)** preset enables every current
+boolean subsystem, including DSAG v1, and reports an explicit feature inventory
+in its run receipt. It starts the local audio gateway, while actual microphone
+capture still requires the user to press **Start Live Mic Stream** and grant
+browser access. Max Mode requests the available CPU thread budget and limits
+parallel cloned-world workers according to free memory while retaining a memory
+reserve. Invalid run bounds are rejected before the live runtime is replaced.
+
+The recurrent simulator, graph state, telemetry, and checkpoint format remain
+CPU-native. Only the isolated, executed-transition neural-graft fitting step can
+move to an installed PyTorch GPU or TPU/XLA device. Device selection probes a
+small training step first, reports the selected device, and retries the isolated
+fit on CPU if an accelerator fails. CPU-only PyTorch installations need no
+extra device packages and continue through the same feature set.
+
+The current runtime has no CUDA, MPS, XPU, or TPU/XLA device available, so its
+verified Max Mode path uses CPU. The accelerator branch is optional and was not
+exercised on this machine.
 
 New workbench sessions use **4,000 total neurons**, allocated 1334/1333/1333 across
 the three default sources (FlyWire, MANC, Optic Lobe). The graph view includes all 4,000. Use

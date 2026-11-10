@@ -219,6 +219,11 @@ class Workbench:
                 return {'compute':{**compute_summary(),'threads':self.runtime.config.compute_threads},
                         'graft':agent.neural_graft.summary() if agent.neural_graft is not None else {'enabled':False},
                         'active_training':self.runtime.config.active_training,'programmed_prior':agent.programmed_prior_status}
+            if path=='/api/dsag/status':
+                channel=getattr(self.runtime.agent,'dsag_channel',None)
+                if channel is None:
+                    return {'enabled':False,'reason':'DSAG is not configured for this runtime'}
+                return channel.get_telemetry_dict(include_timing=True)
             if path=='/api/connectomes/inventory':
                 from .connectome_assets import get_source_inventory
                 return {'sources':get_source_inventory(),'active_sources':self.runtime.agent.source_provenance}

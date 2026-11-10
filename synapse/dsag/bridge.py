@@ -95,7 +95,9 @@ class DSAGBusChannel(NeuralGraftProtocol):
     def enqueue_packet(self, packet: Any, **route: Any) -> DSAGLocalEnvelope:
         return self.model.enqueue_packet(packet, **route)
 
-    def get_telemetry_dict(self) -> dict[str, Any]:
+    def get_telemetry_dict(self, include_timing: bool = True) -> dict[str, Any]:
+        if type(include_timing) is not bool:
+            raise ValueError("include_timing must be a boolean")
         values = self.model.telemetry()
         if not values:
             values = {
@@ -124,13 +126,14 @@ class DSAGBusChannel(NeuralGraftProtocol):
             "gain_configured": self.spec.gain,
             "composed_aux_current_inf_norm": self._composed_aux_current_inf_norm,
             "effective_current_inf_norm": self._effective_current_inf_norm,
-            "latency_ms": self._last_latency_ms,
             "ram_bytes": values.get("model_bytes"),
             "parameters": values.get("parameter_count", 0),
             "lineage_id": self._lineage_id,
             "evidence_tier": "synthetic_fixture",
             "telemetry_namespace": f"dsag/{self.model.graft_id}",
         })
+        if include_timing:
+            values["latency_ms"] = self._last_latency_ms
         return values
 
     def record_composition(self, composed: torch.Tensor, effective: torch.Tensor) -> None:

@@ -30,7 +30,7 @@
       <h1 id="title">Live workbench</h1>
     </div>
     <div class="header-actions">
-      <button id="btn-tandem-max" class="tandem-max-button" title="Switch all controls to maximum configuration, enable all optional features, maximize CPU compute, and execute Sections 01–05 in tandem">⚡ Run Complete System in Tandem (Max Mode · Sections 1–5)</button>
+      <button id="btn-tandem-max" class="tandem-max-button" title="Enable every optional subsystem, use the available CPU budget, accelerate compatible offline fitting when a PyTorch device is available, fall back to CPU safely, and execute Sections 01–05. Live microphone capture still requires its Start button and browser permission.">⚡ Run Complete System in Tandem (Max Mode · Sections 1–5)</button>
       <div id="connection">Connecting…</div>
     </div>
   </header>
@@ -41,7 +41,7 @@
     <div class="panel-head">
       <div>
         <h2>Complete System in Tandem · Max Mode Status (Sections 01–05)</h2>
-        <span class="tag">ALL OPTIONAL SUBSYSTEMS ON · MAX CPU THREADS · 5-SECTION ORCHESTRATION</span>
+        <span class="tag">ALL OPTIONAL SUBSYSTEMS ON · ACCELERATOR-AWARE FITTING · MAX CPU THREADS · 5-SECTION ORCHESTRATION</span>
       </div>
       <span id="tandem-status-pill" class="status-pill good">Ready</span>
     </div>
@@ -104,7 +104,7 @@
         </select>
       </label>
       <button id="btn-omnibus-run" class="omnibus-button" title="Run the full 6,000-neuron Frontier Apex curriculum with all systems active">✦ Frontier Apex Omnibus</button>
-      <button id="btn-tandem-max-toolbar" class="tandem-max-button" title="Enable all optional features, switch to maximum configuration, and execute Sections 1–5 in tandem">⚡ Max Mode (Sections 1–5)</button>
+      <button id="btn-tandem-max-toolbar" class="tandem-max-button" title="Enable every optional subsystem, use available PyTorch accelerators for compatible offline fitting, fall back to CPU safely, and execute Sections 1–5. Live microphone capture requires its Start button and browser permission.">⚡ Max Mode (Sections 1–5)</button>
       <span class="muted" id="runstatus">Paused</span>
     </div>
 

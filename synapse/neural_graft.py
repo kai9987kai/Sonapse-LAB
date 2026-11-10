@@ -211,12 +211,13 @@ class NeuralResidualGraft:
                       'manual': True, 'policy_version': -1})
 
     def _prediction_loss(self, records):
-        obs = torch.as_tensor(np.stack([r['obs'] for r in records])).clamp(-5, 5)
-        action = torch.as_tensor(np.stack([r['action'] for r in records]))
-        next_obs = torch.as_tensor(np.stack([r['next_obs'] for r in records])).clamp(-5, 5)
-        rewards = torch.tensor([r['reward'] for r in records], dtype=torch.float32).clamp(-20, 20)
-        dones = torch.tensor([r['done'] for r in records], dtype=torch.float32)
-        sensory = torch.tensor(np.stack([encode_experience_state(r['next_obs'])[:14] for r in records]), dtype=torch.float32)
+        device = next(self.network.parameters()).device
+        obs = torch.as_tensor(np.stack([r['obs'] for r in records]), dtype=torch.float32, device=device).clamp(-5, 5)
+        action = torch.as_tensor(np.stack([r['action'] for r in records]), dtype=torch.float32, device=device)
+        next_obs = torch.as_tensor(np.stack([r['next_obs'] for r in records]), dtype=torch.float32, device=device).clamp(-5, 5)
+        rewards = torch.tensor([r['reward'] for r in records], dtype=torch.float32, device=device).clamp(-20, 20)
+        dones = torch.tensor([r['done'] for r in records], dtype=torch.float32, device=device)
+        sensory = torch.tensor(np.stack([encode_experience_state(r['next_obs'])[:14] for r in records]), dtype=torch.float32, device=device)
         predicted = self.network.dynamics(torch.cat([obs, action], -1))
         prediction_loss = F.mse_loss(predicted[:, :14], sensory) + F.mse_loss(predicted[:, 14], rewards)
         with torch.no_grad():
@@ -225,75 +226,107 @@ class NeuralResidualGraft:
         value_loss = F.smooth_l1_loss(values, target)
         return prediction_loss, value_loss
 
-    def train_replay(self, updates=8, batch_size=128, actor=True):
+    def _optimizer_to(self, device):
+        for state in self.optimizer.state.values():
+            for name, value in state.items():
+                if isinstance(value, torch.Tensor):
+                    state[name] = value.to(device)
+
+    def train_replay(self, updates=8, batch_size=128, actor=True, device='cpu'):
         _integer(updates, 'updates', 1, 1000)
         _integer(batch_size, 'batch_size', 1, 2048)
         if type(actor) is not bool:
             raise ValueError('actor must be boolean')
+        try:
+            target_device = torch.device(device)
+        except (TypeError, RuntimeError, ValueError) as exc:
+            raise ValueError('device must name a supported PyTorch device') from exc
         if not self.replay:
             return {'status': 'skipped', 'reason': 'no executed transitions', 'samples': self.samples,
-                    'optimizer_updates': 0, 'actor_updates': 0, 'cpu_seconds': 0., 'wall_seconds': 0.}
-        wall, cpu = time.perf_counter(), time.process_time()
-        eligible = [r for r in self.replay if r['actor_eligible'] and r['policy_version'] == self.policy_version] if actor else []
-        actor_state = actor_latent = old_logp = advantages = None
-        if eligible:
-            actor_state = torch.from_numpy(np.stack([r['actor_input'] for r in eligible]))
-            actor_latent = torch.from_numpy(np.stack([r['latent'] for r in eligible]))
-            old_logp = torch.tensor([r['log_probability'] for r in eligible], dtype=torch.float32)
-            with torch.no_grad():
-                obs = torch.from_numpy(np.stack([r['obs'] for r in eligible])).clamp(-5, 5)
-                next_obs = torch.from_numpy(np.stack([r['next_obs'] for r in eligible])).clamp(-5, 5)
-                rewards = torch.tensor([r['reward'] for r in eligible], dtype=torch.float32).clamp(-20, 20)
-                dones = torch.tensor([r['done'] for r in eligible], dtype=torch.float32)
-                advantages = rewards + self.settings['gamma']*(1-dones)*self.network.value(next_obs).flatten()-self.network.value(obs).flatten()
-                if len(advantages) > 1:
-                    advantages = (advantages-advantages.mean())/advantages.std(unbiased=False).clamp(min=.05)
-                advantages = advantages.clamp(-5, 5)
-        policy_steps, last_actor, last_value = 0, 0., 0.
-        with torch.no_grad():
-            initial = float(self._prediction_loss(self.replay[-min(batch_size, len(self.replay)):])[0])
-        for _ in range(updates):
-            indices = self.rng.choice(len(self.replay), min(batch_size, len(self.replay)), replace=False)
-            batch = [self.replay[int(i)] for i in indices]
-            prediction_loss, value_loss = self._prediction_loss(batch)
-            policy_loss = torch.tensor(0.)
+                    'optimizer_updates': 0, 'actor_updates': 0, 'cpu_seconds': 0., 'wall_seconds': 0.,
+                    'training_device': str(target_device)}
+
+        original_device = next(self.network.parameters()).device
+        try:
+            self.network.to(target_device)
+            self._optimizer_to(target_device)
+            wall, cpu = time.perf_counter(), time.process_time()
+            eligible = [r for r in self.replay if r['actor_eligible'] and r['policy_version'] == self.policy_version] if actor else []
+            actor_state = actor_latent = old_logp = advantages = None
             if eligible:
-                selected = self.rng.choice(len(eligible), min(batch_size, len(eligible)), replace=False)
-                means = self.network.policy(actor_state[selected])
-                logp = self._log_probability(actor_latent[selected], means)
-                ratio = (logp-old_logp[selected]).clamp(-10, 10).exp()
-                unclipped = ratio*advantages[selected]
-                clipped = ratio.clamp(.8, 1.2)*advantages[selected]
-                policy_loss = -torch.minimum(unclipped, clipped).mean()
-                policy_steps += 1
-            loss = prediction_loss + .5*value_loss + policy_loss
-            if not torch.isfinite(loss):
-                raise ValueError('nonfinite neural training objective')
-            self.optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            nn.utils.clip_grad_norm_(self.network.parameters(), 1.)
-            self.optimizer.step()
-            self.optimizer_updates += 1
-            self.actor_updates += int(bool(eligible))
-            last_actor, last_value = float(policy_loss.detach()), float(value_loss.detach())
-        if eligible:
-            self.policy_version += 1
-        with torch.no_grad():
-            final = float(self._prediction_loss(self.replay[-min(batch_size, len(self.replay)):])[0])
-        self.last_metrics = {'initial_prediction_loss': initial, 'final_prediction_loss': final,
-                             'value_loss': last_value, 'policy_loss': last_actor,
-                             'eligible_policy_samples': len(eligible)}
-        return {'status': 'ok', 'samples': self.samples, 'replay_size': len(self.replay),
-                'optimizer_updates': updates, 'actor_updates': policy_steps,
-                'total_optimizer_updates': self.optimizer_updates,
-                'total_actor_updates': self.actor_updates, **self.last_metrics,
-                'cpu_seconds': max(0., time.process_time()-cpu),
-                'wall_seconds': max(0., time.perf_counter()-wall),
-                'scope': 'executed-transition fitting; finite local training, no performance promotion'}
+                actor_state = torch.as_tensor(np.stack([r['actor_input'] for r in eligible]), dtype=torch.float32, device=target_device)
+                actor_latent = torch.as_tensor(np.stack([r['latent'] for r in eligible]), dtype=torch.float32, device=target_device)
+                old_logp = torch.tensor([r['log_probability'] for r in eligible], dtype=torch.float32, device=target_device)
+                with torch.no_grad():
+                    obs = torch.as_tensor(np.stack([r['obs'] for r in eligible]), dtype=torch.float32, device=target_device).clamp(-5, 5)
+                    next_obs = torch.as_tensor(np.stack([r['next_obs'] for r in eligible]), dtype=torch.float32, device=target_device).clamp(-5, 5)
+                    rewards = torch.tensor([r['reward'] for r in eligible], dtype=torch.float32, device=target_device).clamp(-20, 20)
+                    dones = torch.tensor([r['done'] for r in eligible], dtype=torch.float32, device=target_device)
+                    advantages = rewards + self.settings['gamma']*(1-dones)*self.network.value(next_obs).flatten()-self.network.value(obs).flatten()
+                    if len(advantages) > 1:
+                        advantages = (advantages-advantages.mean())/advantages.std(unbiased=False).clamp(min=.05)
+                    advantages = advantages.clamp(-5, 5)
+            policy_steps, last_actor, last_value = 0, 0., 0.
+            with torch.no_grad():
+                initial = float(self._prediction_loss(self.replay[-min(batch_size, len(self.replay)):])[0].detach().cpu())
+            for _ in range(updates):
+                indices = self.rng.choice(len(self.replay), min(batch_size, len(self.replay)), replace=False)
+                batch = [self.replay[int(i)] for i in indices]
+                prediction_loss, value_loss = self._prediction_loss(batch)
+                policy_loss = torch.zeros((), dtype=torch.float32, device=target_device)
+                if eligible:
+                    selected = self.rng.choice(len(eligible), min(batch_size, len(eligible)), replace=False)
+                    selected_tensor = torch.as_tensor(selected, dtype=torch.long, device=target_device)
+                    means = self.network.policy(actor_state.index_select(0, selected_tensor))
+                    logp = self._log_probability(actor_latent.index_select(0, selected_tensor), means)
+                    chosen_old_logp = old_logp.index_select(0, selected_tensor)
+                    chosen_advantages = advantages.index_select(0, selected_tensor)
+                    ratio = (logp-chosen_old_logp).clamp(-10, 10).exp()
+                    unclipped = ratio*chosen_advantages
+                    clipped = ratio.clamp(.8, 1.2)*chosen_advantages
+                    policy_loss = -torch.minimum(unclipped, clipped).mean()
+                    policy_steps += 1
+                loss = prediction_loss + .5*value_loss + policy_loss
+                if not bool(torch.isfinite(loss).item()):
+                    raise ValueError('nonfinite neural training objective')
+                self.optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                nn.utils.clip_grad_norm_(self.network.parameters(), 1.)
+                self.optimizer.step()
+                self.optimizer_updates += 1
+                self.actor_updates += int(bool(eligible))
+                last_actor = float(policy_loss.detach().cpu())
+                last_value = float(value_loss.detach().cpu())
+            if eligible:
+                self.policy_version += 1
+            with torch.no_grad():
+                final = float(self._prediction_loss(self.replay[-min(batch_size, len(self.replay)):])[0].detach().cpu())
+            self.last_metrics = {'initial_prediction_loss': initial, 'final_prediction_loss': final,
+                                 'value_loss': last_value, 'policy_loss': last_actor,
+                                 'eligible_policy_samples': len(eligible)}
+            return {'status': 'ok', 'samples': self.samples, 'replay_size': len(self.replay),
+                    'optimizer_updates': updates, 'actor_updates': policy_steps,
+                    'total_optimizer_updates': self.optimizer_updates,
+                    'total_actor_updates': self.actor_updates, **self.last_metrics,
+                    'training_device': str(target_device),
+                    'cpu_seconds': max(0., time.process_time()-cpu),
+                    'wall_seconds': max(0., time.perf_counter()-wall),
+                    'scope': 'executed-transition fitting; finite local training, no performance promotion'}
+        finally:
+            # The runtime, its optimizer, and checkpoints remain CPU-native.
+            # Accelerated fitting is an isolated candidate operation only.
+            self.network.to(original_device)
+            self._optimizer_to(original_device)
 
     def export_state(self):
-        return deepcopy({'schema': 1, 'settings': self.settings, 'network': self.network.state_dict(),
-                         'optimizer': self.optimizer.state_dict(), 'rng': self.rng.bit_generator.state,
+        network = {key: value.detach().cpu().clone() for key, value in self.network.state_dict().items()}
+        optimizer = deepcopy(self.optimizer.state_dict())
+        for state in optimizer['state'].values():
+            for key, value in state.items():
+                if isinstance(value, torch.Tensor):
+                    state[key] = value.detach().cpu().clone()
+        return deepcopy({'schema': 1, 'settings': self.settings, 'network': network,
+                         'optimizer': optimizer, 'rng': self.rng.bit_generator.state,
                          'replay': self.replay, 'pending': self.pending, 'connectome': self.connectome,
                          'proposals': self.proposals, 'samples': self.samples,
                          'optimizer_updates': self.optimizer_updates, 'actor_updates': self.actor_updates,

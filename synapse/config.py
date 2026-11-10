@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, fields
 from pathlib import Path
 from typing import Tuple
 import os
@@ -286,7 +286,9 @@ class SynapseConfig:
 
     @classmethod
     def max_tandem(cls, total_neurons: int = 9000, seed: int = 7, task: str = 'continental_biosphere', **kwargs) -> 'SynapseConfig':
-        """Maximum tandem configuration activating every optional feature, hybrid planning, SANCF, NeuroWave-X2, neuroendocrine, and full compute."""
+        """Maximum configuration with every optional subsystem enabled."""
+        from .dsag.config import DSAGSpecV1
+
         cfg_dict = dict(
             seed=seed,
             total_neurons=total_neurons,
@@ -371,11 +373,23 @@ class SynapseConfig:
             neural_pulses=True,
             sleep_replay=True,
             shared_knowledge=True,
-            live_microphone=False,
+            live_microphone=True,
             live_chat=True,
             virtual_ecology_v2=True,
             cross_model_exchange=True,
             evo_compat=True,
+            dsag=DSAGSpecV1(
+                enabled=True,
+                observe_only=False,
+                gain=0.025,
+                max_gain=0.1,
+                ramp_steps=32,
+                seed=seed,
+                plasticity_enabled=True,
+                phase_gate_enabled=True,
+                richer_messages=True,
+                structural_growth_enabled=True,
+            ),
         )
         cfg_dict.update(kwargs)
         return cls(**cfg_dict)
@@ -394,6 +408,33 @@ class SynapseConfig:
         if self.dsag is None:
             d.pop('dsag')
         return d
+
+    def max_tandem_feature_audit(self):
+        """Return an explicit inventory of enabled Max Mode subsystems."""
+        boolean_features = [
+            field.name for field in fields(self)
+            if type(getattr(self, field.name)) is bool
+        ]
+        enabled = [name for name in boolean_features if getattr(self, name)]
+        disabled = [name for name in boolean_features if not getattr(self, name)]
+        dsag_features = (
+            'enabled', 'plasticity_enabled', 'phase_gate_enabled',
+            'richer_messages', 'dual_soma', 'axo_branches',
+            'structural_growth_enabled',
+        )
+        dsag = self.dsag
+        if dsag is None:
+            disabled.append('dsag_v1')
+        else:
+            enabled.extend(f'dsag_v1.{name}' for name in dsag_features if getattr(dsag, name))
+            disabled.extend(f'dsag_v1.{name}' for name in dsag_features if not getattr(dsag, name))
+        return {
+            'schema': 'max-tandem-feature-audit-v1',
+            'enabled_count': len(enabled),
+            'enabled_features': enabled,
+            'disabled_features': disabled,
+            'complete': not disabled,
+        }
 
     def matches_saved(self, saved):
         """Only new optional settings may be omitted by legacy checkpoints."""

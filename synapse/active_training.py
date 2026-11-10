@@ -80,7 +80,7 @@ def pretrain_from_transitions(graft, transitions, updates=32, batch_size=128):
 
 
 def pretrain_runtime(runtime, steps=256, updates=32, batch_size=128, apply=True,
-                     progress=None, cancelled=None,workers=1):
+                     progress=None, cancelled=None,workers=1, device='cpu'):
     """Collect real transitions in a cloned world and fit only the new graft.
 
     With ``apply=False`` the result includes ``candidate_state`` and
@@ -94,6 +94,8 @@ def pretrain_runtime(runtime, steps=256, updates=32, batch_size=128, apply=True,
     _integer(batch_size, 'batch_size', 1, 2048)
     import os
     _integer(workers,'workers',1,min(4,os.cpu_count() or 1))
+    if not isinstance(device, str) or device not in {'cpu', 'auto'}:
+        raise ValueError("device must be 'cpu' or 'auto'")
     if type(apply) is not bool:
         raise ValueError('apply must be boolean')
     live_graft = getattr(runtime.agent, 'neural_graft', None)
@@ -133,7 +135,30 @@ def pretrain_runtime(runtime, steps=256, updates=32, batch_size=128, apply=True,
     if progress is not None:
         progress({'phase': 'fitting', 'completed': 0, 'total': updates,
                   'recorded_transitions': candidate.samples-before})
-    result = candidate.train_replay(updates=updates, batch_size=batch_size, actor=False)
+    from .compute import resolve_training_device
+    selected_device, device_selection = resolve_training_device(device)
+    candidate_before_fit = candidate.export_state() if selected_device != 'cpu' else None
+    try:
+        result = candidate.train_replay(updates=updates, batch_size=batch_size, actor=False,
+                                        device=selected_device)
+    except (RuntimeError, NotImplementedError) as exc:
+        if selected_device == 'cpu':
+            raise
+        # Training is isolated on a clone. Restore its post-collection state and
+        # retry on CPU so a driver/OOM/backend error does not lose the run.
+        candidate.import_state(candidate_before_fit)
+        selected_device = 'cpu'
+        result = candidate.train_replay(updates=updates, batch_size=batch_size, actor=False,
+                                        device='cpu')
+        device_selection = {
+            **device_selection,
+            'selected': 'cpu',
+            'fallback_reason': f'{type(exc).__name__}: {exc}',
+        }
+        result['accelerator_fallback'] = True
+    else:
+        result['accelerator_fallback'] = False
+    result['device_selection'] = device_selection
     candidate_state = candidate.export_state()
     result.update(recorded_transitions=candidate.samples-before, collection_steps=steps,
                   phase='auxiliary_pretraining', policy_frozen=True, applied=False,

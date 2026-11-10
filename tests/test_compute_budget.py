@@ -23,3 +23,23 @@ def test_invalid_cpu_budget_cannot_mutate_process_setting(value):
     with pytest.raises(ValueError):
         configure_torch(value)
     assert torch.get_num_threads() == before
+
+
+def test_compute_inventory_keeps_core_runtime_cpu_and_exposes_optional_devices():
+    from synapse.compute import accelerator_inventory, compute_summary, resolve_training_device
+    summary = compute_summary()
+    inventory = accelerator_inventory()
+    assert summary['device'] == 'cpu'
+    assert summary['training_device_candidates'] == inventory['training_device_candidates']
+    assert isinstance(inventory['cuda_available'], bool)
+    assert isinstance(inventory['mps_available'], bool)
+    assert isinstance(inventory['tpu_available'], bool)
+    device, selection = resolve_training_device('cpu')
+    assert device == 'cpu'
+    assert selection['selected'] == 'cpu'
+
+
+def test_worker_budget_respects_free_memory(monkeypatch):
+    from synapse import compute
+    monkeypatch.setattr(compute, 'available_memory_bytes', lambda: 1024 * 1024 * 1024)
+    assert compute.safe_worker_count(4, neurons=9000) == 1

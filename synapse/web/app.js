@@ -5536,6 +5536,12 @@ $('config').onsubmit = e => {
   config.surprise_memory = state.config?.surprise_memory ?? true;
   config.experience_horizon = state.config?.experience_horizon ?? 1;
   config.connectome_sources = state.config?.connectome_sources ?? ['flywire', 'manc', 'optic-lobe'];
+  for (const control of e.target.querySelectorAll('input[type="checkbox"][name]')) {
+    config[control.name] = control.checked;
+  }
+  for (const control of e.target.querySelectorAll('input[type="number"][name]')) {
+    config[control.name] = Number(control.value);
+  }
   action(async () => {
     render(await api('reset', { config }));
     signalHistory = [];
@@ -5913,8 +5919,13 @@ function setAllControlsToMaxUI() {
 
   const form = $('config');
   if (form) {
-    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 8000) {
-      form.elements.total_neurons.value = '8000';
+    // Max preset is exhaustive over the current form, so adding a feature
+    // checkbox later cannot silently leave it off in Max Mode.
+    for (const control of form.querySelectorAll('input[type="checkbox"][name]')) {
+      control.checked = true;
+    }
+    if (form.elements.total_neurons && Number(form.elements.total_neurons.value) < 9000) {
+      form.elements.total_neurons.value = '9000';
     }
     if (form.elements.microsteps) form.elements.microsteps.value = '4';
     if (form.elements.cognition_interval) form.elements.cognition_interval.value = '4';
@@ -5932,7 +5943,8 @@ function setAllControlsToMaxUI() {
       'neurowave_x2_enabled', 'neurowave_x2_phase', 'neurowave_x2_plasticity', 'neurowave_x2_development', 'neurowave_x2_dendritic',
       'apical_amplification', 'spectral_reservoir', 'hyperbolic_manifold',
       'spiking_neuromorphic', 'glymphatic_clearance', 'quantum_kuramoto',
-      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft'
+      'archimedes_buoyancy', 'memory_carrier_nexus', 'cross_connectome_graft',
+      'live_microphone'
     ]) {
       if (form.elements[field]) form.elements[field].checked = true;
     }
@@ -5977,7 +5989,7 @@ async function runTandemMaxMode() {
     const neurons = Number($('config')?.elements?.total_neurons?.value || 8000);
     const task = $('config')?.elements?.task?.value || state.config?.task || 'continental_biosphere';
     const res = await api('tandem/max', {
-      total_neurons: Math.max(8000, neurons),
+      total_neurons: Math.max(9000, neurons),
       task,
       pretrain_steps: 16,
       pretrain_updates: 8,
@@ -6037,7 +6049,8 @@ async function runTandemMaxMode() {
 
     show('tandem-receipt-out', res);
     if ($('tandem-summary')) {
-      $('tandem-summary').textContent = `Completed all 5 sections in ${res.total_wallclock_seconds}s · ${res.total_neurons} neurons · ${res.compute_threads} CPU threads · ${res.parallel_workers} rollout workers · SHA-256 ${String(res.tandem_sha256 || '').slice(0, 16)}…`;
+      const fittingDevice = res.section_01?.compute?.accelerator_fitting_device || 'cpu';
+      $('tandem-summary').textContent = `Completed all 5 sections in ${res.total_wallclock_seconds}s · ${res.total_neurons} neurons · ${res.compute_threads} CPU threads · neural-graft fit on ${fittingDevice} · ${res.parallel_workers} memory-safe rollout workers · SHA-256 ${String(res.tandem_sha256 || '').slice(0, 16)}…`;
     }
     if (pill) {
       pill.textContent = `Completed · ${res.total_wallclock_seconds}s`;

@@ -23,7 +23,14 @@ import numpy as np
 import torch
 
 from .config import SynapseConfig
-from .compute import compute_summary, configure_torch
+from .compute import compute_summary, configure_torch, safe_worker_count
+
+
+def _bounded_mode_int(data, name, default, low, high):
+    value = data.get(name, default)
+    if type(value) is not int or not low <= value <= high:
+        raise ValueError(f'{name} must be an integer in [{low},{high}]')
+    return value
 
 
 def run_diffusion_and_dpo_assay(runtime, horizon: int = 5, seed: int = 42) -> Dict[str, Any]:
@@ -391,9 +398,14 @@ def run_intensive_compute_boost(
 
     t0 = time.perf_counter()
     max_cpu = max(1, os.cpu_count() or 4)
-    threads = min(32, max_cpu)
-    workers = min(4, max_cpu) if workers is None else max(1, min(4, int(workers)))
-    configure_torch(threads)
+    requested_threads = min(32, max_cpu)
+    compute_setup = configure_torch(requested_threads)
+    torch_threads_actual = compute_setup['torch_threads']
+    threads = min(32, max(1, torch_threads_actual))
+    requested_workers = min(4, max_cpu) if workers is None else _bounded_mode_int(
+        {'workers': workers}, 'workers', 1, 1, 4
+    )
+    workers = safe_worker_count(requested_workers, runtime.config.total_neuron_count())
 
     # Ensure neural graft + frontier learning modules are active on runtime
     if not runtime.config.neural_graft or not runtime.config.active_training:
@@ -415,6 +427,7 @@ def run_intensive_compute_boost(
         batch_size=max(16, min(1024, int(batch_size))),
         apply=True,
         workers=workers,
+        device='auto',
     )
     snap = runtime.step(steps=max(1, min(128, int(online_steps))), learn=True)
     diff_dpo = run_diffusion_and_dpo_assay(runtime, horizon=5, seed=runtime.config.seed)
@@ -425,7 +438,12 @@ def run_intensive_compute_boost(
         'compute': {
             **compute_summary(),
             'threads_configured': threads,
+            'torch_threads_actual': torch_threads_actual,
+            'threads_requested': requested_threads,
             'parallel_rollout_workers': workers,
+            'parallel_workers_requested': requested_workers,
+            'fitting_device': pretrain_res.get('training_device', 'cpu'),
+            'accelerator_fallback': pretrain_res.get('accelerator_fallback', False),
             'batch_size': int(batch_size),
             'updates': int(updates),
             'rollout_steps_per_task': int(steps),
@@ -463,50 +481,89 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     from .controlled_study import ControlledSixArmStudy
     from .experiments import run_study, validate_config
 
-    data = data or {}
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ValueError('Max Mode options must be an object')
     t_start = time.perf_counter()
-    max_cpu = min(32, max(1, os.cpu_count() or 4))
-    workers = max(1, min(4, int(data.get('workers', 1))))
-    neurons = int(data.get('total_neurons', max(9000, workbench.runtime.config.total_neuron_count())))
-    neurons = max(48, min(30000, neurons))
-    task = str(data.get('task', workbench.runtime.config.task or 'forage'))
-    seed = int(data.get('seed', workbench.runtime.config.seed or 7))
+    current_config = workbench.runtime.config
+    requested_threads = min(32, max(1, os.cpu_count() or 4))
+    worker_request = _bounded_mode_int(data, 'workers', 1, 1, 4)
+    requested_neurons = _bounded_mode_int(
+        data, 'total_neurons', max(9000, current_config.total_neuron_count()), 16, 30000
+    )
+    neurons = max(48, min(30000, requested_neurons))
+    task = data.get('task', current_config.task or 'forage')
+    if not isinstance(task, str):
+        raise ValueError('task must be a string')
+    seed = _bounded_mode_int(data, 'seed', current_config.seed or 7, 0, 2**31 - 1)
+    pretrain_steps = _bounded_mode_int(data, 'pretrain_steps', 16, 1, 1024)
+    pretrain_updates = _bounded_mode_int(data, 'pretrain_updates', 8, 1, 256)
+    batch_size = _bounded_mode_int(data, 'batch_size', 128, 16, 1024)
+    live_steps = _bounded_mode_int(data, 'live_steps', 8, 1, 128)
+    omnibus_steps = _bounded_mode_int(data, 'omnibus_steps_per_task', 2, 1, 100)
+    eval_steps = _bounded_mode_int(data, 'omnibus_eval_steps', 2, 1, 100)
+    six_arm_steps = _bounded_mode_int(data, 'six_arm_steps', 8, 1, 100)
+    causal_steps = _bounded_mode_int(data, 'causal_9arm_steps', 10, 1, 60)
+    default_tasks = ['forage', 'maze', 'push', 'delayed_match', 'ecosystem', 'continental_biosphere']
+    omnibus_tasks = data.get('omnibus_tasks') or default_tasks
+    six_arm_tasks = data.get('six_arm_tasks', ['forage', 'push', 'ecosystem'])
+    from .complex_world import ALL_TASKS
+    for name, tasks in (('omnibus_tasks', omnibus_tasks), ('six_arm_tasks', six_arm_tasks)):
+        if (not isinstance(tasks, (list, tuple)) or not tasks
+                or any(type(item) is not str or item not in ALL_TASKS for item in tasks)):
+            raise ValueError(f'{name} must be a non-empty list of known tasks')
+    omnibus_tasks, six_arm_tasks = list(omnibus_tasks), list(six_arm_tasks)
 
-    configure_torch(max_cpu)
-
+    # Construct and audit before touching the live workbench. Invalid requests
+    # cannot leave the server half-switched into Max Mode.
     max_cfg = SynapseConfig.max_tandem(
         total_neurons=neurons,
         seed=seed,
         task=task,
-        compute_threads=max_cpu,
+        compute_threads=requested_threads,
     )
+    feature_audit = max_cfg.max_tandem_feature_audit()
+    if not feature_audit['complete']:
+        raise RuntimeError(f'Max Mode feature inventory is incomplete: {feature_audit["disabled_features"]}')
+
+    compute_setup = configure_torch(requested_threads)
+    torch_threads_actual = compute_setup['torch_threads']
+    max_cpu = min(32, max(1, torch_threads_actual))
+    if max_cfg.compute_threads != max_cpu:
+        max_cfg = SynapseConfig.max_tandem(
+            total_neurons=neurons,
+            seed=seed,
+            task=task,
+            compute_threads=max_cpu,
+        )
+    workers = safe_worker_count(worker_request, neurons)
+
     new_runtime = LabRuntime(max_cfg, output_root=workbench.root)
     with workbench.lock:
         workbench.runtime = new_runtime
         runtime = workbench.runtime
     pretrain_receipt = pretrain_runtime(
         runtime,
-        steps=int(data.get('pretrain_steps', 16)),
-        updates=int(data.get('pretrain_updates', 8)),
-        batch_size=int(data.get('batch_size', 128)),
+        steps=pretrain_steps,
+        updates=pretrain_updates,
+        batch_size=batch_size,
         apply=True,
         workers=workers,
+        device='auto',
     )
-    runtime.step(steps=int(data.get('live_steps', 8)), learn=True)
+    runtime.step(steps=live_steps, learn=True)
     plan_preview = workbench.post('/api/experience/preview', {
         'horizon': 5,
         'memory': True,
         'value_guided': True,
     })
 
-    omnibus_tasks = data.get('omnibus_tasks') or ['forage', 'maze', 'push', 'delayed_match', 'ecosystem', 'continental_biosphere']
-    omnibus_steps = int(data.get('omnibus_steps_per_task', 2))
-    eval_steps = int(data.get('omnibus_eval_steps', 2))
     workbench.omnibus_runner = OmnibusRunner(
         total_neurons=neurons,
         seed=seed,
         steps_per_task=max(2, min(100, omnibus_steps)),
-        curriculum_tasks=list(omnibus_tasks),
+        curriculum_tasks=omnibus_tasks,
         output_dir=workbench.root,
         eval_steps=eval_steps,
         eval_episodes=1,
@@ -519,7 +576,12 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'compute': {
             **compute_summary(),
             'threads': max_cpu,
+            'torch_threads_actual': torch_threads_actual,
+            'threads_requested': requested_threads,
             'parallel_workers': workers,
+            'parallel_workers_requested': worker_request,
+            'accelerator_fitting_device': pretrain_receipt.get('training_device', 'cpu'),
+            'feature_audit': feature_audit,
         },
         'pretrain_receipt': pretrain_receipt,
         'plan_preview': plan_preview,
@@ -678,14 +740,14 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     runtime.skill_library.discover_skills()
     skills_res = workbench.get('/api/reusable_skills')
     six_arm_res = ControlledSixArmStudy(
-        task_sequence=data.get('six_arm_tasks', ['forage', 'push', 'ecosystem']),
-        steps_per_stage=int(data.get('six_arm_steps', 8)),
+        task_sequence=six_arm_tasks,
+        steps_per_stage=six_arm_steps,
         eval_episodes_per_task=1,
         seed=seed,
     ).run_study()
     causal_9arm_res = run_causal_9arm_and_scorecard(
         runtime,
-        steps_per_arm=int(data.get('causal_9arm_steps', 10)),
+        steps_per_arm=causal_steps,
         episodes_per_arm=1,
         seed=seed,
     )
@@ -738,7 +800,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'status': 'completed',
         'mode': 'tandem_max_sections_1_to_5',
         'total_neurons': neurons,
-        'compute_threads': max_cpu,
+        'compute_threads': torch_threads_actual,
         'parallel_workers': workers,
         'total_wallclock_seconds': total_wallclock_s,
         'tandem_sha256': tandem_sha256,

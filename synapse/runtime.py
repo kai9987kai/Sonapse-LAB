@@ -146,8 +146,10 @@ class LabRuntime:
                 plast_report=self.plasticity_monitor.evaluate_plasticity().to_dict()
                 self.last['experience_update']=self.agent.observe_transition(self.obs,reward,done,action=act)
                 self.last['memory_recall']=deepcopy(self.agent.last_memory_recall)
+                recon_telem=self.agent.memory_reconsolidation.get_summary()
+                recon_telem.pop('timestamp',None)
                 self.last['memory_reconsolidation']={
-                    **self.agent.memory_reconsolidation.get_summary(),
+                    **recon_telem,
                     'latest':deepcopy(self.agent.last_memory_reconciliation),
                 }
                 self.agent.feedback(reward,done)

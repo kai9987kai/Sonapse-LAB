@@ -65,3 +65,38 @@ def test_cancelled_pretraining_cannot_apply_a_partial_candidate(tmp_path):
     assert result['status'] == 'cancelled'
     assert result['applied'] is False
     assert digest(runtime.agent.neural_graft.export_state()) == before
+
+
+def test_accelerator_fit_failure_restores_candidate_and_retries_on_cpu(tmp_path, monkeypatch):
+    from synapse import active_training, compute
+    from synapse.config import SynapseConfig
+    from synapse.neural_graft import NeuralResidualGraft
+    from synapse.runtime import LabRuntime
+
+    runtime = LabRuntime(SynapseConfig(nodes_per_source=16, neural_graft=True), tmp_path)
+    monkeypatch.setattr(
+        compute,
+        'resolve_training_device',
+        lambda preferred: ('cuda:0', {'requested': preferred, 'selected': 'cuda:0', 'fallback_reason': None}),
+        raising=False,
+    )
+    original_train = NeuralResidualGraft.train_replay
+    attempted = []
+
+    def fail_after_candidate_fit(self, *args, device='cpu', **kwargs):
+        attempted.append(device)
+        if device != 'cpu':
+            original_train(self, *args, device='cpu', **kwargs)
+            raise RuntimeError('simulated accelerator allocation failure')
+        return original_train(self, *args, device=device, **kwargs)
+
+    monkeypatch.setattr(NeuralResidualGraft, 'train_replay', fail_after_candidate_fit)
+    result = active_training.pretrain_runtime(
+        runtime, steps=8, updates=2, batch_size=8, device='auto'
+    )
+    assert attempted == ['cuda:0', 'cpu']
+    assert result['training_device'] == 'cpu'
+    assert result['accelerator_fallback'] is True
+    assert 'simulated accelerator allocation failure' in result['device_selection']['fallback_reason']
+    assert result['applied'] is True
+    assert runtime.agent.neural_graft.optimizer_updates == 2

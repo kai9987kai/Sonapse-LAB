@@ -94,8 +94,15 @@ def test_max_tandem_config_hybrid_planner_and_checkpoint_replay(tmp_path):
     assert cfg.oscillatory_coherence is True
     assert cfg.verifiable_dpo is True
     assert cfg.planner_algorithm == 'hybrid'
+    assert cfg.max_tandem_feature_audit()['complete'] is True
+    assert cfg.live_microphone is True  # The gateway is enabled; browser capture remains user initiated.
+    assert cfg.dsag.enabled is True
+    assert cfg.dsag.observe_only is False
+    assert cfg.dsag.phase_gate_enabled is True
 
     lab = LabRuntime(cfg, output_root=tmp_path)
+    assert lab.agent.dsag_channel is not None
+    assert lab.agent.dsag_channel.enabled is True
     lab.step(2, learn=False)
     # Dendritic & DPO weights remain untouched when learn=False
     assert lab.agent.dendritic_ltc.updates == 0
@@ -159,6 +166,18 @@ def test_workbench_tandem_max_and_new_endpoints(tmp_path):
     status = wb.get('/api/tandem/status')
     assert status['status'] == 'completed'
     assert status['tandem_sha256'] == tandem['tandem_sha256']
+    assert tandem['section_01']['compute']['feature_audit']['complete'] is True
+    assert tandem['section_01']['compute']['accelerator_fitting_device'] == tandem['section_01']['pretrain_receipt']['training_device']
+
+
+def test_tandem_max_rejects_bad_options_before_replacing_live_runtime(tmp_path):
+    import pytest
+    cfg = SynapseConfig(nodes_per_source=16, seed=7)
+    wb = Workbench(config=cfg, output_root=tmp_path)
+    live_runtime = wb.runtime
+    with pytest.raises(ValueError, match='workers'):
+        wb.post('/api/tandem/max', {'workers': 0})
+    assert wb.runtime is live_runtime
 
 
 def test_poseidon_dvgem_6arm_lesion_and_tether_coordinator():
