@@ -127,9 +127,10 @@ The **Complete System in Tandem (Max Mode)** preset enables every current
 boolean subsystem, including DSAG v1, and reports an explicit feature inventory
 in its run receipt. It starts the local audio gateway, while actual microphone
 capture still requires the user to press **Start Live Mic Stream** and grant
-browser access. Max Mode requests the available CPU thread budget and limits
-parallel cloned-world workers according to free memory while retaining a memory
-reserve. Invalid run bounds are rejected before the live runtime is replaced.
+browser access. Max Mode requests the available CPU thread budget and sizes
+parallel cloned-world workers from free memory while accounting for a 1.5 GiB
+reserve; if that reserve is unavailable, worker count falls to one. Invalid run
+bounds are rejected before the live runtime is replaced.
 
 The recurrent simulator, graph state, telemetry, and checkpoint format remain
 CPU-native. Only the isolated, executed-transition neural-graft fitting step can

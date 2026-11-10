@@ -6050,7 +6050,7 @@ async function runTandemMaxMode() {
     show('tandem-receipt-out', res);
     if ($('tandem-summary')) {
       const fittingDevice = res.section_01?.compute?.accelerator_fitting_device || 'cpu';
-      $('tandem-summary').textContent = `Completed all 5 sections in ${res.total_wallclock_seconds}s · ${res.total_neurons} neurons · ${res.compute_threads} CPU threads · neural-graft fit on ${fittingDevice} · ${res.parallel_workers} memory-safe rollout workers · SHA-256 ${String(res.tandem_sha256 || '').slice(0, 16)}…`;
+      $('tandem-summary').textContent = `Completed all 5 sections in ${res.total_wallclock_seconds}s · ${res.total_neurons} neurons · ${res.compute_threads} CPU threads · neural-graft fit on ${fittingDevice} · ${res.parallel_workers} RAM-bounded rollout workers · SHA-256 ${String(res.tandem_sha256 || '').slice(0, 16)}…`;
     }
     if (pill) {
       pill.textContent = `Completed · ${res.total_wallclock_seconds}s`;
