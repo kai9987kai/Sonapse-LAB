@@ -1,6 +1,7 @@
 """Content-bound tensor/primitive checkpoints. No arbitrary pickle objects accepted."""
 from pathlib import Path
 import hashlib, json, math, os, tempfile
+import uuid
 import numpy as np
 import torch
 
@@ -75,23 +76,58 @@ def _atomic(path,data):
 def save_state(path,payload):
     import io
     path=Path(path); encoded=_encode(payload)
-    stream=io.BytesIO(); torch.save({'schema':SCHEMA,'payload':encoded,'digest':digest(payload)},stream)
+    checkpoint_id=uuid.uuid4().hex
+    state_digest=digest(payload)
+    stream=io.BytesIO(); torch.save({'schema':SCHEMA,'checkpoint_id':checkpoint_id,'payload':encoded,'digest':state_digest},stream)
     data=stream.getvalue(); sha=hashlib.sha256(data).hexdigest()
     _atomic(path,data)
-    _atomic(Path(str(path)+'.json'),json.dumps({'schema':SCHEMA,'sha256':sha,'bytes':len(data),'state_digest':digest(payload)},indent=2).encode())
+    manifest={'schema':SCHEMA,'checkpoint_id':checkpoint_id,'sha256':sha,'bytes':len(data),'state_digest':state_digest}
+    try:
+        _atomic(Path(str(path)+'.json'),json.dumps(manifest,indent=2).encode())
+    except OSError:
+        # The tensor archive carries its own content digest and a unique commit
+        # id. A stale sidecar can be rebuilt by load_state after an interrupted
+        # metadata write, without discarding the already committed checkpoint.
+        pass
     return sha
 
 def load_state(path):
     import io
     path=Path(path)
     if path.stat().st_size>1024**3: raise ValueError('checkpoint exceeds 1 GiB limit')
-    manifest=json.loads(Path(str(path)+'.json').read_text(encoding='utf-8'))
     data=path.read_bytes()
-    if manifest.get('schema')!=SCHEMA or hashlib.sha256(data).hexdigest()!=manifest.get('sha256'):
-        raise ValueError('checkpoint hash mismatch')
+    manifest_path=Path(str(path)+'.json')
+    try:
+        manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        manifest=None
     archive=torch.load(io.BytesIO(data),map_location='cpu',weights_only=True)
     if archive.get('schema')!=SCHEMA: raise ValueError('checkpoint schema mismatch')
     value=_decode(archive['payload']); _encode(value)
-    if digest(value)!=archive.get('digest') or digest(value)!=manifest.get('state_digest'):
+    state_digest=digest(value)
+    if state_digest!=archive.get('digest'):
         raise ValueError('checkpoint state hash mismatch')
+    sha=hashlib.sha256(data).hexdigest()
+    checkpoint_id=archive.get('checkpoint_id')
+    if checkpoint_id is None:
+        # Legacy v1 archives used the sidecar as their only byte-level commit
+        # marker; retain that strict validation for existing saved sessions.
+        if (not isinstance(manifest,dict) or manifest.get('schema')!=SCHEMA
+                or manifest.get('sha256')!=sha or manifest.get('state_digest')!=state_digest):
+            raise ValueError('checkpoint hash mismatch')
+    else:
+        if (not isinstance(checkpoint_id,str) or len(checkpoint_id)!=32
+                or any(char not in '0123456789abcdef' for char in checkpoint_id)):
+            raise ValueError('checkpoint commit id is invalid')
+        if isinstance(manifest,dict) and manifest.get('checkpoint_id')==checkpoint_id:
+            if (manifest.get('schema')!=SCHEMA or manifest.get('sha256')!=sha
+                    or manifest.get('state_digest')!=state_digest or manifest.get('bytes')!=len(data)):
+                raise ValueError('checkpoint hash mismatch')
+        else:
+            # The data file was atomically replaced but the process may have
+            # stopped before replacing its sidecar. The embedded digest proves
+            # the payload; complete the metadata commit before returning it.
+            recovered={'schema':SCHEMA,'checkpoint_id':checkpoint_id,'sha256':sha,
+                       'bytes':len(data),'state_digest':state_digest}
+            _atomic(manifest_path,json.dumps(recovered,indent=2).encode())
     return value

@@ -1,6 +1,11 @@
+import hashlib
+import io
+import json
+from pathlib import Path
 import numpy as np
 import pytest
 import torch
+import synapse.stateio as stateio
 from synapse.stateio import digest, save_state, load_state
 
 def test_state_archive_preserves_types_and_rejects_tamper(tmp_path):
@@ -19,3 +24,50 @@ def test_digest_changes_with_tensor_data_and_type():
 
 def test_nonfinite_state_rejected(tmp_path):
     with pytest.raises(ValueError,match='finite'): save_state(tmp_path/'bad.pt',{'t':torch.tensor([float('nan')])})
+
+
+def test_legacy_archive_without_commit_id_remains_loadable(tmp_path):
+    value={'legacy':np.asarray([1,2,3],dtype=np.int64)}
+    stream=io.BytesIO()
+    torch.save({'schema':stateio.SCHEMA,'payload':stateio._encode(value),'digest':digest(value)},stream)
+    data=stream.getvalue()
+    path=tmp_path/'legacy.pt'
+    path.write_bytes(data)
+    Path(str(path)+'.json').write_text(json.dumps({
+        'schema':stateio.SCHEMA,
+        'sha256':hashlib.sha256(data).hexdigest(),
+        'bytes':len(data),
+        'state_digest':digest(value),
+    }),encoding='utf-8')
+    assert digest(load_state(path))==digest(value)
+
+
+def test_interrupted_manifest_commit_recovers_new_checkpoint(tmp_path,monkeypatch):
+    path=tmp_path/'session.pt'
+    save_state(path,{'generation':1})
+    atomic=stateio._atomic
+    manifest_path=Path(str(path)+'.json')
+
+    def fail_manifest(target,data):
+        if Path(target)==manifest_path:
+            raise OSError('simulated manifest write failure')
+        atomic(target,data)
+
+    monkeypatch.setattr(stateio,'_atomic',fail_manifest)
+    save_state(path,{'generation':2})
+    monkeypatch.setattr(stateio,'_atomic',atomic)
+
+    assert load_state(path)=={'generation':2}
+    manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
+    assert manifest['checkpoint_id']
+    assert manifest['state_digest']==digest({'generation':2})
+
+
+def test_unreadable_manifest_recovers_checkpoint(tmp_path):
+    path=tmp_path/'session.pt'
+    save_state(path,{'generation':3})
+    Path(str(path)+'.json').write_bytes(b'\xff')
+
+    assert load_state(path)=={'generation':3}
+    manifest=json.loads(Path(str(path)+'.json').read_text(encoding='utf-8'))
+    assert manifest['state_digest']==digest({'generation':3})

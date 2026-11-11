@@ -31,6 +31,7 @@ from synapse.virtual_ecology import (
     VirtualEcologyBiome,
     EcologyAgentState,
 )
+from synapse.config import SynapseConfig
 from synapse.server import Workbench
 
 
@@ -202,6 +203,34 @@ def test_memory_reconsolidation_destabilization_and_update():
     assert summary["active_labile_count"] == 0, "Trace must re-stabilize after labile window expires"
 
 
+def test_reconsolidation_checkpoint_preserves_last_telemetry_and_legacy_state():
+    engine = MemoryReconsolidationEngine(seed=19)
+    engine._last_telemetry = ReconsolidationTelemetry(
+        active_labile_count=1,
+        total_reactivations=2,
+        total_updates=1,
+        total_extinctions=0,
+        mean_lability=.75,
+        latest_prediction_error=.42,
+        timestamp=123.5,
+    )
+    state = engine.export_state()
+    restored = MemoryReconsolidationEngine(seed=19)
+    restored.import_state(state)
+    original_summary=engine.get_summary()
+    restored_summary=restored.get_summary()
+    original_summary.pop('timestamp')
+    restored_summary.pop('timestamp')
+    assert restored_summary == original_summary
+    assert 'timestamp' not in state['last_telemetry']
+
+    # Pre-telemetry v1 agent checkpoints omit this optional field.
+    legacy = dict(state)
+    legacy.pop('last_telemetry')
+    restored.import_state(legacy)
+    assert 'latest_prediction_error' not in restored.get_summary()
+
+
 def test_multi_connectome_fusion_with_stdp():
     """Verifies STDP plastic adaptation across 12,082 connectome bridge pathways."""
     fusion = MultiConnectomeFusionEngine(seed=42)
@@ -267,7 +296,8 @@ def test_virtual_ecology_allostasis_integration():
 
 def test_server_stdp_allostasis_reconsolidation_endpoints():
     """Verifies all 6 REST endpoints for STDP, allostasis, and memory reconsolidation."""
-    bench = Workbench()
+    # These routes do not exercise scale; keep the fixture small and isolated.
+    bench = Workbench(config=SynapseConfig(nodes_per_source=16))
 
     # GET /api/connectome/stdp
     res_stdp = bench.get('/api/connectome/stdp')

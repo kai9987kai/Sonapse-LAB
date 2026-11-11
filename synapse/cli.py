@@ -20,7 +20,7 @@ def main(argv=None):
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
     size=parser.add_mutually_exclusive_group()
     size.add_argument('--nodes',type=int,help='legacy neurons per source')
-    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 8000)')
+    size.add_argument('--total-neurons',type=int,help='exact total live actor neurons (default: 9000)')
     parser.add_argument('--task',default='forage')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('status')

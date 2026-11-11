@@ -123,6 +123,12 @@ class MemoryReconsolidationEngine:
                 'update_count': int(trace.update_count),
                 'is_restabilized': bool(trace.is_restabilized),
             }
+        telemetry = None
+        if self._last_telemetry is not None:
+            telemetry = dataclasses.asdict(self._last_telemetry)
+            # Wall-clock telemetry is observable but not behavioral state. Do
+            # not make deterministic replay depend on when a checkpoint ran.
+            telemetry.pop('timestamp', None)
         return {
             'schema': 1,
             'config': {
@@ -137,6 +143,7 @@ class MemoryReconsolidationEngine:
             'total_updates': self.total_updates,
             'total_extinctions': self.total_extinctions,
             'rng': copy.deepcopy(self.rng.bit_generator.state),
+            'last_telemetry': telemetry,
         }
 
     def import_state(self, state) -> None:
@@ -196,10 +203,46 @@ class MemoryReconsolidationEngine:
             rng.bit_generator.state = copy.deepcopy(state['rng'])
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError('invalid reconsolidation RNG state') from exc
+        raw_telemetry = state.get('last_telemetry')
+        last_telemetry = None
+        if raw_telemetry is not None:
+            telemetry_fields = {field.name for field in dataclasses.fields(ReconsolidationTelemetry)}
+            if (not isinstance(raw_telemetry, dict)
+                    or set(raw_telemetry) not in (telemetry_fields, telemetry_fields-{'timestamp'})):
+                raise ValueError('invalid reconsolidation telemetry')
+            active = raw_telemetry['active_labile_count']
+            telemetry_counts = [
+                raw_telemetry[name]
+                for name in ('total_reactivations', 'total_updates', 'total_extinctions')
+            ]
+            if (isinstance(active, bool) or not isinstance(active, int)
+                    or not 0 <= active <= self.max_labile_traces
+                    or any(isinstance(value, bool) or not isinstance(value, int) or value < 0
+                           for value in telemetry_counts)):
+                raise ValueError('invalid reconsolidation telemetry counters')
+            try:
+                mean_lability = float(raw_telemetry['mean_lability'])
+                prediction_error = float(raw_telemetry['latest_prediction_error'])
+                timestamp = float(raw_telemetry.get('timestamp', 0.0))
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError('invalid reconsolidation telemetry values') from exc
+            if (not np.isfinite([mean_lability, prediction_error, timestamp]).all()
+                    or not 0.0 <= mean_lability <= 1.0
+                    or prediction_error < 0.0 or timestamp < 0.0):
+                raise ValueError('invalid reconsolidation telemetry values')
+            last_telemetry = ReconsolidationTelemetry(
+                active_labile_count=active,
+                total_reactivations=telemetry_counts[0],
+                total_updates=telemetry_counts[1],
+                total_extinctions=telemetry_counts[2],
+                mean_lability=mean_lability,
+                latest_prediction_error=prediction_error,
+                timestamp=timestamp,
+            )
         self.labile_traces = traces
         self.total_reactivations, self.total_updates, self.total_extinctions = counters
         self.rng = rng
-        self._last_telemetry = None
+        self._last_telemetry = last_telemetry
 
     def reactivate_trace(
         self,

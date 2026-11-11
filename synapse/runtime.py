@@ -1,6 +1,6 @@
 """Synchronous bounded CPU laboratory with complete mid-episode restoration."""
 from pathlib import Path
-from copy import deepcopy
+from copy import copy, deepcopy
 from collections import deque
 from dataclasses import replace
 import re
@@ -13,17 +13,20 @@ from .complex_world import ComplexWorld, ALL_TASKS as TASKS
 from .actions import ACTION_NAMES, govern_action, validate_action
 
 class LabRuntime:
+    @staticmethod
+    def _make_world(task, seed):
+        if task == 'world4d_tesseract_bypass':
+            from .world4d import World4DEnvironment
+            return World4DEnvironment(seed=seed)
+        if task == 'digital_tool_arena':
+            from .digital_tool_arena import DigitalToolArena
+            return DigitalToolArena(seed=seed)
+        return ComplexWorld(seed=seed, curriculum=task)
+
     def __init__(self,config,output_root=None):
         self.config=config; self.output_root=Path(output_root or ROOT/'state')
         self.agent=IntegratedAgent(config)
-        if config.task == 'world4d_tesseract_bypass':
-            from .world4d import World4DEnvironment
-            self.world = World4DEnvironment(seed=config.seed)
-        elif config.task == 'digital_tool_arena':
-            from .digital_tool_arena import DigitalToolArena
-            self.world = DigitalToolArena(seed=config.seed)
-        else:
-            self.world=ComplexWorld(seed=config.seed,curriculum=config.task)
+        self.world=self._make_world(config.task,config.seed)
         from .reusable_skills import ReusableSkillLibrary
         self.skill_library=ReusableSkillLibrary(seed=config.seed)
         self._init_monitors()
@@ -237,44 +240,95 @@ class LabRuntime:
             d['rng_complex']=self.world.rng_complex.bit_generator.state
         d['history']={k:list(v) for k,v in d['history'].items()}
         # Explicit object references preserve mutations through st and objects.
+        saved_objects=d.get('objects',[])
         def encode(v):
             if isinstance(v,dict):
-                for i,obj in enumerate(getattr(self.world,'objects',[])):
+                for i,obj in enumerate(saved_objects):
                     if v is obj: return {'__object_ref__':i}
                 return {k:encode(x) for k,x in v.items()}
             if isinstance(v,(list,tuple)): return [encode(x) for x in v]
             return v
         d['st']=encode(d['st']); return d
+
+    def _restore_world(self,state):
+        if not isinstance(state,dict):
+            raise ValueError('invalid runtime world checkpoint')
+        data=deepcopy(state)
+        world=self._make_world(self.config.task,self.config.seed)
+        if 'history' in data and hasattr(world,'history'):
+            if not isinstance(data.get('history'),dict) or not isinstance(data.get('rng'),dict):
+                raise ValueError('invalid runtime world checkpoint')
+            rng=np.random.default_rng(); rng.bit_generator.state=data['rng']; data['rng']=rng
+            if 'rng_complex' in data and hasattr(world,'rng_complex'):
+                rng_complex=np.random.default_rng()
+                rng_complex.bit_generator.state=data['rng_complex']
+                data['rng_complex']=rng_complex
+            data['history']={key:deque(value,maxlen=50) for key,value in data['history'].items()}
+            def decode(value):
+                if isinstance(value,dict):
+                    if set(value)=={'__object_ref__'}:
+                        index=value['__object_ref__']
+                        objects=data.get('objects',[])
+                        if type(index) is not int or not 0<=index<len(objects):
+                            raise ValueError('invalid runtime world object reference')
+                        return objects[index]
+                    return {key:decode(item) for key,item in value.items()}
+                if isinstance(value,list):
+                    return [decode(item) for item in value]
+                return value
+            if 'st' in data:
+                data['st']=decode(data['st'])
+            world.__dict__.clear(); world.__dict__.update(data)
+        elif 'rng' in data and hasattr(world,'rng'):
+            world.rng.bit_generator.state=data['rng']
+        else:
+            raise ValueError('runtime world checkpoint has no compatible RNG state')
+        return world
+
     def save(self,name):
         path=self._path(name)
         identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action,'skill_library':self.skill_library.export_state(),'monitors':self._export_monitors()})
         return {'name':name,'digest':identity,'steps':self.total_steps,'restore_semantics':'exact mid-episode'}
     def load(self,name):
         data=load_state(self._path(name))
-        if data.get('schema')!=1 or not self.config.matches_saved(data.get('config')): raise ValueError('runtime checkpoint/config mismatch')
-        self.agent.import_state(data['agent']); d=data['world']
-        if 'history' in d and hasattr(self.world, 'history'):
-            rng=np.random.default_rng(); rng.bit_generator.state=d['rng']; d['rng']=rng
-            if 'rng_complex' in d and hasattr(self.world, 'rng_complex'):
-                rng_c = np.random.default_rng()
-                rng_c.bit_generator.state = d['rng_complex']
-                d['rng_complex'] = rng_c
-            d['history']={k:deque(v,maxlen=50) for k,v in d['history'].items()}
-            def decode(v):
-                if isinstance(v,dict):
-                    if set(v)=={'__object_ref__'}:
-                        ref_idx = v['__object_ref__']
-                        objs = d.get('objects', [])
-                        return objs[ref_idx] if 0 <= ref_idx < len(objs) else v
-                    return {k:decode(x) for k,x in v.items()}
-                if isinstance(v,list): return [decode(x) for x in v]
-                return v
-            d['st']=decode(d['st']); self.world.__dict__.clear(); self.world.__dict__.update(d)
-        elif 'rng' in d and hasattr(self.world, 'rng'):
-            self.world.rng.bit_generator.state = d['rng']
-        if 'skill_library' in data: self.skill_library.import_state(data['skill_library'])
-        self._import_monitors(data.get('monitors'))
-        self.obs=data['obs']; self.total_steps=data['steps']; self.recent=data['recent']; self.last=data['last']; self.last_action=data['last_action']
+        if (not isinstance(data,dict) or data.get('schema')!=1
+                or not self.config.matches_saved(data.get('config'))):
+            raise ValueError('runtime checkpoint/config mismatch')
+        obs=np.asarray(data.get('obs'),dtype=np.float32)
+        steps=data.get('steps')
+        recent=data.get('recent')
+        last=data.get('last')
+        last_action=np.asarray(data.get('last_action'),dtype=np.float32)
+        if (obs.shape!=self.obs.shape or not np.isfinite(obs).all()
+                or isinstance(steps,bool) or not isinstance(steps,int) or steps<0
+                or not isinstance(recent,list) or not isinstance(last,dict)
+                or last_action.shape!=(5,) or not np.isfinite(last_action).all()):
+            raise ValueError('invalid runtime checkpoint fields')
+
+        # Stage every non-agent component before importing learned weights. A
+        # malformed world, skill or monitor payload must leave the live runtime
+        # untouched; the agent import itself is transactional as well.
+        candidate_world=self._restore_world(data.get('world'))
+        from .reusable_skills import ReusableSkillLibrary
+        candidate_skills=ReusableSkillLibrary(seed=self.config.seed)
+        if 'skill_library' in data:
+            candidate_skills.import_state(data['skill_library'])
+        candidate_monitors=copy(self)
+        candidate_monitors._import_monitors(data.get('monitors'))
+        agent_state=data.get('agent')
+        if not isinstance(agent_state,dict):
+            raise ValueError('invalid runtime agent checkpoint')
+        self.agent.import_state(agent_state)
+
+        self.world=candidate_world
+        self.skill_library=candidate_skills
+        for field in ('plasticity_monitor','uncertainty_decomposer',
+                      '_prev_uncertainty_transition','uncertainty_updates',
+                      'uncertainty_last_loss'):
+            setattr(self,field,getattr(candidate_monitors,field))
+        self._cached_observatory_struct=None
+        self.obs=obs.copy(); self.total_steps=steps
+        self.recent=deepcopy(recent); self.last=deepcopy(last); self.last_action=last_action.copy()
         return self.snapshot()
     def reset(self,task=None,seed=None):
         self._cached_observatory_struct = None

@@ -5,7 +5,7 @@ import torch
 
 from synapse.config import SynapseConfig
 from synapse.runtime import LabRuntime
-from synapse.stateio import digest
+from synapse.stateio import digest, load_state, save_state
 from synapse.homeostasis import HomeostaticEngine
 from synapse.complex_world import ComplexWorld
 
@@ -193,6 +193,43 @@ def test_invalid_agent_restore_preserves_resident_state(tmp_path):
     with pytest.raises(ValueError):
         lab.agent.import_state(state)
     assert digest(lab.agent.export_state()) == before
+
+
+def test_invalid_world_restore_preserves_entire_live_runtime(tmp_path):
+    lab = runtime(tmp_path)
+    lab.step(1, learn=True)
+    lab.save('candidate')
+    lab.step(1, learn=True)
+    before = digest({
+        'agent': lab.agent.export_state(),
+        'world': lab._world_state(),
+        'obs': lab.obs,
+        'steps': lab.total_steps,
+        'recent': lab.recent,
+        'last': lab.last,
+        'last_action': lab.last_action,
+        'skills': lab.skill_library.export_state(),
+        'monitors': lab._export_monitors(),
+    })
+
+    state = load_state(lab._path('candidate'))
+    state['world']['rng'] = {'bit_generator': 'corrupt'}
+    save_state(lab._path('invalid-world'), state)
+    with pytest.raises((KeyError, TypeError, ValueError)):
+        lab.load('invalid-world')
+
+    after = digest({
+        'agent': lab.agent.export_state(),
+        'world': lab._world_state(),
+        'obs': lab.obs,
+        'steps': lab.total_steps,
+        'recent': lab.recent,
+        'last': lab.last,
+        'last_action': lab.last_action,
+        'skills': lab.skill_library.export_state(),
+        'monitors': lab._export_monitors(),
+    })
+    assert after == before
 
 
 @pytest.mark.parametrize('value', [True, 0, 6, 1.5])

@@ -97,19 +97,25 @@ def test_sleep_rejects_unverifiable_candidates_without_mutating_live_state(failu
     assert all(candidate is not agent for candidate in calls)
 
 
-def test_sleep_trains_observation_conditioned_native_path_and_preserves_live_context():
+def test_sleep_trains_observation_conditioned_native_path_and_preserves_live_context(monkeypatch):
     agent, engine = _agent_and_sleep()
     before = agent.export_state()
     motor_inputs = []
-    hook = agent.motor.register_forward_pre_hook(lambda module, inputs: motor_inputs.append(inputs[0].detach().clone()))
-    try:
-        result = engine.run_sleep_cycle(agent, sleep_steps=3, eval_fn=lambda candidate: 1.)
-    finally:
-        hook.remove()
+    original_head = engine._head
+
+    def capture_motor_inputs(candidate, encoded, indices):
+        pooled = encoded['native_input'][indices]
+        pooled = pooled + .05 * torch.tanh(candidate.native(pooled))
+        features = torch.cat([pooled, encoded['context'][indices]], dim=-1)
+        motor_inputs.extend(item.detach().clone() for item in features)
+        return original_head(candidate, encoded, indices)
+
+    monkeypatch.setattr(engine, '_head', capture_motor_inputs)
+    result = engine.run_sleep_cycle(agent, sleep_steps=3, eval_fn=lambda candidate: 1.)
     assert result['accepted'] is True
     assert not torch.equal(before['modules']['native']['weight'], agent.native.weight)
     assert not torch.equal(before['modules']['motor']['weight'], agent.motor.weight)
-    # Copies retain this observer; actual replay must encode distinct observations.
+    # Sleep trains a deep-copied head, so inspect the actual replay features.
     assert len(motor_inputs) >= 2
     assert any(not torch.equal(motor_inputs[0], item) for item in motor_inputs[1:])
     assert digest(before['transient']) == digest(agent.export_state()['transient'])

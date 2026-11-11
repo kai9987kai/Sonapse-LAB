@@ -34,12 +34,26 @@ def test_total_count_validation(value):
         SynapseConfig(total_neurons=value)
 
 
-def test_cli_default_is_exactly_4000(capsys):
+def test_cli_default_is_exactly_9000(capsys, monkeypatch):
     from synapse.cli import main
+    from synapse import runtime as runtime_module
+
+    class ConfigOnlyRuntime:
+        def __init__(self, config, output_root=None):
+            self.config = config
+
+        def snapshot(self):
+            return {
+                'graph': {'neurons': self.config.total_neuron_count()},
+                'config': self.config.to_dict(),
+            }
+
+    # Inspect CLI sizing without allocating a 9,000-neuron live runtime.
+    monkeypatch.setattr(runtime_module, 'LabRuntime', ConfigOnlyRuntime)
     assert main(['status']) == 0
     state = json.loads(capsys.readouterr().out)
-    assert state['graph']['neurons'] == 4000
-    assert state['config']['total_neurons'] == 4000
+    assert state['graph']['neurons'] == 9000
+    assert state['config']['total_neurons'] == 9000
 
 
 def test_api_total_neuron_reset(tmp_path):
