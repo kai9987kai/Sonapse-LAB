@@ -1142,7 +1142,10 @@ def _handle_connectome_compile_biological(payload: Dict[str, Any]) -> Dict[str, 
     from .connectome_compiler import BiologicalConnectomeCompiler
     compiler = BiologicalConnectomeCompiler()
     query = payload.get('query', 'motor')
-    mod = compiler.compile_subcircuit(query=query, max_neurons=32)
+    try:
+        mod = compiler.compile_subcircuit(query=query, max_neurons=32)
+    except FileNotFoundError as error:
+        return _connectome_source_unavailable(error)
     null_mod = compiler.generate_degree_preserving_null(mod)
     bench = compiler.benchmark_biological_vs_null(mod, null_mod, steps=25)
     bench['status'] = 'ok'

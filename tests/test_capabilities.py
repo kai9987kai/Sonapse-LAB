@@ -100,4 +100,5 @@ def test_missing_connectome_assets_are_reported_as_unavailable(monkeypatch):
     monkeypatch.setattr(multi_module, 'MultiConnectomeHub', missing)
 
     assert invoke('connectome.causal_assay_9arm', {})['status'] == 'unavailable'
+    assert invoke('connectome.compile_biological', {})['status'] == 'unavailable'
     assert invoke('connectome.multi_connectome_hub', {})['status'] == 'unavailable'
