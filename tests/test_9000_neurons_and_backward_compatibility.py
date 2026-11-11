@@ -36,7 +36,7 @@ def test_9000_neuron_scaling_defaults():
     assert tandem.sleep_replay is True
     assert tandem.shared_knowledge is True
     assert tandem.virtual_ecology_v2 is True
-    assert tandem.live_microphone is False  # Must remain permission-gated
+    assert tandem.live_microphone is True  # Gateway enabled; browser capture remains user initiated.
 
 
 def test_matches_saved_legacy_checkpoint_compatibility():

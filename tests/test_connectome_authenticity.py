@@ -34,7 +34,8 @@ def test_connectome_dataset_tiers_and_provenance():
     assert 'acetylcholine' in prov['neurotransmitter_distribution']
 
 
-def test_authentic_connectome_loader_and_subgraph():
+def test_authentic_connectome_loader_and_subgraph(require_connectome_sources):
+    require_connectome_sources('flywire', 'manc')
     # Load authentic FlyWire central brain
     c_fly = load_authentic_connectome('flywire', n=48, seed=42)
     assert c_fly.n == 48
@@ -51,7 +52,8 @@ def test_authentic_connectome_loader_and_subgraph():
     assert c_manc.provenance['source_dataset'] == 'manc'
 
 
-def test_connectome_connectivity_validation():
+def test_connectome_connectivity_validation(require_connectome_sources):
+    require_connectome_sources('flywire')
     c_fly = load_authentic_connectome('flywire', n=32, seed=42)
     val = validate_connectome_connectivity(c_fly)
     assert val['neurons'] == 32
@@ -61,7 +63,8 @@ def test_connectome_connectivity_validation():
     assert val['provenance_tier'] == 'authentic'
 
 
-def test_multiconnectome_authentic_cross_wiring():
+def test_multiconnectome_authentic_cross_wiring(require_connectome_sources):
+    require_connectome_sources('flywire', 'manc')
     # Graft authentic FlyWire brain and MANC nerve cord together
     g = build_multiconnectome_graph(['flywire', 'manc'], nodes_per_source=32, seed=42, prefer_authentic=True)
     assert g.n == 64

@@ -1,4 +1,4 @@
-import json, threading, urllib.request, urllib.error
+import json, socket, threading, urllib.request, urllib.error
 import pytest
 from synapse.server import create_server
 
@@ -37,7 +37,16 @@ def test_body_host_and_checkpoint_validation(tmp_path):
         reject('/api/step',b'{"steps":NaN}',{'Content-Type':'application/json'},400)
         reject('/api/save',b'{"name":"../escape"}',{'Content-Type':'application/json'},400)
         reject('/api/step',b'{}',{'Content-Type':'application/json','Host':'evil.example'},403)
-        reject('/api/step',b' '*1048577,{'Content-Type':'application/json'},413)
+        # Declare an oversized body without sending it: the handler rejects the
+        # Content-Length before reading, so this remains deterministic across OSes.
+        with socket.create_connection(('127.0.0.1',server.server_port),timeout=5) as client:
+            client.sendall((
+                f'POST /api/step HTTP/1.1\r\nHost: 127.0.0.1:{server.server_port}\r\n'
+                'Content-Type: application/json\r\nContent-Length: 1048577\r\n'
+                'Connection: close\r\n\r\n'
+            ).encode('ascii'))
+            response=client.recv(256)
+        assert response.split(b' ',2)[1] == b'413'
         assert urllib.request.urlopen(base+'/').headers['Content-Security-Policy']
     finally: server.shutdown();server.server_close()
 

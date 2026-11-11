@@ -125,7 +125,8 @@ def test_max_tandem_config_hybrid_planner_and_checkpoint_replay(tmp_path):
     assert actual == expected
 
 
-def test_workbench_tandem_max_and_new_endpoints(tmp_path):
+def test_workbench_tandem_max_and_new_endpoints(tmp_path, require_connectome_sources):
+    require_connectome_sources('malecns')
     cfg = SynapseConfig(nodes_per_source=16, seed=7)
     wb = Workbench(config=cfg, output_root=tmp_path)
 

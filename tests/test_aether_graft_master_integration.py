@@ -79,7 +79,7 @@ def test_independent_channel_ablation_in_agent():
     r = torch.randn(agent.brain.n)
 
     # Disable all channels on the bus
-    for name in ("cross_graft", "sancf", "neurowave_x2", "aether_bridge"):
+    for name in agent.graft_bus.channels:
         agent.graft_bus.set_channel_enabled(name, False)
 
     assert not agent.graft_bus.enabled

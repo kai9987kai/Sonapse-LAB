@@ -1714,11 +1714,22 @@ def _handle_connectome_dataset_catalog(payload: Dict[str, Any]) -> Dict[str, Any
     }
 
 
+def _connectome_source_unavailable(error: FileNotFoundError) -> Dict[str, Any]:
+    return {
+        'status': 'unavailable',
+        'error': f'Verified connectome source data is not installed: {error}',
+        'required_input': 'Install and verify the documented source assets before running this assay.',
+    }
+
+
 def _handle_connectome_multi_connectome_hub(payload: Dict[str, Any]) -> Dict[str, Any]:
     from .multi_connectome import MultiConnectomeHub
     sources = payload.get('sources', ['malecns', 'banc', 'optic-lobe', 'fanc', 'flywire', 'manc', 'larval', 'hemibrain'])
     nodes = int(payload.get('nodes_per_source', 32))
-    hub = MultiConnectomeHub(sources=sources, nodes_per_source=nodes, seed=int(payload.get('seed', 42)))
+    try:
+        hub = MultiConnectomeHub(sources=sources, nodes_per_source=nodes, seed=int(payload.get('seed', 42)))
+    except FileNotFoundError as error:
+        return _connectome_source_unavailable(error)
     inp = torch.randn(len(hub.brain.sensory_idx))
     r = hub(inp)
     return {
@@ -1783,7 +1794,10 @@ def _handle_connectome_causal_assay_9arm(payload: Dict[str, Any]) -> Dict[str, A
     from .connectome_compiler import BiologicalConnectomeCompiler
     from .connectome_controls import ControlledConnectomeAssay
     compiler = BiologicalConnectomeCompiler()
-    bio_mod = compiler.compile_subcircuit(max_neurons=16, min_weight=1.0)
+    try:
+        bio_mod = compiler.compile_subcircuit(max_neurons=16, min_weight=1.0)
+    except FileNotFoundError as error:
+        return _connectome_source_unavailable(error)
     assay = ControlledConnectomeAssay(compiler=compiler, seed=int(payload.get('seed', 42)))
     res = assay.run_causal_assay(bio_mod, steps=10, trials=2)
     return {

@@ -85,8 +85,9 @@ def test_world_model_ensemble_and_cem_planner():
     np.testing.assert_allclose(shield_out['action'], np.ones(5, dtype=np.float32))
 
 
-def test_9arm_connectome_causal_assay():
+def test_9arm_connectome_causal_assay(require_connectome_sources):
     """Verifies generation of all 9 matched graph control topologies and formal Cohen's d computation."""
+    require_connectome_sources('malecns')
     compiler = BiologicalConnectomeCompiler()
     bio_mod = compiler.compile_subcircuit(max_neurons=16, min_weight=1.0)
     assay = ControlledConnectomeAssay(compiler=compiler, seed=42)

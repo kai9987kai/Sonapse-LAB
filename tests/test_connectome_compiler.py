@@ -5,7 +5,8 @@ import torch
 from synapse.connectome_compiler import BiologicalConnectomeCompiler, BiologicalConnectomeModule
 
 
-def test_biological_connectome_compiler_and_null():
+def test_biological_connectome_compiler_and_null(require_connectome_sources):
+    require_connectome_sources('malecns')
     compiler = BiologicalConnectomeCompiler()
     # Compile a Drosophila motor subcircuit
     bio_module = compiler.compile_subcircuit(query='motor', max_neurons=40)
@@ -38,7 +39,8 @@ def test_biological_connectome_compiler_and_null():
     assert isinstance(res['biological']['spectral_radius'], float)
 
 
-def test_sparse_biological_connectome_module():
+def test_sparse_biological_connectome_module(require_connectome_sources):
+    require_connectome_sources('malecns')
     from synapse.connectome_compiler import BiologicalConnectomeCompiler, SparseBiologicalConnectomeModule
     compiler = BiologicalConnectomeCompiler()
     sparse_module = compiler.compile_sparse_subcircuit(query='visual', max_neurons=48)

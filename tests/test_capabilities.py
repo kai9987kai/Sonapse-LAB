@@ -87,3 +87,17 @@ def test_coverage_sweep():
     assert sweep['total'] >= 70
     assert sweep['ok'] >= 70
     assert sweep['error'] == 0
+
+
+def test_missing_connectome_assets_are_reported_as_unavailable(monkeypatch):
+    import synapse.connectome_compiler as compiler_module
+    import synapse.multi_connectome as multi_module
+
+    def missing(*args, **kwargs):
+        raise FileNotFoundError('test source fixture is absent')
+
+    monkeypatch.setattr(compiler_module.BiologicalConnectomeCompiler, 'compile_subcircuit', missing)
+    monkeypatch.setattr(multi_module, 'MultiConnectomeHub', missing)
+
+    assert invoke('connectome.causal_assay_9arm', {})['status'] == 'unavailable'
+    assert invoke('connectome.multi_connectome_hub', {})['status'] == 'unavailable'
