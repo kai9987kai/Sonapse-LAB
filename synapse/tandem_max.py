@@ -785,7 +785,10 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
         'query': 8,
         'nodes_per_source': 16,
     })
-    study_receipt = run_study(workbench.root / 'studies' / 'tandem_max_study', study_cfg)
+    study_dir = workbench.root / 'studies' / 'tandem_max_study'
+    if study_dir.exists():
+        shutil.rmtree(study_dir, ignore_errors=True)
+    study_receipt = run_study(study_dir, study_cfg)
 
     section_04 = {
         'section': '04 · Controlled Studies, RSI & 9-Arm Causal Scorecard',
