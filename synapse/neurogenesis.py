@@ -36,6 +36,9 @@ class NeurogenesisStats:
 class ConnectomeNeurogenesisEngine:
     """Orchestrates activity-dependent structural remodeling of the grafted connectome substrate."""
 
+    _COVARIANCE_TEMP_BYTES = 8 * 1024 * 1024
+    _COVARIANCE_MAX_BLOCK_ROWS = 256
+
     def __init__(
         self,
         num_neurons: int,
@@ -71,10 +74,23 @@ class ConnectomeNeurogenesisEngine:
         # Online mean and covariance update (Welford-style decay)
         delta = r - self.rate_mean[:n]
         self.rate_mean[:n] += 0.05 * delta
-        self.rate_cov[:n, :n] = (
-            self.covariance_decay * self.rate_cov[:n, :n]
-            + (1.0 - self.covariance_decay) * np.outer(delta, delta)
-        )
+        # Keep the same dense covariance state and update rule, but bound the
+        # rank-one temporary. At N=9,000, np.outer(delta, delta) alone is
+        # 309 MiB; the original expression also materialized multiple dense
+        # intermediates on every learned step.
+        block_rows = max(1, min(
+            self._COVARIANCE_MAX_BLOCK_ROWS,
+            self._COVARIANCE_TEMP_BYTES // max(1, n * np.dtype(np.float32).itemsize),
+            n,
+        ))
+        coefficient = 1.0 - self.covariance_decay
+        for start in range(0, n, block_rows):
+            stop = min(n, start + block_rows)
+            covariance_block = self.rate_cov[start:stop, :n]
+            np.multiply(covariance_block, self.covariance_decay, out=covariance_block)
+            covariance_delta = delta[start:stop, None] * delta[None, :]
+            covariance_delta *= coefficient
+            np.add(covariance_block, covariance_delta, out=covariance_block)
         self.activity_steps += 1
 
     @staticmethod

@@ -2,7 +2,8 @@
 import numpy as np
 import pytest
 
-from synapse.experience import ExperienceWorldModel, encode_experience_state
+from synapse.experience import (AdaptiveResidualCalibrator, ExperienceWorldModel,
+                                encode_experience_state)
 from synapse.stateio import digest
 
 
@@ -50,6 +51,45 @@ def test_restore_replays_bootstrap_updates_and_predictions_exactly():
     for model in (original, restored):
         model.update(state, action, state + 0.01, -0.04)
     assert digest(original.export_state()) == digest(restored.export_state())
+
+
+def test_residual_calibrator_widens_after_prequential_regime_shift():
+    calibrator = AdaptiveResidualCalibrator(capacity=32, min_history=8)
+    for _ in range(40):
+        calibrator.observe(0.5)
+    before = calibrator.summary()
+    assert before['active'] is True
+    assert before['residual_threshold'] == pytest.approx(0.5)
+
+    for _ in range(20):
+        calibrator.observe(3.0)
+    after = calibrator.summary()
+    assert after['residual_threshold'] > before['residual_threshold']
+    assert after['uncertainty_multiplier'] > before['uncertainty_multiplier']
+    assert after['calibration_misses'] > before['calibration_misses']
+
+
+def test_residual_calibrator_checkpoint_and_old_checkpoint_defaults():
+    original = trained_model()
+    restored = ExperienceWorldModel(state_dim=2, action_dim=1, seed=999)
+    restored.import_state(original.export_state())
+    assert digest(original.export_state()) == digest(restored.export_state())
+
+    legacy = original.export_state()
+    legacy.pop('residual_calibrator')
+    restored.import_state(legacy)
+    assert restored.residual_calibrator.summary()['observations'] == 0
+    assert restored.residual_calibrator.summary()['active'] is False
+
+
+def test_invalid_residual_calibrator_checkpoint_is_atomic():
+    model = trained_model()
+    before = digest(model.export_state())
+    invalid = model.export_state()
+    invalid['residual_calibrator']['scores'][0] = -1
+    with pytest.raises(ValueError):
+        model.import_state(invalid)
+    assert digest(model.export_state()) == before
 
 
 @pytest.mark.parametrize('value', [np.nan, np.inf, -np.inf])

@@ -26,6 +26,28 @@ def test_nonfinite_state_rejected(tmp_path):
     with pytest.raises(ValueError,match='finite'): save_state(tmp_path/'bad.pt',{'t':torch.tensor([float('nan')])})
 
 
+def test_large_compressible_arrays_use_lossless_compressed_encoding(tmp_path):
+    value = {'covariance': np.zeros((1024, 1024), dtype=np.float32)}
+    encoded = stateio._encode(value)
+    packed = dict(encoded['items'][0][1])
+
+    assert packed['compression'] == 'zlib'
+    assert len(packed['bytes']) < value['covariance'].nbytes // 100
+    path = tmp_path / 'compressed.pt'
+    save_state(path, value)
+    restored = load_state(path)
+    assert np.array_equal(restored['covariance'], value['covariance'])
+    assert digest(restored) == digest(value)
+
+
+def test_incompressible_arrays_stay_uncompressed():
+    value = np.random.default_rng(17).standard_normal((512, 512)).astype(np.float32)
+    encoded = stateio._encode(value)
+
+    assert 'compression' not in encoded
+    assert encoded['bytes'] == value.tobytes()
+
+
 def test_legacy_archive_without_commit_id_remains_loadable(tmp_path):
     value={'legacy':np.asarray([1,2,3],dtype=np.int64)}
     stream=io.BytesIO()

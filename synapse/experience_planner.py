@@ -1,10 +1,11 @@
 """Deterministic short experience rollouts with conservative abstention.
 
 This is a bounded beam search over online linear ensemble predictions. It is
-not PETS, a terminal/value model, or calibrated uncertainty estimation. Each
-member follows its own states; conditioning coordinates remain fixed. Only the
-first action is executed by the caller, which retains its action governor.
-Includes optional Value-Guided MPC to mitigate finite-horizon truncation bias.
+not PETS or a calibrated multi-step uncertainty model. One-step executed-outcome
+residuals adapt a bounded empirical scale multiplier. Each member follows its
+own states; conditioning coordinates remain fixed. Only the first action is
+executed by the caller, which retains its action governor. Includes optional
+Value-Guided MPC to mitigate finite-horizon truncation bias.
 """
 from __future__ import annotations
 
@@ -73,11 +74,12 @@ class ExperienceMPC:
                 'baseline_return': 0.0, 'mean_disagreement': 0.0,
                 'max_action_change': 0.0, 'memory_used': False,
                 'value_guided': self.value_guided,
+                'residual_calibration': self.model.residual_calibrator.summary(),
                 'candidates': [], 'predicted_trajectory': [state.tolist()],
                 'member_trajectories': [[state.tolist()] for _ in range(self.model.ensemble_size)],
                 'uncertainty': {'return_disagreement': 0.0, 'state_disagreement': 0.0,
                                 'coverage': 0.0, 'penalty': 0.0},
-                'scope': 'short model rollout; fixed conditioning; TD value estimation; heuristic uncertainty'}
+                'scope': 'short model rollout; fixed conditioning; TD value estimation; heuristic multi-step uncertainty with an adaptive empirical one-step residual scale; no calibrated coverage or safety guarantee'}
 
     def _local_actions(self, baseline):
         actions = [baseline.copy()]
@@ -127,8 +129,10 @@ class ExperienceMPC:
                         }
         reward_scale = max(float(np.sqrt(max(model.reward_error_ema, 0))), 0.001)
         delta_scale = max(float(np.sqrt(max(model.delta_error_ema, 0))), 0.001)
+        calibration_multiplier = model.residual_calibrator.uncertainty_multiplier
         state_disagreement = float(np.sqrt(np.mean(next_states[:, :model.predicted_dim].var(axis=0))))
-        step_uncertainty = disagreement + reward_scale * coverage + delta_scale * state_disagreement
+        step_uncertainty = (disagreement + calibration_multiplier
+                            * (reward_scale * coverage + delta_scale * state_disagreement))
         depth = len(path.actions)
         weight = self.discount ** depth
         variance = path.advantage_variance
@@ -192,7 +196,8 @@ class ExperienceMPC:
                            uncertainty={'return_disagreement': float(selected.returns.std()),
                                          'state_disagreement': float(np.sqrt(np.mean(trajectory[:, -1, :self.model.predicted_dim].var(axis=0)))),
                                          'coverage': selected.coverage,
-                                         'penalty': float(selected.uncertainty)})
+                                         'penalty': float(selected.uncertainty),
+                                         'residual_calibration_multiplier': self.model.residual_calibrator.uncertainty_multiplier})
         return action.astype(np.float32).copy(), diagnostics
 
     def _one_step(self, state, baseline, memory, diagnostics):

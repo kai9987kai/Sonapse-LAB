@@ -71,6 +71,26 @@ def test_omnibus_runner_stage_progression_and_receipt():
     assert receipt.total_sleep_cycles >= 3
 
 
+def test_omnibus_evaluation_avoids_full_checkpoint_clone(monkeypatch):
+    runner = OmnibusRunner(
+        total_neurons=48, curriculum_tasks=['forage'], steps_per_task=1,
+        eval_steps=1, eval_episodes=1,
+    )
+    candidate = runner.agent.clone_for_evaluation()
+    assert candidate.brain is not runner.agent.brain
+    assert candidate.neurogenesis is runner.agent.neurogenesis
+    assert candidate.multitimescale is runner.agent.multitimescale
+
+    def reject_full_export():
+        raise AssertionError('evaluation must not export and duplicate the full agent state')
+
+    monkeypatch.setattr(runner.agent, 'export_state', reject_full_export)
+    scores = runner.evaluate_agent(runner.agent, ['forage'])
+
+    assert list(scores) == ['forage']
+    assert np.isfinite(scores['forage'])
+
+
 def test_server_omnibus_api_endpoints(tmp_path):
     app = Workbench(LabRuntime(SynapseConfig(total_neurons=2000), tmp_path), output_root=tmp_path)
 

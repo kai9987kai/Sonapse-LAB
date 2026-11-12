@@ -11,9 +11,12 @@ import re
 import threading
 import time
 import uuid
+import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 from .config import SynapseConfig, ARTIFACTS
+from .portable_export import PortableReplayRecorder, portable_filename, write_portable_html
+from .stateio import save_state_snapshot
 
 MAX_BODY = 1024 * 1024
 
@@ -27,12 +30,23 @@ def safe_name(value):
         raise ValueError('name must contain 1–64 letters, digits, underscores or hyphens')
     return value
 
+
+def standard_workbench_config():
+    """Build the fresh browser-run profile without changing low-level defaults."""
+    from .dsag.config import DSAGSpecV1
+    return SynapseConfig(
+        total_neurons=8000,
+        dsag=DSAGSpecV1(enabled=True, gain=0.05, max_gain=0.1, seed=7),
+    )
+
 class Workbench:
     def __init__(self,runtime=None,config=None,output_root=None):
         self.root=Path(output_root or ARTIFACTS).resolve(); self.root.mkdir(parents=True,exist_ok=True)
+        self.export_root=self.root/'portable_exports'; self.export_root.mkdir(parents=True,exist_ok=True)
+        self.portable_export_lock=threading.RLock(); self.portable_exports={}; self.active_portable_export=None
         if runtime is None:
             from .runtime import LabRuntime
-            runtime=LabRuntime(config or SynapseConfig(total_neurons=8000),output_root=self.root)
+            runtime=LabRuntime(config if config is not None else standard_workbench_config(),output_root=self.root)
         self.runtime=runtime; self.lock=threading.RLock(); self.job_lock=threading.RLock()
         # Guards subsystems that never touch the runtime (biome, soundscape, fusion,
         # tournament, evo sandbox) so polling them never waits behind runtime.step().
@@ -52,13 +66,8 @@ class Workbench:
         self.evo_sandbox = RateCircuitSandbox(seed=seed)
         self.consolidation_engine = MemoryConsolidationAndSHYEngine(seed=seed)
         self.episode_recorder = LiveEpisodeRecorder(self.consolidation_engine)
-        if getattr(self.runtime, 'transition_taps', None) is None:
-            try:
-                self.runtime.transition_taps = []
-            except Exception:
-                pass
-        if hasattr(self.runtime, 'transition_taps') and isinstance(self.runtime.transition_taps, list):
-            self.runtime.transition_taps.append(self.episode_recorder)
+        self.portable_recorder = PortableReplayRecorder(self.runtime)
+        self.attach_runtime_observers(self.runtime)
         self.fusion_engine = MultiConnectomeFusionEngine(seed=seed)
         from .darwinian_tournament import DarwinianEcologyTournamentEngine
         from .synesthetic_resonance import SynestheticResonanceEngine
@@ -75,6 +84,117 @@ class Workbench:
                 if job['status'] in ('queued','running'):
                     job.update(status='interrupted',error='Server restarted before this job completed'); self.persist(job)
             except (ValueError,KeyError,OSError): pass
+    def attach_runtime_observers(self,runtime,reset_portable_history=False):
+        if getattr(runtime,'transition_taps',None) is None:
+            try: runtime.transition_taps=[]
+            except Exception: return
+        taps=getattr(runtime,'transition_taps',None)
+        if not isinstance(taps,list): return
+        if self.episode_recorder not in taps: taps.append(self.episode_recorder)
+        recorder=getattr(self,'portable_recorder',None)
+        if recorder is not None:
+            recorder.bind(runtime,reset=reset_portable_history)
+            if recorder not in taps: taps.append(recorder)
+    def _update_portable_export(self,ident,**values):
+        with self.portable_export_lock:
+            job=self.portable_exports.get(ident)
+            if job is not None:
+                job.update(values)
+                job['updated_at']=time.time()
+                return deepcopy(job)
+            return None
+    def start_portable_export(self):
+        with self.portable_export_lock:
+            if self.active_portable_export:
+                active=self.portable_exports.get(self.active_portable_export)
+                if active and active.get('status') in ('queued','running'):
+                    return deepcopy(active)
+            ident=uuid.uuid4().hex
+            now=time.time()
+            job={'id':ident,'status':'queued','stage':'Preparing snapshot','progress':0,
+                 'created_at':now,'updated_at':now}
+            self.portable_exports[ident]=job
+            self.active_portable_export=ident
+        threading.Thread(target=self._build_portable_export,args=(ident,),daemon=True,
+                         name=f'portable-export-{ident[:8]}').start()
+        return deepcopy(job)
+    def _build_portable_export(self,ident):
+        temp_dir=None
+        try:
+            self._update_portable_export(ident,status='running',stage='Preparing snapshot',progress=5)
+            with self.lock:
+                runtime=self.runtime
+                if not callable(getattr(runtime,'checkpoint_payload',None)):
+                    raise RuntimeError('this runtime does not expose a complete native checkpoint')
+                payload=runtime.checkpoint_payload()
+                overview=runtime.snapshot()
+                replay=self.portable_recorder.export_state()
+                config=runtime.config.to_dict()
+                steps=int(payload['steps'])
+                total_neurons=int(overview.get('graph',{}).get('neurons',0))
+                connection_count=(len(getattr(runtime.agent.graph,'base_pre',()))+
+                                  len(getattr(runtime.agent.graph,'graft_pre',())))
+            captured_at=time.time()
+            from datetime import datetime,timezone
+            exported_at=datetime.now(timezone.utc)
+            timestamp=exported_at.isoformat(timespec='seconds').replace('+00:00','Z')
+            self._update_portable_export(ident,stage='Serialising neural state',progress=30,
+                                         simulation_step=steps)
+            temp_dir=tempfile.TemporaryDirectory(prefix=f'.{ident}-',dir=self.export_root)
+            checkpoint_path=Path(temp_dir.name)/'checkpoint.pt'
+            checkpoint_sha256=save_state_snapshot(checkpoint_path,payload)
+            del payload
+            self._update_portable_export(ident,stage='Packaging simulation runtime',progress=65)
+            filename=portable_filename(exported_at,ident)
+            destination=self.export_root/filename
+            metadata={
+                'export_timestamp':timestamp,
+                'simulation_step':steps,
+                'task':config.get('task','unknown'),
+                'seed':config.get('seed'),
+                'neuron_count':total_neurons,
+                'connection_count':connection_count,
+                'replay_frames':len(replay.get('frames',[])),
+                'replay_history_start_step':replay.get('history_start_step'),
+                'checkpoint_format':'synapse-state-v1',
+            }
+            file_result=write_portable_html(
+                destination,
+                checkpoint_path=checkpoint_path,
+                checkpoint_sha256=checkpoint_sha256,
+                overview=overview,
+                replay_history=replay,
+                metadata=metadata,
+            )
+            self._update_portable_export(ident,stage='Validating export',progress=88)
+            if not destination.is_file() or destination.stat().st_size!=file_result['html_bytes']:
+                raise IOError('generated HTML failed its size validation')
+            if len(file_result.get('html_sha256',''))!=64 or file_result['checkpoint_sha256']!=checkpoint_sha256:
+                raise IOError('generated HTML failed its checksum validation')
+            completed_at=time.time()
+            self._update_portable_export(
+                ident,status='completed',stage='Export complete',progress=100,
+                result={**file_result,'download_url':f"/api/exports/{filename}",
+                        'simulation_step':steps,'neuron_count':total_neurons,
+                        'connection_count':connection_count,
+                        'replay_frames':len(replay.get('frames',[])),
+                        'captured_at':captured_at,'completed_at':completed_at},
+            )
+        except Exception as exc:
+            self._update_portable_export(ident,status='failed',stage='Export failed',progress=100,
+                                         error=f'{type(exc).__name__}: {exc}')
+        finally:
+            if temp_dir is not None:
+                try: temp_dir.cleanup()
+                except OSError: pass
+    def portable_export_path(self,filename):
+        if not isinstance(filename,str) or not re.fullmatch(
+                r'Sonapse_Portable_Simulation_\d{8}_\d{6}_[0-9a-f]{8}\.html',filename):
+            raise KeyError('portable export not found')
+        path=(self.export_root/filename).resolve()
+        if path.parent!=self.export_root.resolve() or not path.is_file():
+            raise KeyError('portable export not found')
+        return path
     def persist(self,job):
         path=self.root/'jobs'/f"{job['id']}.json"; tmp=path.with_suffix(f".tmp.{uuid.uuid4().hex[:8]}")
         content=json.dumps(job,allow_nan=False,default=str)
@@ -238,6 +358,13 @@ class Workbench:
         return deepcopy(job)
 
     def get(self,path):
+        if path.startswith('/api/export/status/'):
+            ident=path.rsplit('/',1)[-1]
+            if not re.fullmatch(r'[0-9a-f]{32}',ident): raise KeyError('portable export not found')
+            with self.portable_export_lock:
+                job=self.portable_exports.get(ident)
+                if job is None: raise KeyError('portable export not found')
+                return deepcopy(job)
         if path=='/api/jobs':
             with self.job_lock: return {'jobs':json.loads(json.dumps(list(self.jobs.values()),default=str))}
         if path in ('/api/sleep/reconsolidation', '/api/reconsolidation/status'):
@@ -469,6 +596,7 @@ class Workbench:
                 return self.consolidation_engine.get_summary()
         raise KeyError('unknown API endpoint')
     def post(self,path,data):
+        if path=='/api/export': return self.start_portable_export()
         if path=='/api/training/pretrain': return self.start_enhancement('pretrain',data)
         if path=='/api/rsi/live': return self.start_enhancement('rsi',data)
         if path=='/api/studies': return self.start_study(data.get('config',{}))
@@ -730,18 +858,24 @@ class Workbench:
                     if not isinstance(cfg,dict): raise ValueError('config must be object')
                     cfg=dict(cfg)
                     if isinstance(cfg.get('connectome_sources'),list): cfg['connectome_sources']=tuple(cfg['connectome_sources'])
+                    if 'dsag' not in cfg:
+                        cfg['dsag']=self.runtime.config.dsag
                     from .runtime import LabRuntime
                     self.runtime=LabRuntime(SynapseConfig(**cfg),output_root=self.root)
                     if hasattr(self, 'sim_worker') and self.sim_worker is not None:
                         self.sim_worker.runtime = self.runtime
-                    if getattr(self.runtime, 'transition_taps', None) is None:
-                        self.runtime.transition_taps = []
-                    self.runtime.transition_taps.append(self.episode_recorder)
+                    self.attach_runtime_observers(self.runtime,reset_portable_history=True)
                     self.receipts.clear()
                     return self.runtime.snapshot()
-                return self.runtime.reset(task=data.get('task'),seed=data.get('seed'))
+                result=self.runtime.reset(task=data.get('task'),seed=data.get('seed'))
+                if getattr(self,'portable_recorder',None) is not None:
+                    self.portable_recorder.bind(self.runtime,reset=True)
+                return result
             if path in ('/api/save','/api/load'):
-                return getattr(self.runtime,path.rsplit('/',1)[1])(safe_name(data.get('name')))
+                result=getattr(self.runtime,path.rsplit('/',1)[1])(safe_name(data.get('name')))
+                if path=='/api/load' and getattr(self,'portable_recorder',None) is not None:
+                    self.portable_recorder.bind(self.runtime,reset=True)
+                return result
             if path=='/api/invoke':
                 from .capabilities import invoke
                 return invoke(data.get('id'),data.get('payload',{}),runtime=self.runtime)
@@ -1122,9 +1256,27 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
                 raw=json.dumps(data,allow_nan=False,default=str).encode() if content=='application/json' else data
                 self.send_response(status); self.send_header('Content-Type',content); self.send_header('Content-Length',str(len(raw)))
                 self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Cache-Control','no-store')
-                self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'")
+                self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
                 self.end_headers(); self.wfile.write(raw); self.wfile.flush()
             except Exception:
+                pass
+        def send_download(self,path,filename):
+            try:
+                size=path.stat().st_size
+                self.send_response(200)
+                self.send_header('Content-Type','text/html; charset=utf-8')
+                self.send_header('Content-Length',str(size))
+                self.send_header('Content-Disposition',f'attachment; filename="{filename}"')
+                self.send_header('X-Content-Type-Options','nosniff')
+                self.send_header('Cache-Control','no-store')
+                self.end_headers()
+                with path.open('rb') as source:
+                    while True:
+                        chunk=source.read(1024*1024)
+                        if not chunk: break
+                        self.wfile.write(chunk)
+                self.wfile.flush()
+            except (BrokenPipeError,ConnectionResetError):
                 pass
         def local(self):
             host = self.headers.get('Host', '')
@@ -1148,8 +1300,12 @@ def create_server(host='127.0.0.1',port=8765,runtime=None,config=None,output_roo
             try:
                 if not self.local(): return self.send(403,{'error':'loopback host and same origin required'})
                 path=urlparse(self.path).path
+                if path.startswith('/api/exports/'):
+                    filename=path.rsplit('/',1)[-1]
+                    exported=app.portable_export_path(filename)
+                    return self.send_download(exported,filename)
                 if path.startswith('/api/'): return self.send(200,app.get(path))
-                names={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css'}
+                names={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css','/favicon.svg':'favicon.svg'}
                 if path not in names: return self.send(404,{'error':'not found'})
                 file=web/names[path]; self.send(200,file.read_bytes(),mimetypes.guess_type(file.name)[0] or 'text/plain')
             except KeyError as exc:

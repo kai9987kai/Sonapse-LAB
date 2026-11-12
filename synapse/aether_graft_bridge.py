@@ -26,6 +26,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from scipy import sparse as sp
+from scipy.sparse import linalg as spla
 
 
 # ==============================================================================
@@ -45,8 +47,9 @@ def compute_graph_modes(
     Normalized Laplacian: L_sym = I - D^(-1/2) A D^(-1/2).
     Degenerate eigenvalues use deterministic coordinate pivot canonicalization.
     """
-    raw = np.asarray(adjacency, dtype=np.float64)
-    if raw.ndim != 2 or raw.shape[0] != raw.shape[1]:
+    is_sparse = sp.issparse(adjacency)
+    raw = sp.csr_matrix(adjacency, dtype=np.float64) if is_sparse else np.asarray(adjacency, dtype=np.float64)
+    if len(raw.shape) != 2 or raw.shape[0] != raw.shape[1]:
         raise ValueError("Adjacency must be a square 2D matrix")
     
     n = raw.shape[0]
@@ -54,27 +57,44 @@ def compute_graph_modes(
     if k <= 0:
         return np.zeros(0, dtype=np.float64), np.zeros((n, 0), dtype=np.float64)
 
-    # Symmetrize
-    sym = (raw + raw.T) / 2.0
-    np.fill_diagonal(sym, 0.0)
+    if is_sparse and k < n:
+        sym = ((raw + raw.T) * 0.5).tocsr()
+        sym.setdiag(0.0)
+        sym.eliminate_zeros()
+        deg = np.asarray(np.abs(sym).sum(axis=1)).reshape(-1)
+        inv_sqrt_deg = np.zeros(n, dtype=np.float64)
+        nz = deg > 1e-12
+        inv_sqrt_deg[nz] = 1.0 / np.sqrt(deg[nz])
+        D = sp.diags(inv_sqrt_deg, format='csr')
+        l_sym = (sp.eye(n, format='csr', dtype=np.float64) - D @ sym @ D).tocsr()
+        l_sym = ((l_sym + l_sym.T) * 0.5).tocsr()
+        v0 = np.random.default_rng(seed).standard_normal(n)
+        evals, evecs = spla.eigsh(
+            l_sym, k=k, which='SM', v0=v0, tol=1e-7, maxiter=max(1000, n * 8)
+        )
+        idx = np.argsort(evals)
+        evals = evals[idx]
+        evecs = evecs[:, idx]
+    else:
+        # Small dense inputs retain the original exact eigendecomposition.
+        raw = raw.toarray() if is_sparse else raw
+        sym = (raw + raw.T) / 2.0
+        np.fill_diagonal(sym, 0.0)
 
-    # Degree vector
-    deg = np.sum(np.abs(sym), axis=1)
-    inv_sqrt_deg = np.zeros(n, dtype=np.float64)
-    nz = deg > 1e-12
-    inv_sqrt_deg[nz] = 1.0 / np.sqrt(deg[nz])
+        # Degree vector
+        deg = np.sum(np.abs(sym), axis=1)
+        inv_sqrt_deg = np.zeros(n, dtype=np.float64)
+        nz = deg > 1e-12
+        inv_sqrt_deg[nz] = 1.0 / np.sqrt(deg[nz])
 
-    # Normalized Laplacian
-    # L_sym = I - D^(-1/2) A D^(-1/2)
-    l_sym = np.eye(n, dtype=np.float64) - (inv_sqrt_deg[:, None] * sym * inv_sqrt_deg[None, :])
+        # Normalized Laplacian
+        l_sym = np.eye(n, dtype=np.float64) - (inv_sqrt_deg[:, None] * sym * inv_sqrt_deg[None, :])
 
-    # Eigen-decomposition (Hermitian / symmetric)
-    evals, evecs = np.linalg.eigh(l_sym)
-    
-    # Sort by ascending eigenvalue
-    idx = np.argsort(evals)
-    evals = evals[idx]
-    evecs = evecs[:, idx]
+        # Eigen-decomposition (Hermitian / symmetric)
+        evals, evecs = np.linalg.eigh(l_sym)
+        idx = np.argsort(evals)
+        evals = evals[idx]
+        evecs = evecs[:, idx]
 
     # Canonicalize signs: make the largest magnitude element positive in each column
     for col_idx in range(k):
@@ -297,8 +317,53 @@ class AetherGraftBridge(nn.Module):
         self.donor_phases.zero_()
         self.recipient_phases.zero_()
 
-    def _generate_biological_connectome_graph(self, n: int) -> np.ndarray:
+    def _generate_biological_connectome_graph(self, n: int) -> np.ndarray | sp.csr_matrix:
         """Construct synthetic biological connectome graph with modular community structure."""
+        if n > 2048:
+            # Preserve the four modular communities and cross-community
+            # highways with a sparse small-world proxy. The previous dense
+            # Bernoulli graph allocated several N-by-N float64 temporaries and
+            # then ran a full dense eigendecomposition, which made Max Mode's
+            # 9,000-node AETHER recipient impossible to initialize.
+            clusters = np.array_split(np.arange(n, dtype=np.int64), 4)
+            cluster_ids = np.empty(n, dtype=np.int64)
+            starts = np.empty(4, dtype=np.int64)
+            lengths = np.empty(4, dtype=np.int64)
+            for cluster_id, nodes in enumerate(clusters):
+                cluster_ids[nodes] = cluster_id
+                starts[cluster_id] = int(nodes[0])
+                lengths[cluster_id] = len(nodes)
+
+            row_parts = []
+            col_parts = []
+            for nodes, start, length in zip(clusters, starts, lengths):
+                # A bidirectional ring neighborhood keeps every community
+                # connected while bounding degree independently of N.
+                for offset in range(1, min(17, (int(length) + 1) // 2)):
+                    row_parts.append(nodes)
+                    col_parts.append(start + ((nodes - start + offset) % length))
+
+            highways_per_node = min(8, max(1, n - int(lengths.max())))
+            choices = self.rng.integers(0, 3, size=(n, highways_per_node))
+            target_clusters = choices + (choices >= cluster_ids[:, None])
+            max_cluster = int(lengths.max())
+            local = self.rng.integers(0, max_cluster, size=(n, highways_per_node))
+            target_nodes = starts[target_clusters] + local % lengths[target_clusters]
+            row_parts.append(np.repeat(np.arange(n, dtype=np.int64), highways_per_node))
+            col_parts.append(target_nodes.reshape(-1))
+
+            rows = np.concatenate(row_parts)
+            cols = np.concatenate(col_parts)
+            adjacency = sp.coo_matrix(
+                (np.ones(rows.size, dtype=np.float64), (rows, cols)), shape=(n, n)
+            ).tocsr()
+            adjacency.sum_duplicates()
+            adjacency.data.fill(1.0)
+            adjacency = adjacency.maximum(adjacency.T).tocsr()
+            adjacency.setdiag(0.0)
+            adjacency.eliminate_zeros()
+            return adjacency
+
         adj = np.zeros((n, n), dtype=np.float64)
         n_clusters = 4
         c_size = n // n_clusters

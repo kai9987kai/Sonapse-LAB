@@ -19,6 +19,11 @@ def _vector(value, size, name):
     return array
 
 
+def _finite_scalar(value):
+    array = np.asarray(value)
+    return array.ndim == 0 and array.dtype.kind in 'iuf' and bool(np.isfinite(array))
+
+
 def encode_experience_state(obs, features=None):
     """Summarize visible rays, motion, cues and actual graph/donor activity.
 
@@ -35,6 +40,149 @@ def encode_experience_state(obs, features=None):
                     obs[151] - obs[152], obs[154],
                     features[:32].mean(), features[32:48].mean()])
     return np.clip(np.asarray(summary, dtype=np.float64), -2, 2)
+
+
+class AdaptiveResidualCalibrator:
+    """Bounded online calibration of normalized, pre-update transition errors.
+
+    The controller adapts the empirical residual quantile using the ACI update
+    for its target miscoverage level. It is an engineering diagnostic for
+    one-step reward/delta errors, not a conditional-coverage or safety guarantee.
+    """
+
+    def __init__(self, target_miscoverage=0.1, step_size=0.02,
+                 capacity=256, min_history=24):
+        if (not _finite_scalar(target_miscoverage) or not _finite_scalar(step_size)
+                or not 0 < target_miscoverage < 1
+                or not 0 < step_size <= 0.1
+                or type(capacity) is not int or not 16 <= capacity <= 4096
+                or type(min_history) is not int or not 8 <= min_history <= capacity):
+            raise ValueError('invalid residual-calibrator configuration')
+        self.target_miscoverage = float(target_miscoverage)
+        self.step_size = float(step_size)
+        self.capacity = capacity
+        self.min_history = min_history
+        self.miscoverage_level = float(target_miscoverage)
+        self.scores = []
+        self.outcomes = []
+        self.observations = 0
+        self.calibrated_observations = 0
+        self.misses = 0
+        self._threshold = None
+
+    @staticmethod
+    def _finite_quantile(scores, miscoverage_level):
+        """Finite-sample upper order statistic used for the next forecast."""
+        count = len(scores)
+        rank = min(count, max(1, int(np.ceil((count + 1) * (1 - miscoverage_level)))))
+        return float(np.sort(np.asarray(scores, dtype=np.float64))[rank - 1])
+
+    def _refresh_threshold(self):
+        self._threshold = (self._finite_quantile(self.scores, self.miscoverage_level)
+                           if len(self.scores) >= self.min_history else None)
+
+    @property
+    def active(self):
+        return self._threshold is not None
+
+    @property
+    def uncertainty_multiplier(self):
+        if self._threshold is None:
+            return 1.0
+        # Bound the impact of a short or extreme stream on planner scoring.
+        return float(np.clip(self._threshold, 0.25, 100.0))
+
+    def observe(self, score):
+        """Update after observing the real outcome; return the prior interval."""
+        if (not _finite_scalar(score)
+                or score < 0 or score > 1000):
+            raise ValueError('residual score must be finite and in [0,1000]')
+        score = float(score)
+        threshold = self._threshold
+        level_before = self.miscoverage_level
+        miss = None if threshold is None else bool(score > threshold)
+        if miss is not None:
+            self.calibrated_observations += 1
+            self.misses += int(miss)
+            # Gibbs-Candès ACI: lower alpha after a miss to widen future sets.
+            self.miscoverage_level = float(np.clip(
+                self.miscoverage_level + self.step_size
+                * (self.target_miscoverage - int(miss)), 0.001, 0.999))
+        self.scores.append(score)
+        self.outcomes.append(miss)
+        if len(self.scores) > self.capacity:
+            del self.scores[0]
+            del self.outcomes[0]
+        self.observations += 1
+        self._refresh_threshold()
+        return {'active': miss is not None, 'score': score,
+                'threshold': None if threshold is None else float(threshold),
+                'miss': miss, 'miscoverage_level': float(level_before),
+                'next_miscoverage_level': float(self.miscoverage_level),
+                'next_multiplier': self.uncertainty_multiplier}
+
+    def summary(self):
+        recent = [outcome for outcome in self.outcomes if outcome is not None]
+        return {'active': self.active,
+                'target_miscoverage': self.target_miscoverage,
+                'miscoverage_level': self.miscoverage_level,
+                'residual_threshold': self._threshold,
+                'uncertainty_multiplier': self.uncertainty_multiplier,
+                'observations': self.observations,
+                'calibrated_observations': self.calibrated_observations,
+                'calibration_misses': self.misses,
+                'recent_calibrated_observations': len(recent),
+                'recent_miscoverage': (float(np.mean(recent)) if recent else None),
+                'window_capacity': self.capacity,
+                'scope': 'adaptive empirical one-step joint residual scaling; no conditional-coverage or safety guarantee'}
+
+    def export_state(self):
+        return {'schema': 1, 'target_miscoverage': self.target_miscoverage,
+                'step_size': self.step_size, 'capacity': self.capacity,
+                'min_history': self.min_history,
+                'miscoverage_level': self.miscoverage_level,
+                'scores': list(self.scores), 'outcomes': list(self.outcomes),
+                'observations': self.observations,
+                'calibrated_observations': self.calibrated_observations,
+                'misses': self.misses}
+
+    def import_state(self, state):
+        """Validate into a temporary instance before replacing this controller."""
+        if not isinstance(state, dict) or state.get('schema') != 1:
+            raise ValueError('invalid residual-calibrator schema')
+        candidate = AdaptiveResidualCalibrator(
+            target_miscoverage=state.get('target_miscoverage'),
+            step_size=state.get('step_size'), capacity=state.get('capacity'),
+            min_history=state.get('min_history'))
+        level = state.get('miscoverage_level')
+        if (not _finite_scalar(level)
+                or not 0.001 <= level <= 0.999):
+            raise ValueError('invalid residual-calibrator miscoverage level')
+        scores = state.get('scores')
+        outcomes = state.get('outcomes')
+        if (not isinstance(scores, list) or not isinstance(outcomes, list)
+                or len(scores) != len(outcomes) or len(scores) > candidate.capacity
+                or any(not _finite_scalar(value)
+                       or value < 0 or value > 1000 for value in scores)
+                or any(value is not None and type(value) is not bool for value in outcomes)):
+            raise ValueError('invalid residual-calibrator history')
+        counters = ('observations', 'calibrated_observations', 'misses')
+        for key in counters:
+            value = state.get(key)
+            if type(value) is not int or value < 0:
+                raise ValueError(f'invalid residual-calibrator {key}')
+            setattr(candidate, key, value)
+        if (candidate.calibrated_observations > candidate.observations
+                or candidate.misses > candidate.calibrated_observations
+                or candidate.observations < len(scores)
+                or candidate.calibrated_observations < sum(v is not None for v in outcomes)
+                or candidate.misses < sum(v is True for v in outcomes)):
+            raise ValueError('residual-calibrator counters contradict history')
+        candidate.miscoverage_level = float(level)
+        candidate.scores = [float(value) for value in scores]
+        candidate.outcomes = list(outcomes)
+        candidate._refresh_threshold()
+        self.__dict__.update(candidate.__dict__)
 
 
 class TDValueModel:
@@ -140,6 +288,7 @@ class ExperienceWorldModel:
         self.reward_squared_error = 0.0; self.delta_squared_error = 0.0
         self.delta_baseline_squared_error = 0.0
         self.terminals = 0
+        self.residual_calibrator = AdaptiveResidualCalibrator()
 
     def _actions(self, actions):
         actions = np.asarray(actions, dtype=np.float64)
@@ -215,6 +364,14 @@ class ExperienceWorldModel:
         delta = (next_state - state)[:self.predicted_dim]
         delta_error = float(np.mean((delta - prediction['delta'][0, :self.predicted_dim]) ** 2))
         delta_baseline_error = float(np.mean(delta ** 2))
+        # Normalize both executed-transition residuals by scales known before
+        # this outcome. The max is a joint score: either target can miss.
+        reward_scale_before = max(float(np.sqrt(max(self.reward_error_ema, 0))), 0.001)
+        delta_scale_before = max(float(np.sqrt(max(self.delta_error_ema, 0))), 0.001)
+        residual_score = min(1000.0, max(abs(error) / reward_scale_before,
+                                         np.sqrt(delta_error) / delta_scale_before))
+        calibration_update = (self.residual_calibrator.observe(residual_score)
+                              if self.samples >= self.min_samples else None)
         target = np.concatenate([delta, [float(reward)]])
         # All validation precedes RNG consumption or learned-state mutation.
         counts = self.rng.poisson(1.0, size=self.ensemble_size)
@@ -249,6 +406,8 @@ class ExperienceWorldModel:
         self.value_model.update(state, float(reward), next_state, done=bool(done))
         return {'prediction_error': error, 'reward_squared_error': error ** 2,
                 'delta_squared_error': delta_error, 'delta_baseline_squared_error': delta_baseline_error,
+                'normalized_joint_residual': residual_score,
+                'residual_calibration_update': calibration_update,
                 'samples': self.samples,
                 'member_updates': int(counts.astype(bool).sum())}
 
@@ -285,7 +444,9 @@ class ExperienceWorldModel:
             confidence = np.clip(np.asarray(recalled['confidence'], dtype=float), 0, 1) * 0.5
             reward = (1 - confidence) * reward + confidence * recalled['reward']
             diagnostics['memory_used'] = bool(np.max(confidence) > 0.05)
-        scale = max(np.sqrt(max(self.reward_error_ema, 0)), 0.001)
+        calibration = self.residual_calibrator.summary()
+        scale = (max(np.sqrt(max(self.reward_error_ema, 0)), 0.001)
+                 * calibration['uncertainty_multiplier'])
         uncertainty = prediction['disagreement'] + scale * prediction['coverage']
         score = reward - self.uncertainty_penalty * uncertainty
         # Extremely unsupported alternatives are excluded even when the ensemble agrees.
@@ -310,7 +471,8 @@ class ExperienceWorldModel:
         diagnostics.update(used=best != 0, reason='covered predicted gain' if best else 'no covered gain',
                            candidate_count=len(actions), predicted_gain=max(gain, 0),
                            mean_disagreement=float(prediction['disagreement'].mean()),
-                           max_action_change=float(np.max(np.abs(actions[best] - baseline))))
+                           max_action_change=float(np.max(np.abs(actions[best] - baseline))),
+                           residual_calibration=calibration)
         if recalled is not None and confidence[best] > 0.05 and int(recalled['slot'][best]) >= 0:
             diagnostics['selected_memory_recall'] = {
                 'slot': int(recalled['slot'][best]),
@@ -348,11 +510,12 @@ class ExperienceWorldModel:
                 'delta_no_change_baseline_rmse': float(np.sqrt(max(self.delta_baseline_error_ema, 0))),
                 'prequential_delta_no_change_baseline_rmse': float(np.sqrt(self.delta_baseline_squared_error / max(1, self.samples))),
                 'dynamics_gate_passed': self._dynamics_gate(),
+                'residual_calibration': self.residual_calibrator.summary(),
                 'value_samples': self.value_model.samples,
                 'value_td_error_rmse': float(np.sqrt(max(self.value_model.td_error_ema, 0.0))),
                 'learned_bytes': int(self.weights.nbytes + self.covariance.nbytes),
                 'covariance_trace_cap': 10000,
-                'scope': 'bootstrap RLS; heuristic coverage; immediate reward and state deltas; conditioning dynamics excluded; online TD value estimation; experimental'}
+                'scope': 'bootstrap RLS; heuristic ensemble coverage; adaptive empirical one-step joint residual scaling; immediate reward and state deltas; conditioning dynamics excluded; online TD value estimation; experimental'}
 
     def export_state(self):
         return deepcopy({'schema': 1, 'state_dim': self.state_dim, 'action_dim': self.action_dim,
@@ -369,6 +532,7 @@ class ExperienceWorldModel:
                           'delta_squared_error': self.delta_squared_error,
                           'delta_baseline_error_ema': self.delta_baseline_error_ema,
                           'delta_baseline_squared_error': self.delta_baseline_squared_error,
+                          'residual_calibrator': self.residual_calibrator.export_state(),
                           'value_model': self.value_model.export_state()})
 
     def import_state(self, state):
@@ -412,6 +576,9 @@ class ExperienceWorldModel:
             if not np.isscalar(value) or not np.isfinite(value) or value < 0:
                 raise ValueError(f'invalid experience {key}')
             setattr(candidate, key, float(value))
+        # Old checkpoints predate residual calibration and safely start cold.
+        if 'residual_calibrator' in state:
+            candidate.residual_calibrator.import_state(state['residual_calibrator'])
         if 'value_model' in state:
             candidate.value_model.import_state(state['value_model'])
         candidate.rng.bit_generator.state = deepcopy(state['rng'])

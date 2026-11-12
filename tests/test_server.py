@@ -1,10 +1,45 @@
 import json, socket, threading, urllib.request, urllib.error
+from types import SimpleNamespace
 import pytest
-from synapse.server import create_server
+from synapse.server import Workbench, create_server, standard_workbench_config
 
 class Runtime:
     def snapshot(self): return {'step':0}
     def step(self, steps=1, learn=False): return {'step':steps}
+
+
+def test_default_workbench_profile_enables_dsag_without_changing_api_defaults():
+    from synapse.config import SynapseConfig
+    from synapse.dsag.config import DSAGSpecV1
+
+    config = standard_workbench_config()
+    assert config.total_neurons == 8000
+    assert config.dsag.enabled is True
+    assert config.dsag.gain == pytest.approx(0.05)
+    assert config.dsag.seed == config.seed
+    assert SynapseConfig().dsag is None
+    assert DSAGSpecV1().enabled is False
+
+
+def test_web_config_reset_preserves_an_active_dsag_profile(tmp_path):
+    from synapse.config import SynapseConfig
+    from synapse.dsag.config import DSAGSpecV1
+
+    workbench = Workbench.__new__(Workbench)
+    workbench.root = tmp_path
+    workbench.runtime = SimpleNamespace(config=SynapseConfig(
+        nodes_per_source=16,
+        dsag=DSAGSpecV1(enabled=True, gain=0.05, max_gain=0.1, seed=7),
+    ))
+    workbench.receipts = {}
+    workbench.episode_recorder = object()
+    workbench.lock = threading.RLock()
+    workbench.aux_lock = threading.RLock()
+
+    result = workbench.post('/api/reset', {'config': {'nodes_per_source': 16}})
+
+    assert result['config']['dsag']['enabled'] is True
+    assert workbench.runtime.agent.dsag_channel.enabled is True
 
 def test_server_boundaries(tmp_path):
     server=create_server(port=0,runtime=Runtime(),output_root=tmp_path)

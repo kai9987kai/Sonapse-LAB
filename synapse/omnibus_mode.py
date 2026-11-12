@@ -161,18 +161,20 @@ class OmnibusRunner:
         No outcome is observed by a learner and no live state is changed.
         """
         with torch.random.fork_rng(devices=[]):
-            try:
-                candidate = deepcopy(agent)
-            except Exception:
-                from .agent import IntegratedAgent
-                candidate = IntegratedAgent(agent.config)
-                candidate.import_state(agent.export_state())
-            frozen = candidate.export_state()
             scores = {}
             for task in tasks:
                 returns = []
                 for episode in range(self.eval_episodes):
-                    candidate.import_state(frozen)
+                    clone_for_evaluation = getattr(agent, 'clone_for_evaluation', None)
+                    if callable(clone_for_evaluation):
+                        candidate = clone_for_evaluation()
+                    else:
+                        try:
+                            candidate = deepcopy(agent)
+                        except Exception:
+                            from .agent import IntegratedAgent
+                            candidate = IntegratedAgent(agent.config)
+                            candidate.import_state(agent.export_state())
                     candidate.reset_episode()
                     eval_seed = self._evaluation_seed(task, episode)
                     candidate.homeostasis = HomeostaticEngine(seed=eval_seed)

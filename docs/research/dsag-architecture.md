@@ -1,12 +1,14 @@
 # DSAG rate-kernel v1
 
-Dual-Soma Axodendritic Graft (DSAG) is an opt-in **synthetic continuous-rate** residual module. It adds two synchronously updated soma state vectors, independently routed inputs that enter along a directional axon chain, bounded terminal release, versioned packet sidecars, optional phase gating, optional three-factor local updates, and reversible bounded branch edits.
+Dual-Soma Axodendritic Graft (DSAG) is a **synthetic continuous-rate** residual module. It adds two synchronously updated soma state vectors, independently routed inputs that enter along a directional axon chain, bounded terminal release, versioned packet sidecars, optional phase gating, optional three-factor local updates, and reversible bounded branch edits.
 
 This is not a membrane-voltage model, an action-potential simulator, or a biological claim. The axon initial segment has a distinct initiation and polarity role in real neurons; DSAG's along-axon receiving branches are an engineered computational motif. A biological compartmental simulator remains a separate research task. See [Jenkins and Bender](https://journals.physiology.org/doi/full/10.1152/physrev.00030.2024) and the [Brian 2 multicompartment reference](https://brian2.readthedocs.io/en/2.7.0/user/multicompartmental.html).
 
-## Defaults and opt-in
+## Defaults and runtime configuration
 
-`DSAGSpecV1()` is disabled with gain zero. The legacy path does not instantiate or register the DSAG channel. Use the CLI `--dsag` option or load `configs/dsag/rate_pilot.yaml` to opt in. The rate pilot is a configuration, not a claim of measured benefit. Gain begins at zero and follows its configured ramp. `observe_only` advances the shadow state while emitting exact zeros.
+`DSAGSpecV1()` and low-level `SynapseConfig()` remain disabled by default with gain zero. Fresh CLI `run`, `train`, and `serve` sessions enable the standard DSAG profile; pass `--no-dsag` to opt out or `--dsag-config` to select a profile. CLI `patch --checkpoint` also enables DSAG so it can consume checkpoints written by standard runs. The rate pilot is a configuration, not a claim of measured benefit. Gain begins at zero and follows its configured ramp. `observe_only` advances the shadow state while emitting exact zeros.
+
+When a DSAG-enabled runtime loads a pre-DSAG checkpoint, saved state remains intact and DSAG starts from its seeded initial state. A checkpoint that declares DSAG enabled but lacks the versioned DSAG namespace is still rejected as incomplete. Loading DSAG state into a runtime without a DSAG configuration remains an error.
 
 The canonical SHA-256 spec digest covers every dataclass field, including topology, numeric coefficients, feature flags, target ports, seed, and parent reference. The model topology digest additionally binds host width, effective output targets, live branch map, and topology version.
 
@@ -29,7 +31,8 @@ Three-factor updates require an explicit modulation vector delivered by a routed
 ```powershell
 python -m synapse dsag validate --config configs/dsag/default_off.yaml
 python -m synapse dsag smoke --seed 42 --steps 24
-python -m synapse --nodes 16 --dsag --dsag-gain 0.05 run --steps 24
+python -m synapse --nodes 16 run --steps 24
+python -m synapse --nodes 16 --no-dsag run --steps 24
 ```
 
 These commands validate wiring and synthetic fixtures only. They do not test task-level generalization or justify promotion.

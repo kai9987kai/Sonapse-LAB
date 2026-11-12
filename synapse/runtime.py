@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from .config import ROOT
 from .agent import IntegratedAgent
-from .stateio import save_state,load_state
+from .stateio import save_state_snapshot,load_state
 from .complex_world import ComplexWorld, ALL_TASKS as TASKS
 from .actions import ACTION_NAMES, govern_action, validate_action
 
@@ -285,9 +285,27 @@ class LabRuntime:
             raise ValueError('runtime world checkpoint has no compatible RNG state')
         return world
 
+    def checkpoint_payload(self):
+        """Return a detached complete native checkpoint at the current step boundary."""
+        return {
+            'schema':1,
+            'config':self.config.to_dict(),
+            # export_state builds the complete component inventory; clone its
+            # completed result once more so optional child exporters cannot
+            # leave live tensor/list references in this asynchronous snapshot.
+            'agent':deepcopy(self.agent.export_state()),
+            'world':self._world_state(),
+            'obs':self.obs.copy(),
+            'steps':self.total_steps,
+            'recent':deepcopy(self.recent),
+            'last':deepcopy(self.last),
+            'last_action':self.last_action.copy(),
+            'skill_library':deepcopy(self.skill_library.export_state()),
+            'monitors':self._export_monitors(),
+        }
     def save(self,name):
         path=self._path(name)
-        identity=save_state(path,{'schema':1,'config':self.config.to_dict(),'agent':self.agent.export_state(),'world':self._world_state(),'obs':self.obs,'steps':self.total_steps,'recent':self.recent,'last':self.last,'last_action':self.last_action,'skill_library':self.skill_library.export_state(),'monitors':self._export_monitors()})
+        identity=save_state_snapshot(path,self.checkpoint_payload())
         return {'name':name,'digest':identity,'steps':self.total_steps,'restore_semantics':'exact mid-episode'}
     def load(self,name):
         data=load_state(self._path(name))

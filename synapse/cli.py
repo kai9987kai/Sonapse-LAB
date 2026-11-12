@@ -13,8 +13,8 @@ def main(argv=None):
     parser.add_argument('--compute-threads',type=int,help='CPU thread budget, bounded by available logical CPUs')
     parser.add_argument('--neural-graft',action='store_true',help='enable the trainable bounded neural residual')
     parser.add_argument('--active-training',action='store_true',help='fit the residual from actual live exploratory outcomes')
-    parser.add_argument('--dsag',dest='dsag_enabled',action='store_true',help='opt in to the synthetic DSAG residual channel')
-    parser.add_argument('--dsag-gain',type=float,default=0.05,help='maximum DSAG gain when --dsag is supplied')
+    parser.add_argument('--dsag',dest='dsag_enabled',action=argparse.BooleanOptionalAction,default=None,help='enable the synthetic DSAG residual channel (enabled by default for run, train, and serve)')
+    parser.add_argument('--dsag-gain',type=float,default=0.05,help='maximum DSAG gain for the standard run profile')
     parser.add_argument('--dsag-config',type=Path,help='load an explicit DSAGSpecV1 YAML/JSON configuration')
     parser.add_argument('--programmed-connectome',action='store_true',help='bind the verified 128-neuron MaleCNS sparse prior')
     parser.add_argument('--connectome-mode',choices=['proxy','prefer_authentic','strict_authentic'],help='connectome source mode')
@@ -117,7 +117,10 @@ def main(argv=None):
         if args.dsag_config is not None:
             from .dsag.config import DSAGSpecV1
             dsag_spec = DSAGSpecV1.from_file(args.dsag_config)
-        elif args.dsag_enabled:
+        elif (args.dsag_enabled is True
+              or (args.dsag_enabled is None and (
+                  args.command in {'run', 'train', 'serve'}
+                  or (args.command == 'patch' and args.checkpoint is not None)))):
             from .dsag.config import DSAGSpecV1
             if not 0.0 <= args.dsag_gain <= 0.5:
                 raise ValueError('--dsag-gain must be in [0,0.5]')

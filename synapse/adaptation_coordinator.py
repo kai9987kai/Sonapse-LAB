@@ -17,6 +17,9 @@ from .multitimescale_learning import MultiTimescaleScheduler, AdaptationEvent
 class AdaptationCoordinator:
     """Central coordinator for multi-timescale learning across agent subsystems."""
 
+    _NOISE_TEMP_BYTES = 8 * 1024 * 1024
+    _NOISE_MAX_BLOCK_ROWS = 256
+
     def __init__(
         self,
         scheduler: Optional[MultiTimescaleScheduler] = None,
@@ -32,7 +35,21 @@ class AdaptationCoordinator:
     def step(self, reward: float = 0.0, novelty: float = 0.0, **kwargs) -> Dict[str, Any]:
         self.scheduler.step_counter += 1
         self.fast_weights *= 0.95
-        self.fast_weights += float(novelty) * 0.01 * self.rng.standard_normal(self.fast_weights.shape).astype(np.float32)
+        # Preserve the full fast-weight matrix and RNG stream while limiting
+        # each float64 normal draw/cast to a small row block. A single 9,000²
+        # draw followed by astype(float32) needs another 309 MiB temporary.
+        n = self.num_neurons
+        block_rows = max(1, min(
+            self._NOISE_MAX_BLOCK_ROWS,
+            self._NOISE_TEMP_BYTES // max(1, n * np.dtype(np.float64).itemsize),
+            n,
+        ))
+        scale = float(novelty) * 0.01
+        for start in range(0, n, block_rows):
+            stop = min(n, start + block_rows)
+            noise = self.rng.standard_normal((stop - start, n)).astype(np.float32)
+            noise *= scale
+            np.add(self.fast_weights[start:stop], noise, out=self.fast_weights[start:stop])
         norm = float(np.linalg.norm(self.fast_weights))
 
         regime = "balanced"

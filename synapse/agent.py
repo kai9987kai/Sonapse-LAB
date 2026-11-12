@@ -1341,6 +1341,64 @@ class IntegratedAgent:
         memo[id(self)] = cloned
         return cloned
 
+    def clone_for_evaluation(self):
+        """Copy the mutable actor while sharing learning-only dense stores.
+
+        Matched evaluation calls ``act(..., learn=False)`` and never records
+        neurogenesis activity or commits multi-timescale updates. Those two
+        dense stores can therefore remain shared and read-only in an evaluation
+        clone, avoiding hundreds of MiB of redundant covariance/weight copies
+        at Max Mode scale. The graph and config are also immutable during an
+        evaluation; all actor modules and episode state are copied.
+        """
+        shared_names = {'config', 'graph', 'neurogenesis', 'multitimescale'}
+        candidate = object.__new__(type(self))
+        memo = {id(self): candidate}
+        for name in shared_names:
+            value = getattr(self, name, None)
+            if value is not None:
+                memo[id(value)] = value
+
+        # PyTorch intentionally rejects deepcopy on non-leaf tensors. Some
+        # optional modules retain diagnostic tensors with grad history, so map
+        # those to detached value copies before the regular object-graph copy.
+        seen = set()
+
+        def memoize_nonleaf_tensors(value):
+            identity = id(value)
+            if identity in seen or identity in memo:
+                return
+            seen.add(identity)
+            if isinstance(value, torch.Tensor):
+                if not value.is_leaf:
+                    memo[identity] = value.detach().clone()
+                return
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    memoize_nonleaf_tensors(key)
+                    memoize_nonleaf_tensors(item)
+                return
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    memoize_nonleaf_tensors(item)
+                return
+            if isinstance(value, nn.Module):
+                for field in ('_parameters', '_buffers', '_modules'):
+                    memoize_nonleaf_tensors(getattr(value, field, {}))
+            attributes = getattr(value, '__dict__', None)
+            if isinstance(attributes, dict):
+                memoize_nonleaf_tensors(attributes)
+
+        for name, value in self.__dict__.items():
+            if name not in shared_names:
+                memoize_nonleaf_tensors(value)
+        for name, value in self.__dict__.items():
+            if name in shared_names:
+                setattr(candidate, name, value)
+            else:
+                setattr(candidate, name, deepcopy(value, memo))
+        return candidate
+
     def export_state(self):
         state=deepcopy({'schema':1,'config':self.config.to_dict(),'topology':{'pre':self.brain.graft_pre.numpy(),'post':self.brain.graft_post.numpy(),'initial_weights':self.plasticity.original_weights.numpy()},'modules':{k:v.state_dict() for k,v in self.modules.items()},'optimizer':self.opt.state_dict(),'curiosity_optimizer':self.curiosity.opt.state_dict(),'rng':self.rng.bit_generator.state,'transient':{k:getattr(self,k) for k in ('hidden','intent','evoked','ticks','last_compass','last_features','last_telemetry','last_obs','resources','expert_usage','consolidated','episodic','tool_memory','preparation_updates','bridge_updates','consolidations','pending_transition','_camera_consumed_any','last_memory_recall','last_memory_reconciliation')},'compass_angle':self.compass.bump_angle,'neuromod':self.neuromod.state.to_dict() if hasattr(self, 'neuromod') else None,'neuromod_context':{'v_predicted':self.neuromod.v_predicted,'history':self.neuromod.history},'astrocytes':self.astrocytes.export_state() if hasattr(self, 'astrocytes') else None,'predictive':self.predictive.export_state() if hasattr(self, 'predictive') else None,'routing':getattr(self,'routing',[]),'experience_model':self.experience_model.export_state(),'surprise_memory':self.surprise_memory.export_state(),'memory_reconsolidation':self.memory_reconsolidation.export_state(),'homeostasis':self.homeostasis.export_state() if hasattr(self,'homeostasis') else None,'neurogenesis':self.neurogenesis.export_state() if hasattr(self,'neurogenesis') else None,'dormant_lifecycle':self.dormant_lifecycle.export_state() if hasattr(self,'dormant_lifecycle') else None,'continual_backprop':self.continual_backprop.export_state() if (hasattr(self,'continual_backprop') and self.continual_backprop is not None) else None,'fast_weight_memory':self.fast_weight_memory.export_state() if (hasattr(self,'fast_weight_memory') and self.fast_weight_memory is not None) else None,'latent_reasoner':self.latent_reasoner.state_dict() if (hasattr(self,'latent_reasoner') and self.latent_reasoner is not None) else None,'self_model':self.self_model.export_state() if (hasattr(self,'self_model') and self.self_model is not None) else None})
         state['neural_graft']=self.neural_graft.export_state() if self.neural_graft is not None else None
@@ -1426,6 +1484,11 @@ class IntegratedAgent:
             if getattr(self.brain,name).shape!=brain_state[name].shape:
                 self.brain.register_buffer(name,torch.zeros_like(brain_state[name]))
         self._restore_graft_topology(topology['pre'],topology['post'],topology['initial_weights'])
+        saved_config = state.get('config')
+        saved_dsag = saved_config.get('dsag') if isinstance(saved_config, dict) else None
+        saved_dsag_enabled = (isinstance(saved_dsag, dict)
+                              and saved_dsag.get('enabled') is True)
+        additive_legacy_dsag = self.dsag_channel is not None and not saved_dsag_enabled
         for k,v in state['modules'].items():
             if k == 'brain':
                 for buf_name in ('r', 'activity_ema', 'elig', 'heb', 'graft_pre', 'graft_post', 'base_pre', 'base_post', 'base_w', 'graft_site', 'bias', 'sensory_idx', 'motor_idx', 'probe_idx'):
@@ -1436,7 +1499,17 @@ class IntegratedAgent:
                     rebuild_optimizer=True
                 self.brain.n = len(v['r'])
             if k in self.modules:
-                self.modules[k].load_state_dict(v)
+                module_state = v
+                if k == 'graft_bus' and additive_legacy_dsag and isinstance(v, dict):
+                    # The old bus has no context-gate parameters for the new
+                    # channel. Carry only those fresh parameters forward; all
+                    # other missing or unexpected tensors still fail strictly.
+                    module_state = dict(v)
+                    current_state = self.modules[k].state_dict()
+                    for key, value in current_state.items():
+                        if key.startswith('context_gates.dsag.') and key not in module_state:
+                            module_state[key] = value.detach().clone()
+                self.modules[k].load_state_dict(module_state)
         live_parameters=self._optimization_parameters()
         optimizer_parameters=[p for group in self.opt.param_groups for p in group['params']]
         rebuild_optimizer=rebuild_optimizer or len(live_parameters)!=len(optimizer_parameters) or any(a is not b for a,b in zip(live_parameters,optimizer_parameters))
@@ -1529,11 +1602,16 @@ class IntegratedAgent:
         if getattr(self,'comm_fabric',None) is not None and state.get('comm_fabric') is not None:
             self.comm_fabric.import_state(state['comm_fabric'])
         if state.get('dsag_v1') is not None:
+            if not (isinstance(saved_dsag, dict) and saved_dsag.get('enabled') is True):
+                raise ValueError('checkpoint contains DSAG state but its saved config does not enable DSAG')
             if self.dsag_channel is None:
                 raise ValueError('checkpoint contains DSAG state but this agent has no DSAG configuration')
             self.dsag_channel.import_state(state['dsag_v1'])
         elif self.dsag_channel is not None:
-            raise ValueError('DSAG-enabled checkpoint is missing its DSAG namespace')
+            if saved_dsag_enabled:
+                raise ValueError('DSAG-enabled checkpoint is missing its DSAG namespace')
+            # Older checkpoints predate DSAG. Keep their learned/live state and
+            # leave this runtime's newly configured channel at its seeded start.
         if getattr(self,'neurowave_x2',None) is not None and state.get('neurowave_x2') is not None:
             self.neurowave_x2.import_state(state['neurowave_x2'])
         if getattr(self,'overflow_mini_brain',None) is not None and state.get('overflow_mini_brain') is not None:

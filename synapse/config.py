@@ -437,7 +437,7 @@ class SynapseConfig:
         }
 
     def matches_saved(self, saved):
-        """Only new optional settings may be omitted by legacy checkpoints."""
+        """Match saved settings, allowing additive DSAG on legacy checkpoints."""
         if not isinstance(saved, dict):
             return False
         normalized = {
@@ -472,6 +472,22 @@ class SynapseConfig:
         }
         if isinstance(normalized.get('connectome_sources'), list):
             normalized['connectome_sources'] = tuple(normalized['connectome_sources'])
+        # A newly enabled DSAG channel can be added to a legacy runtime restore
+        # without changing any saved tensors. Its state starts from the seeded
+        # initial state; the reverse direction stays strict because an off
+        # runtime cannot restore a checkpoint that contains DSAG state.
+        if self.dsag is not None and getattr(self.dsag, 'enabled', False):
+            saved_dsag = normalized.get('dsag')
+            if saved_dsag is None:
+                normalized['dsag'] = self.dsag
+            elif isinstance(saved_dsag, dict):
+                from .dsag.config import DSAGSpecV1
+                try:
+                    saved_dsag_spec = DSAGSpecV1.from_dict(saved_dsag)
+                except (TypeError, ValueError):
+                    return False
+                if not saved_dsag_spec.enabled:
+                    normalized['dsag'] = self.dsag
         try:
             restored = type(self)(**normalized)
         except (TypeError, ValueError):

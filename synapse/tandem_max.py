@@ -17,6 +17,7 @@ from copy import deepcopy
 import hashlib
 import json
 import os
+import shutil
 import time
 from typing import Any, Dict, List, Optional
 import numpy as np
@@ -31,6 +32,26 @@ def _bounded_mode_int(data, name, default, low, high):
     if type(value) is not int or not low <= value <= high:
         raise ValueError(f'{name} must be an integer in [{low},{high}]')
     return value
+
+
+def _max_checkpoint_reserve_bytes(neurons: int) -> int:
+    """Reserve room for dense learning state and checkpoint serialization overhead."""
+    dense_learning_state = 2 * int(neurons) * int(neurons) * np.dtype(np.float32).itemsize
+    return max(128 * 1024 * 1024, 3 * dense_learning_state)
+
+
+def _ensure_max_checkpoint_space(output_dir, neurons: int, *, free_bytes=None) -> Dict[str, int]:
+    """Fail early when the output volume cannot safely hold a Max checkpoint."""
+    available = int(shutil.disk_usage(output_dir).free if free_bytes is None else free_bytes)
+    required = _max_checkpoint_reserve_bytes(neurons)
+    if available < required:
+        raise RuntimeError(
+            'Max Mode checkpoint requires at least '
+            f'{required / 1024**3:.2f} GiB free on the output volume '
+            f'({output_dir}); only {available / 1024**3:.2f} GiB is available. '
+            'Choose an output folder on a roomier volume or free disk space, then retry.'
+        )
+    return {'available_free_bytes': available, 'required_free_bytes': required}
 
 
 def run_diffusion_and_dpo_assay(runtime, horizon: int = 5, seed: int = 42) -> Dict[str, Any]:
@@ -514,6 +535,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
                 or any(type(item) is not str or item not in ALL_TASKS for item in tasks)):
             raise ValueError(f'{name} must be a non-empty list of known tasks')
     omnibus_tasks, six_arm_tasks = list(omnibus_tasks), list(six_arm_tasks)
+    checkpoint_storage = _ensure_max_checkpoint_space(workbench.root, neurons)
 
     # Construct and audit before touching the live workbench. Invalid requests
     # cannot leave the server half-switched into Max Mode.
@@ -542,6 +564,8 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
     new_runtime = LabRuntime(max_cfg, output_root=workbench.root)
     with workbench.lock:
         workbench.runtime = new_runtime
+        if hasattr(workbench, 'attach_runtime_observers'):
+            workbench.attach_runtime_observers(new_runtime,reset_portable_history=True)
         runtime = workbench.runtime
     pretrain_receipt = pretrain_runtime(
         runtime,
@@ -581,6 +605,7 @@ def run_tandem_max_orchestration(workbench, data: Optional[Dict[str, Any]] = Non
             'parallel_workers': workers,
             'parallel_workers_requested': worker_request,
             'accelerator_fitting_device': pretrain_receipt.get('training_device', 'cpu'),
+            'checkpoint_storage_preflight': checkpoint_storage,
             'feature_audit': feature_audit,
         },
         'pretrain_receipt': pretrain_receipt,

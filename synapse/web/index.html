@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SYNAPSE · Research Workbench</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -63,6 +64,8 @@
       <button id="pause">Ⅱ Pause</button>
       <button id="step">Step +1</button>
       <button id="train">Train +32</button>
+      <button id="export-simulation" class="primary" title="Capture the complete native checkpoint at the next safe simulation step boundary, then package an offline snapshot and replay viewer. The standalone HTML is read-only; live continuation requires the native Python/PyTorch runtime.">⇩ Export Simulation</button>
+      <span id="export-status" class="tag" role="status" aria-live="polite">Ready to export</span>
       <label><input id="learn" type="checkbox"> Learn from executed steps</label>
       <label>Speed:
         <select id="simspeed" class="toolbar-select">

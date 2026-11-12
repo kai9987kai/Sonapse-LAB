@@ -14,6 +14,7 @@ from synapse.dsag.transaction import DSAGCandidateRejected, DSAGTrainingTransact
 from synapse.dsag.validation import validate_spec
 from synapse.graft_bus import NeuralGraftCommunicationBus, NeuralGraftProtocol
 from synapse.neurowave_x2.packets import NeuralPacket, PacketValidationError
+from synapse.runtime import LabRuntime
 
 
 def _spec(**overrides):
@@ -40,6 +41,27 @@ def test_default_off_config_keeps_legacy_config_export_and_hash_scope():
     assert config.matches_saved({key: value for key, value in config.to_dict().items() if key != "dsag"})
     assert DSAGSpecV1().enabled is False
     assert DSAGSpecV1().gain == 0.0
+
+
+def test_dsag_default_is_additive_when_loading_a_legacy_runtime_checkpoint(tmp_path):
+    legacy = LabRuntime(SynapseConfig(nodes_per_source=16), output_root=tmp_path)
+    legacy.step(1)
+    legacy.save('legacy')
+
+    enabled_config = replace(SynapseConfig(nodes_per_source=16), dsag=_spec())
+    restored = LabRuntime(enabled_config, output_root=tmp_path)
+    initial_dsag_state = restored.agent.dsag_channel.export_state()
+    snapshot = restored.load('legacy')
+
+    assert snapshot['steps'] == 1
+    assert restored.agent.dsag_channel.enabled is True
+    assert canonical_state_digest(restored.agent.dsag_channel.export_state()) == canonical_state_digest(initial_dsag_state)
+    assert SynapseConfig(nodes_per_source=16).matches_saved(enabled_config.to_dict()) is False
+    assert enabled_config.matches_saved(SynapseConfig(nodes_per_source=16).to_dict()) is True
+
+    advanced = restored.step(1)
+    assert advanced['steps'] == 2
+    assert restored.agent.dsag_channel.get_telemetry_dict()['enabled'] is True
 
 
 def test_spec_digest_covers_numeric_topology_and_feature_flags():

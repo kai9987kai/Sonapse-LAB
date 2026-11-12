@@ -1443,10 +1443,37 @@ function world() {
 // -------------------------------------------------------------------------
 // Routing & Learning Signals Timeseries
 // -------------------------------------------------------------------------
+function recordSignalTelemetry(telem) {
+  if (!telem || typeof telem !== 'object') return;
+  const numeric = value => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value);
+    return null;
+  };
+  const graphMean = numeric(telem.graph_mean);
+  const graphDelta = numeric(telem.graph_delta);
+  const curiosity = numeric(telem.curiosity);
+  if (graphMean === null && graphDelta === null && curiosity === null) return;
+
+  const previous = signalHistory.at(-1);
+  const tick = numeric(telem.ticks) ?? ((previous?.ticks ?? -1) + 1);
+  const sample = {
+    ticks: tick,
+    graph_mean: graphMean ?? 0,
+    graph_delta: graphDelta ?? 0,
+    curiosity: curiosity ?? 0,
+  };
+  if (previous?.ticks === tick) signalHistory[signalHistory.length - 1] = sample;
+  else signalHistory.push(sample);
+  signalHistory = signalHistory.slice(-100);
+}
+
 function signals() {
   try {
     const [x, w, h] = canvas('signals');
     if (!x) return;
+
+    const samples = signalHistory.length ? signalHistory : (state?.telemetry ? [state.telemetry] : []);
 
     // Grid baseline
     x.strokeStyle = '#142535';
@@ -1455,11 +1482,18 @@ function signals() {
       x.beginPath(); x.moveTo(0, h * i / 4); x.lineTo(w, h * i / 4); x.stroke();
     }
 
+    if (!samples.length) {
+      x.fillStyle = '#94a3b8';
+      x.font = '11px Consolas, monospace';
+      x.fillText('Waiting for live routing and learning samples…', 14, Math.max(28, h / 2));
+      return;
+    }
+
     const keys = ['graph_mean', 'graph_delta', 'curiosity'];
     const colors = ['#5de0c1', '#edbc75', '#80aaff'];
 
     keys.forEach((key, j) => {
-      const values = signalHistory.map(t => Number(t[key] ?? 0));
+      const values = samples.map(t => Number(t[key] ?? 0));
       const max = Math.max(0.01, ...values.map(Math.abs));
 
       // Gradient area fill
@@ -1473,12 +1507,20 @@ function signals() {
 
       x.beginPath();
       values.forEach((v, i) => {
-        const px = (i / Math.max(1, values.length - 1)) * w;
+        const px = values.length === 1 ? w - 14 : (i / (values.length - 1)) * w;
         const py = h - 25 - (v / max) * (h - 45);
         if (i === 0) x.moveTo(px, py);
         else x.lineTo(px, py);
       });
       x.stroke();
+
+      // A one-sample path has no visible line segment. Mark its current value
+      // so the panel is visibly populated on startup and after a session reset.
+      if (values.length === 1) {
+        const py = h - 25 - (values[0] / max) * (h - 45);
+        x.fillStyle = colors[j];
+        x.beginPath(); x.arc(w - 14, py, 3.5, 0, Math.PI * 2); x.fill();
+      }
 
       x.fillStyle = colors[j];
       x.font = '9px Consolas, monospace';
@@ -3295,7 +3337,7 @@ function dsagView() {
       x.font = '11px Consolas, monospace';
       x.fillText('No DSAG model instance is active. No synthetic activity is being drawn.', 16, 38);
       x.fillStyle = '#64748b';
-      x.fillText('Opt in with --dsag or --dsag-config configs/dsag/rate_pilot.yaml', 16, 60);
+      x.fillText('Standard run/train/serve enables DSAG; use --no-dsag to opt out.', 16, 60);
       if (hud) hud.textContent = `Evidence: not instantiated · alpha: 0 · host current path unchanged`;
       return;
     }
@@ -4482,6 +4524,10 @@ function worldLegend(world) {
 function render(s) {
   if (!s) return;
   state = s;
+  recordSignalTelemetry(s.telemetry);
+  // Draw this diagnostic early so another panel's rendering error cannot
+  // leave the routing/learning canvas blank for the whole refresh cycle.
+  signals();
   updateWorldTrail(s);
   renderTraining({ compute: s.compute, graft: s.training?.graft, programmed_prior: s.training?.programmed_prior, active_training: s.config?.active_training });
   show('snapshot', s);
@@ -5298,12 +5344,8 @@ function render(s) {
     });
   }
 
-  if (s.telemetry && signalHistory.at(-1)?.ticks !== s.telemetry.ticks) signalHistory.push(s.telemetry);
-  signalHistory = signalHistory.slice(-100);
-
   graph();
   world();
-  signals();
   gauges();
   predictiveView();
   dendriticView();
@@ -5419,6 +5461,45 @@ $('run').onclick = () => {
   running = true;
   $('runstatus').textContent = Number($('simspeed')?.value) === 0 ? 'Running · MAX Uncapped' : 'Running';
   updateSimSpeed();
+};
+$('export-simulation').onclick = async () => {
+  const button = $('export-simulation'), status = $('export-status');
+  button.disabled = true;
+  status.textContent = 'Preparing snapshot…';
+  status.title = 'The live simulation continues after the checkpoint is captured.';
+  try {
+    let job = await api('export', {});
+    const stageLabels = {
+      queued: 'Preparing snapshot…',
+      running: `${job.stage || 'Preparing snapshot'} · ${job.progress || 0}%`,
+      completed: 'Export complete · starting download…'
+    };
+    while (!['completed', 'failed'].includes(job.status)) {
+      status.textContent = stageLabels[job.status] || `${job.stage || 'Preparing snapshot'}…`;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      job = await api(`export/status/${encodeURIComponent(job.id)}`);
+      status.textContent = job.status === 'running'
+        ? `${job.stage || 'Preparing snapshot'} · ${job.progress || 0}%`
+        : (stageLabels[job.status] || `${job.stage || 'Preparing snapshot'}…`);
+    }
+    if (job.status !== 'completed' || !job.result?.download_url) {
+      throw Error(job.error || 'Portable export did not produce a downloadable HTML file.');
+    }
+    const link = document.createElement('a');
+    link.href = job.result.download_url;
+    link.download = job.result.filename;
+    link.hidden = true;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    status.textContent = `Export complete · ${job.result.filename}`;
+    status.title = `Captured at step ${job.result.simulation_step}; HTML SHA-256 ${job.result.html_sha256}`;
+  } catch (e) {
+    status.textContent = `Export failed · ${e.message || String(e)}`;
+    status.title = status.textContent;
+  } finally {
+    button.disabled = false;
+  }
 };
 $('pause').onclick = () => {
   running = false;

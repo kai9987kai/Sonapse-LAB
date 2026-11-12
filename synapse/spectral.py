@@ -27,6 +27,30 @@ def build_connectome_adjacency(graph, include_grafts: bool = True) -> np.ndarray
     return A_sym
 
 
+def _build_sparse_connectome_adjacency(graph, include_grafts: bool = True) -> sp.csr_matrix:
+    """Build the same symmetric adjacency without allocating an N-by-N array."""
+    n = int(graph.n)
+
+    def as_array(values, dtype):
+        if isinstance(values, torch.Tensor):
+            values = values.detach().cpu().numpy()
+        return np.asarray(values, dtype=dtype).reshape(-1)
+
+    pre = as_array(graph.base_pre, np.int64)
+    post = as_array(graph.base_post, np.int64)
+    weights = np.abs(as_array(graph.base_w, np.float64))
+    if include_grafts and hasattr(graph, 'graft_pre'):
+        graft_pre = as_array(graph.graft_pre, np.int64)
+        graft_post = as_array(graph.graft_post, np.int64)
+        if graft_pre.size:
+            pre = np.concatenate((pre, graft_pre))
+            post = np.concatenate((post, graft_post))
+            weights = np.concatenate((weights, np.ones(graft_pre.size, dtype=np.float64)))
+    adjacency = sp.coo_matrix((weights, (pre, post)), shape=(n, n), dtype=np.float64).tocsr()
+    adjacency.sum_duplicates()
+    return ((adjacency + adjacency.T) * 0.5).tocsr()
+
+
 def compute_connectome_harmonics(graph, num_modes: int = 16) -> Dict[str, Any]:
     """Compute normalized graph Laplacian and extract lowest spatial harmonic eigenmodes.
     
@@ -35,20 +59,37 @@ def compute_connectome_harmonics(graph, num_modes: int = 16) -> Dict[str, Any]:
     """
     N = graph.n
     k = min(num_modes, N - 1)
-    A = build_connectome_adjacency(graph, include_grafts=True)
+    if N > 2048:
+        A = _build_sparse_connectome_adjacency(graph, include_grafts=True)
+        degrees = np.asarray(A.sum(axis=1)).reshape(-1)
+        d_inv_sqrt = np.zeros_like(degrees)
+        non_zero = degrees > 1e-8
+        d_inv_sqrt[non_zero] = 1.0 / np.sqrt(degrees[non_zero])
+        D = sp.diags(d_inv_sqrt, format='csr')
+        L_sym = (sp.eye(N, format='csr', dtype=np.float64) - D @ A @ D).tocsr()
+        L_sym = ((L_sym + L_sym.T) * 0.5).tocsr()
+        # eigsh returns only the requested low-frequency modes, with a seeded
+        # deterministic start vector. Dense eigh needlessly materializes full
+        # N-by-N matrices and computes every mode at Max Mode scale.
+        v0 = np.sin(np.arange(N, dtype=np.float64) + 0.5)
+        v0 /= max(float(np.linalg.norm(v0)), 1e-12)
+        eigenvalues, eigenvectors = spla.eigsh(
+            L_sym, k=k, which='SM', v0=v0, tol=1e-7, maxiter=max(1000, N * 8)
+        )
+    else:
+        A = build_connectome_adjacency(graph, include_grafts=True)
+        degrees = np.sum(A, axis=1)
+        # Avoid division by zero for isolated nodes
+        d_inv_sqrt = np.zeros_like(degrees)
+        non_zero = degrees > 1e-8
+        d_inv_sqrt[non_zero] = 1.0 / np.sqrt(degrees[non_zero])
 
-    degrees = np.sum(A, axis=1)
-    # Avoid division by zero for isolated nodes
-    d_inv_sqrt = np.zeros_like(degrees)
-    non_zero = degrees > 1e-8
-    d_inv_sqrt[non_zero] = 1.0 / np.sqrt(degrees[non_zero])
+        D_mat = np.diag(d_inv_sqrt)
+        # Normalized Laplacian
+        L_sym = np.eye(N) - D_mat @ A @ D_mat
 
-    D_mat = np.diag(d_inv_sqrt)
-    # Normalized Laplacian
-    L_sym = np.eye(N) - D_mat @ A @ D_mat
-
-    # Symmetric eigendecomposition
-    eigenvalues, eigenvectors = np.linalg.eigh(L_sym)
+        # Symmetric eigendecomposition
+        eigenvalues, eigenvectors = np.linalg.eigh(L_sym)
 
     # Sort in ascending order (lowest frequency / most global first)
     sort_idx = np.argsort(eigenvalues)

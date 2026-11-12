@@ -1,0 +1,50 @@
+{
+  "calibrator": {
+    "active": true,
+    "calibrated_observations": 1576,
+    "calibration_misses": 157,
+    "miscoverage_level": 0.11500000000000078,
+    "observations": 1600,
+    "recent_calibrated_observations": 256,
+    "recent_miscoverage": 0.09765625,
+    "residual_threshold": 2.962858408803829,
+    "scope": "adaptive empirical one-step joint residual scaling; no conditional-coverage or safety guarantee",
+    "target_miscoverage": 0.1,
+    "uncertainty_multiplier": 2.962858408803829,
+    "window_capacity": 256
+  },
+  "fixed_threshold": 1.6448536269514722,
+  "phase_length": 800,
+  "phases": [
+    {
+      "adaptive_miscoverage": 0.10051546391752578,
+      "adaptive_misses": 78,
+      "adaptive_threshold_last_100_mean": 1.6620837138724602,
+      "evaluated_predictions": 776,
+      "fixed_miscoverage": 0.08891752577319588,
+      "fixed_misses": 69,
+      "fixed_threshold": 1.6448536269514722,
+      "phase": "stationary"
+    },
+    {
+      "adaptive_miscoverage": 0.09875,
+      "adaptive_misses": 79,
+      "adaptive_threshold_last_100_mean": 3.3386116555591667,
+      "evaluated_predictions": 800,
+      "fixed_miscoverage": 0.42,
+      "fixed_misses": 336,
+      "fixed_threshold": 1.6448536269514722,
+      "phase": "scale_shift"
+    }
+  ],
+  "residual_stream": "absolute Gaussian scores; scale 1.0 then 2.0; shared by both intervals",
+  "runtime": {
+    "numpy": "2.4.3",
+    "python": "3.12.10"
+  },
+  "schema": 1,
+  "scope": "synthetic scalar scale-shift mechanism check only; no environment, policy, task-return, conditional-coverage, or safety claim",
+  "script_sha256": "7c343c384a3f8006993d5e29ad959f72ac0da66610ca6817039eb6b6374a6ce3",
+  "seed": 20261111,
+  "target_miscoverage": 0.1
+}
