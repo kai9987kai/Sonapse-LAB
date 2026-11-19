@@ -5,10 +5,12 @@ import pytest
 def test_measured_planning_study_pairs_worlds_freezes_queries_and_checks_tampering(tmp_path):
     from synapse.planning_study import run_planning_study, verify_planning_study
     config = {'seeds': [13], 'tasks': ['forage'], 'support_steps': 8, 'query_steps': 8,
-              'nodes_per_source': 16, 'horizons': [1, 3]}
+              'nodes_per_source': 16, 'horizons': [1, 3], 'task_horizon': 3}
     receipt = run_planning_study(tmp_path/'study', config)
     assert receipt['status'] == 'complete'
-    assert {r['arm'] for r in receipt['records']} == {'actor', 'horizon_1', 'horizon_3'}
+    assert {r['arm'] for r in receipt['records']} == {
+        'actor', 'horizon_1', 'horizon_3', 'task_value_h3'
+    }
     assert len({r['query_seed'] for r in receipt['records']}) == 1
     assert len({r['support_digest'] for r in receipt['records']}) == 1
     assert all(r['learned_before'] == r['learned_after'] for r in receipt['records'])
