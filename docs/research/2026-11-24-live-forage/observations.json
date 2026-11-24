@@ -9973,6 +9973,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.8423,
+            "stamina": 0.9967,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 0.1577,
+            "thirst": 0.1,
+            "vitality": 0.9597
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
@@ -23669,6 +23684,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.0,
+            "stamina": 1.0,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 1.0,
+            "thirst": 0.1,
+            "vitality": 0.75
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
@@ -37365,6 +37395,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.0,
+            "stamina": 1.0,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 1.0,
+            "thirst": 0.1,
+            "vitality": 0.75
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
@@ -51061,6 +51106,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.0,
+            "stamina": 1.0,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 1.0,
+            "thirst": 0.1,
+            "vitality": 0.75
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
@@ -64757,6 +64817,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.0,
+            "stamina": 1.0,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 1.0,
+            "thirst": 0.1,
+            "vitality": 0.75
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
@@ -78454,6 +78529,21 @@
               "novelty_triggers": 0
             }
           ]
+        },
+        "homeostasis": {
+          "vitals": {
+            "energy": 0.0,
+            "stamina": 1.0,
+            "threat": 0.0,
+            "exposure": 0.1,
+            "health": 1.0,
+            "hunger": 1.0,
+            "thirst": 0.1,
+            "vitality": 0.75
+          },
+          "food_consumed": 0,
+          "hazard_hits": 0,
+          "max_allowed_thrust": 1.0
         }
       },
       "graft_training": {
