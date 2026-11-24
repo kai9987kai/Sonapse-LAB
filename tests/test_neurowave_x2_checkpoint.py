@@ -64,3 +64,22 @@ def test_agent_checkpoint_legacy_migration_without_neurowave():
     ag.import_state(state)
     # Successfully imported without raising
     assert True
+
+
+def test_received_spectral_packet_requests_basis_during_phase_step(monkeypatch):
+    from unittest.mock import Mock
+    from synapse.neurowave_x2.packets import NeuralPacket
+
+    cfg = NeuroWaveX2Config(enabled=True, residual_gain=0.05, protocol="phase")
+    fabric = NeuroWaveX2Fabric(config=cfg, num_regions=4, neurons_per_region=8, total_neurons=32, seed=42)
+    basis = Mock(wraps=fabric.hybrid_basis.get_effective_basis)
+    monkeypatch.setattr(fabric.hybrid_basis, "get_effective_basis", basis)
+    packet = NeuralPacket(sender_region=0, receiver_region=1, emission_step=0, sequence_id=0,
+                          topology_version=0, protocol_id="spectral", payload=(0.5,), precision_bits=32)
+    fabric.transport.queue.append((2, packet))
+    activity = torch.linspace(-1, 1, 32)
+    fabric.compute_current(activity)
+    basis.assert_not_called()
+    fabric.compute_current(activity)
+    basis.assert_called_once_with()
+    assert packet in fabric.transport.delivered_packets

@@ -71,3 +71,21 @@ def test_baseline_basis_types():
         assert eff.shape == (4, 8)
         diag = basis.compute_basis_diagnostics()
         assert diag["orthogonality_error"] < 1e-4
+
+@pytest.mark.parametrize("rows,cols", [(3, 19), (17, 5), (16, 16), (0, 7), (1, 257)])
+def test_rectangular_hadamard_matches_dense_reference(rows, cols):
+    from scipy.linalg import hadamard
+    n = 2 ** math.ceil(math.log2(max(rows, cols, 2)))
+    reference = hadamard(n).astype(np.float32) / math.sqrt(n)
+    np.testing.assert_array_equal(construct_hadamard_basis(rows, cols), reference[:rows, :cols])
+
+
+@pytest.mark.parametrize("kind", ["dct", "hadamard", "random_orthogonal"])
+def test_fixed_basis_is_independent_across_reads_and_dtype_changes(kind):
+    module = HybridBasis(3, 0, 11, basis_type=kind)
+    before = module.get_effective_basis()
+    expected = before.clone()
+    before.zero_()
+    torch.testing.assert_close(module.double().get_effective_basis(), expected.double(), rtol=0, atol=0)
+    module.basis_type = "identity"
+    torch.testing.assert_close(module.get_effective_basis(), torch.eye(3, 11, dtype=torch.float64))

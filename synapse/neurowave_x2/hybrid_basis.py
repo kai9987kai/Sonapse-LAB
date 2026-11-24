@@ -10,7 +10,6 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
-import scipy.linalg
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,10 +27,26 @@ def construct_dct_basis(num_modes: int, dimension: int) -> np.ndarray:
 
 def construct_hadamard_basis(num_modes: int, dimension: int) -> np.ndarray:
     """Constructs normalized Hadamard basis matrix (truncated/padded to num_modes, dimension)."""
-    # Next power of 2
     n = 2 ** math.ceil(math.log2(max(num_modes, dimension, 2)))
-    H = scipy.linalg.hadamard(n).astype(np.float32) / math.sqrt(n)
-    return H[:num_modes, :dimension]
+    rows, cols = len(range(n)[:num_modes]), len(range(n)[:dimension])
+    basis = np.empty((rows, cols), dtype=np.float32)
+    if not basis.size:
+        return basis
+    basis[0, 0] = 1.0
+    # Expand the Sylvester quadrants only where they intersect the requested rectangle.
+    side = 1
+    while side < max(rows, cols):
+        height, width = min(rows, side), min(cols, side)
+        extra_rows = min(height, max(0, rows - side))
+        extra_cols = min(width, max(0, cols - side))
+        if extra_cols:
+            basis[:height, side:side + extra_cols] = basis[:height, :extra_cols]
+        if extra_rows:
+            basis[side:side + extra_rows, :width] = basis[:extra_rows, :width]
+            np.negative(basis[:extra_rows, :extra_cols], out=basis[side:side + extra_rows, side:side + extra_cols])
+        side *= 2
+    basis /= math.sqrt(n)
+    return basis
 
 
 def construct_random_orthogonal_basis(num_modes: int, dimension: int, seed: int = 42) -> np.ndarray:
@@ -120,17 +135,16 @@ class HybridBasis(nn.Module):
         if self.basis_type == "identity":
             return torch.eye(min(self.total_modes, D), D, device=device, dtype=dtype)
 
-        if self.basis_type == "dct":
-            dct = construct_dct_basis(self.total_modes, D)
-            return torch.from_numpy(dct).to(device=device, dtype=dtype)
-
-        if self.basis_type == "hadamard":
-            had = construct_hadamard_basis(self.total_modes, D)
-            return torch.from_numpy(had).to(device=device, dtype=dtype)
-
-        if self.basis_type == "random_orthogonal":
-            rand_o = construct_random_orthogonal_basis(self.total_modes, D)
-            return torch.from_numpy(rand_o).to(device=device, dtype=dtype)
+        if self.basis_type in ("dct", "hadamard", "random_orthogonal"):
+            key = (self.basis_type, self.total_modes, D)
+            cached = getattr(self, "_fixed_basis", None)
+            if cached is None or cached[0] != key:
+                construct = {"dct": construct_dct_basis, "hadamard": construct_hadamard_basis,
+                             "random_orthogonal": construct_random_orthogonal_basis}[self.basis_type]
+                cached = (key, construct(self.total_modes, D))
+                self._fixed_basis = cached
+            # Callers own the returned tensor even when device and dtype match.
+            return torch.tensor(cached[1], device=device, dtype=dtype)
 
         if self.basis_type == "graph" or self.learned_weight is None:
             # Normalize graph rows if nonzero

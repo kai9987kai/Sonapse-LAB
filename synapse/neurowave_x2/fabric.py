@@ -284,11 +284,13 @@ class NeuroWaveX2Fabric(nn.Module):
 
         # 4. Decode packets into destination neural targets
         residual_full = torch.zeros(self.total_neurons, dtype=r.dtype, device=r.device)
-        basis_t = self.hybrid_basis.get_effective_basis()
         pkts_by_dst: Dict[int, List[NeuralPacket]] = {}
         for p in filtered_pkts:
             pkts_by_dst.setdefault(p.receiver_region, []).append(p)
 
+        # Delayed packets may use a different protocol from the one selected this step.
+        basis_t = (self.hybrid_basis.get_effective_basis()
+                   if any("spectral" in pkt.protocol_id for pkt in filtered_pkts) else None)
         for dst in range(self.num_regions):
             dst_pkts = pkts_by_dst.get(dst)
             if not dst_pkts:
